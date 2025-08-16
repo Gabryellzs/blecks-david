@@ -1,0 +1,13 @@
+﻿node_modules
+.next
+.vercel
+.env
+.env.*
+dist
+out
+coverage
+*.md
+node_modules/
+.env.local
+dev.log
+docs/*-setup.md

@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation"
+"use client"
 
-export default function Page() {
-  redirect("/dashboard/mindmap")
+import Dashboard from "@/components/dashboard"
+
+export default function MindmapPage() {
+  return <Dashboard initialActiveView="mindmap" />
 }

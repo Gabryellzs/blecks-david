@@ -78,7 +78,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     },
     {
       id: "productivity",
-      title: "Organização / Produtividade",
+      title: "Produtividade",
       icon: CalendarClock,
       href: "/dashboard/productivity",
     },
@@ -175,7 +175,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
           </div>
 
           {/* Menu Items */}
-          <div className="px-3">
+          <div className="px-3 mt-8">
             {isExpanded && (
               <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Menu</div>
             )}
@@ -183,22 +183,22 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
               {menuItems.map((item) => (
                 <div key={item.id} className="relative group">
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleNavigation(item.href)}
-                    className={`
-                      w-full justify-start h-10 px-3
-                      ${
-                        pathname === item.href
-                          ? "bg-accent text-accent-foreground"
-                          : "hover:bg-accent hover:text-accent-foreground text-foreground"
-                      }
-                      ${!isExpanded ? "justify-center px-0" : ""}
-                    `}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {isExpanded && <span className="ml-3">{item.title}</span>}
-                  </Button>
+  variant="ghost"
+  onClick={() => handleNavigation(item.href)}
+  className={`
+    w-full justify-start h-11 px-3 text-sm
+    ${
+      pathname === item.href
+        ? "bg-accent text-accent-foreground"
+        : "hover:bg-accent hover:text-accent-foreground text-foreground"
+    }
+    ${!isExpanded ? "justify-center px-0" : ""}
+  `}
+>
+  <item.icon className="!h-5 !w-5" />
+  {isExpanded && <span className="ml-3">{item.title}</span>}
+</Button>
+
 
                   {/* Tooltip quando colapsado */}
                   {!isExpanded && (
@@ -228,8 +228,8 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
           size="sm"
           onClick={toggleSidebar}
           className={`
-            fixed top-20 z-50 transition-all duration-300
-            h-6 w-6 rounded-full p-0
+            fixed top-24 z-50 transition-all duration-300
+            h-8 w-8 rounded-full p-0
             ${isExpanded ? "left-60" : "left-12"}
             ${
               theme === "dark"

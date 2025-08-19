@@ -1,5 +1,8 @@
-import Dashboard from "@/components/dashboard" // Importar o componente Dashboard
+"use client"
+
+import Dashboard from "@/components/dashboard"
 
 export default function ProfilePage() {
-  return <Dashboard initialActiveView="profile" /> // Renderizar Dashboard com a view de perfil
+  // O Dashboard já inclui Sidebar + Header + conteúdo da view de perfil
+  return <Dashboard initialActiveView="profile" />
 }

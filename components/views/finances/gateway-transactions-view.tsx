@@ -886,20 +886,6 @@ export function GatewayTransactionsView({ userName }: GatewayTransactionsViewPro
               <div className="py-4">
                 <GatewayConfig />
               </div>
-              <div className="border-t pt-4 mt-4">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div>
-                    <h4 className="font-medium">Sincronização com Financeiro</h4>
-                    <p className="text-sm text-muted-foreground">
-                      A sincronização acontece automaticamente a cada 5 minutos.
-                    </p>
-                  </div>
-                  <Button variant="outline" onClick={handleImportToFinance} disabled={isImporting}>
-                    <FileImport className={cn("h-4 w-4 mr-2", isImporting && "animate-spin")} />
-                    {isImporting ? "Sincronizando..." : "Sincronizar Manualmente"}
-                  </Button>
-                </div>
-              </div>
             </DialogContent>
           </Dialog>
 

@@ -7,7 +7,6 @@ import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import DashboardView from "@/components/dashboard-view"
 import { NotificationProvider } from "@/components/notification-provider"
 import { UpdatesInitializer } from "@/components/updates-initializer"
@@ -17,8 +16,17 @@ import { useGatewayTransactions } from "@/lib/gateway-transactions-service"
 import { NotificationSalesPopover } from "@/components/notification-sales-popover"
 import { AchievementProgressHeader } from "@/components/achievement-progress-header"
 import { ThemeToggleButton } from "@/components/theme-toggle-button"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu"
+import { User, LogOut } from "lucide-react"
+
 import { getAchievementData, formatCurrency } from "@/lib/utils"
 
 export default function DashboardPage() {
@@ -34,7 +42,6 @@ export default function DashboardPage() {
   const { getStats } = useGatewayTransactions()
   const consolidatedSummary = getStats()
   const totalNetSales = consolidatedSummary.netAmount
-
   const achievementData = getAchievementData(totalNetSales)
 
   const checkAuth = async () => {
@@ -47,7 +54,7 @@ export default function DashboardPage() {
         return
       }
 
-      if (!isAuthenticated) {
+      if (!isAuthenticated || !session) {
         setAuthError("Sessão inválida ou expirada")
         setLoading(false)
         return
@@ -77,10 +84,7 @@ export default function DashboardPage() {
       setAuthError(null)
       setLoading(false)
 
-      toast({
-        title: "Bem-vindo ao Dashboard!",
-        description: "Você está logado com sucesso.",
-      })
+      toast({ title: "Bem-vindo ao Dashboard!", description: "Você está logado com sucesso." })
     } catch (error: any) {
       setAuthError(error.message || "Erro desconhecido ao verificar autenticação")
       setLoading(false)
@@ -106,12 +110,12 @@ export default function DashboardPage() {
     })
 
     const handleAvatarUpdate = (event: CustomEvent) => {
-      setUserAvatarUrl(event.detail)
+      setUserAvatarUrl((event as any).detail)
     }
     window.addEventListener("profile-avatar-updated", handleAvatarUpdate as EventListener)
 
     return () => {
-      authListener.subscription.unsubscribe()
+      authListener?.subscription?.unsubscribe?.()
       window.removeEventListener("profile-avatar-updated", handleAvatarUpdate as EventListener)
     }
   }, [toast])
@@ -137,7 +141,8 @@ export default function DashboardPage() {
     )
   }
 
-  const imageSrc = theme === "dark" ? "/images/premiacoes-dark-large.png" : "/images/premiacoes-light-large.png"
+  const imageSrc =
+    theme === "dark" ? "/images/premiacoes-dark-large.png" : "/images/premiacoes-light-large.png"
 
   return (
     <NotificationProvider>
@@ -145,22 +150,60 @@ export default function DashboardPage() {
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
+          {/* HEADER */}
           <div className="flex h-16 items-center justify-between px-4">
-            <div className="flex items-center">{/* Título removido */}</div>
+            <div className="flex items-center" />
             <div className="flex items-center gap-4">
               <AchievementProgressHeader achievementData={achievementData} />
               <ThemeToggleButton />
               <NotificationSalesPopover />
-              <Avatar onClick={() => router.push("/dashboard/profile")} className="cursor-pointer">
-                <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
-                <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
+
+              {/* Avatar + Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger className="rounded-full p-0 outline-none focus:ring-0">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
+                    <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={8}
+                  className="w-56 rounded-xl border border-border/60 shadow-lg bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-2"
+                >
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      router.push("/dashboard/profile")
+                    }}
+                    className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium hover:bg-muted/60 focus:bg-muted/60 cursor-pointer"
+                  >
+                    <User className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                    <span>Perfil</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      handleLogout()
+                    }}
+                    className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 focus:bg-red-50 dark:focus:bg-red-500/10 cursor-pointer"
+                  >
+                    <LogOut className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                    <span>Sair</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
+
+          {/* BODY */}
           <div className="flex h-[calc(100%-4rem)] w-full">
             <div className="w-full md:w-[75%] overflow-auto p-4">
               <DashboardView onViewChange={() => {}} />
             </div>
+
             <div className="hidden md:flex md:w-[25%] overflow-auto p-4 flex-col items-center pt-4">
               <img
                 src={imageSrc || "/placeholder.svg"}
@@ -174,13 +217,16 @@ export default function DashboardPage() {
                     <span className="text-green-500 font-medium">{achievementData.goalText}</span>
                   ) : (
                     <>
-                      {formatCurrency(achievementData.currentProgress)} / {formatCurrency(achievementData.segmentEnd)}
+                      {formatCurrency(achievementData.currentProgress)} /{" "}
+                      {formatCurrency(achievementData.segmentEnd)}
                     </>
                   )}
                 </div>
                 <Progress value={achievementData.percentage} className="w-full h-3" />
                 <p className="text-xs text-muted-foreground text-center mt-2">
-                  {achievementData.isMaxGoalReached ? "Todas as metas atingidas!" : achievementData.goalText}
+                  {achievementData.isMaxGoalReached
+                    ? "Todas as metas atingidas!"
+                    : achievementData.goalText}
                 </p>
               </div>
             </div>

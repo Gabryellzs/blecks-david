@@ -1085,10 +1085,6 @@ export default function CalendarView() {
         <div className="flex flex-col h-full w-full relative z-10">
           <div className="flex items-center justify-between p-2 sm:p-4 border-b bg-background/80 backdrop-blur-sm w-full">
             <div className="flex items-center gap-2">
-              <SidebarTrigger className="mr-2" />
-              <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-                <Menu className="h-5 w-5" />
-              </Button>
               <h1 className="text-xl sm:text-2xl font-bold">Calendário</h1>
             </div>
 

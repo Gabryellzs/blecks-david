@@ -15,6 +15,10 @@ import { AchievementProgressHeader } from "@/components/achievement-progress-hea
 import { useGatewayTransactions } from "@/lib/gateway-transactions-service"
 import { getAchievementData } from "@/lib/utils"
 import { ThemeToggleButton } from "@/components/theme-toggle-button"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { RefreshCw, User, LogOut } from "lucide-react"
+import { NotificationProvider } from "@/components/notification-provider"
+import { UpdatesInitializer } from "@/components/updates-initializer"
 
 export default function FinancesPage() {
   const { toast } = useToast()
@@ -40,7 +44,7 @@ export default function FinancesPage() {
         return
       }
 
-      if (!isAuthenticated) {
+      if (!isAuthenticated || !session) {
         setAuthError("Sessão inválida ou expirada")
         setLoading(false)
         return
@@ -56,13 +60,10 @@ export default function FinancesPage() {
         console.error("Erro ao buscar perfil do usuário:", profileError)
         setUserName(session.user.email?.split("@")[0] || "Usuário")
       } else {
-        if (userProfile?.first_name) {
-          setUserName(userProfile.first_name)
-        } else if (userProfile?.full_name) {
-          setUserName(userProfile.full_name.split(" ")[0])
-        } else {
-          setUserName(session.user.email?.split("@")[0] || "Usuário")
-        }
+        if (userProfile?.first_name) setUserName(userProfile.first_name)
+        else if (userProfile?.full_name) setUserName(userProfile.full_name.split(" ")[0])
+        else setUserName(session.user.email?.split("@")[0] || "Usuário")
+
         setUserAvatarUrl(userProfile?.avatar_url || null)
       }
 
@@ -70,10 +71,7 @@ export default function FinancesPage() {
       setAuthError(null)
       setLoading(false)
 
-      toast({
-        title: "Bem-vindo ao Dashboard!",
-        description: "Você está logado com sucesso.",
-      })
+      toast({ title: "Bem-vindo ao Financeiro!", description: "Você está logado com sucesso." })
     } catch (error: any) {
       setAuthError(error.message || "Erro desconhecido ao verificar autenticação")
       setLoading(false)
@@ -99,14 +97,14 @@ export default function FinancesPage() {
     })
 
     return () => {
-      authListener.subscription.unsubscribe()
+      authListener?.subscription?.unsubscribe?.()
     }
   }, [toast])
 
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         <p className="ml-2">Carregando Financeiro...</p>
       </div>
     )
@@ -125,25 +123,63 @@ export default function FinancesPage() {
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <div className="flex h-16 items-center justify-between px-4 sticky top-0 bg-background z-10">
-          <div className="flex items-center">{/* Título removido */}</div>
-          <div className="flex items-center gap-4">
-            <AchievementProgressHeader achievementData={achievementData} />
-            <ThemeToggleButton />
-            <NotificationSalesPopover />
-            <Avatar onClick={() => router.push("/dashboard/profile")} className="cursor-pointer">
-              <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
-              <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
+    <NotificationProvider>
+      <UpdatesInitializer />
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          {/* Layout em coluna com header fixo */}
+          <div className="flex h-screen flex-col overflow-hidden">
+            {/* HEADER fixo */}
+            <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
+              <div className="flex h-16 items-center justify-between px-4">
+                <div className="flex items-center" />
+                <div className="flex items-center gap-4">
+                  <AchievementProgressHeader achievementData={achievementData} />
+                  <ThemeToggleButton />
+                  <NotificationSalesPopover />
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="rounded-full p-0 outline-none focus:ring-0">
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
+                        <AvatarFallback>{userName?.charAt(0)?.toUpperCase() || "U"}</AvatarFallback>
+                      </Avatar>
+                    </DropdownMenuTrigger>
+
+                    <DropdownMenuContent
+                      align="end"
+                      sideOffset={8}
+                      className="w-56 rounded-xl border border-border/60 shadow-lg bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-2"
+                    >
+                      <DropdownMenuItem
+                        onSelect={(e) => { e.preventDefault(); router.push("/dashboard/profile") }}
+                        className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium hover:bg-muted/60 focus:bg-muted/60 cursor-pointer"
+                      >
+                        <User className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                        <span>Perfil</span>
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem
+                        onSelect={(e) => { e.preventDefault(); handleLogout() }}
+                        className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 focus:bg-red-50 dark:focus:bg-red-500/10 cursor-pointer"
+                      >
+                        <LogOut className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                        <span>Sair</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            </div>
+
+            {/* CONTEÚDO rolável */}
+            <div className="flex-1 overflow-auto w-full">
+              <FinancesView />
+            </div>
           </div>
-        </div>
-        <div className="flex-1 overflow-auto w-full">
-          <FinancesView />
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+        </SidebarInset>
+      </SidebarProvider>
+    </NotificationProvider>
   )
 }

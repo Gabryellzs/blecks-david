@@ -20,7 +20,7 @@ import { supabase } from "@/lib/supabase"
 import { useGatewayTransactions } from "@/lib/gateway-transactions-service"
 import { getAchievementData } from "@/lib/utils"
 
-import NotesView from "@/components/views/notes-view"
+import MindMapView from "@/components/views/mind-map-view"
 import { useRouter } from "next/navigation"
 
 export default function Page() {
@@ -73,7 +73,7 @@ export default function Page() {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-        <p className="ml-2">Carregando Anotações do Dia a Dia... ({pageStatus})</p>
+        <p className="ml-2">Carregando Mapa Mental... ({pageStatus})</p>
       </div>
     )
   }
@@ -155,7 +155,7 @@ export default function Page() {
       </div>
 
           <div className="flex-1 overflow-auto w-full">
-            <NotesView />
+            <MindMapView />
           </div>
         </SidebarInset>
       </SidebarProvider>

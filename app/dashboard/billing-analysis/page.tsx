@@ -7,7 +7,6 @@ import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { NotificationProvider } from "@/components/notification-provider"
 import { UpdatesInitializer } from "@/components/updates-initializer"
 import { useTheme } from "@/hooks/use-theme"
@@ -15,6 +14,15 @@ import { useGatewayTransactions } from "@/lib/gateway-transactions-service"
 import { NotificationSalesPopover } from "@/components/notification-sales-popover"
 import { AchievementProgressHeader } from "@/components/achievement-progress-header"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
+
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu"
+import { User, LogOut } from "lucide-react"
 import { getAchievementData } from "@/lib/utils"
 import BillingAnalysisView from "@/components/views/billing-analysis-view"
 import { ThemeToggleButton } from "@/components/theme-toggle-button"
@@ -44,7 +52,7 @@ export default function BillingAnalysisPage() {
         return
       }
 
-      if (!isAuthenticated) {
+      if (!isAuthenticated || !session) {
         setAuthError("Sessão inválida ou expirada")
         setLoading(false)
         return
@@ -98,12 +106,12 @@ export default function BillingAnalysisPage() {
     })
 
     const handleAvatarUpdate = (event: CustomEvent) => {
-      setUserAvatarUrl(event.detail)
+      setUserAvatarUrl((event as any).detail)
     }
     window.addEventListener("profile-avatar-updated", handleAvatarUpdate as EventListener)
 
     return () => {
-      authListener.subscription.unsubscribe()
+      authListener?.subscription?.unsubscribe?.()
       window.removeEventListener("profile-avatar-updated", handleAvatarUpdate as EventListener)
     }
   }, [toast])
@@ -135,18 +143,55 @@ export default function BillingAnalysisPage() {
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
+          {/* HEADER */}
           <div className="flex h-16 items-center justify-between px-4">
-            <div className="flex items-center">{/* Título removido */}</div>
+            <div className="flex items-center gap-2" />
             <div className="flex items-center gap-4">
               <AchievementProgressHeader achievementData={achievementData} />
               <ThemeToggleButton />
               <NotificationSalesPopover />
-              <Avatar onClick={() => router.push("/dashboard/profile")} className="cursor-pointer">
-                <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
-                <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
+
+              {/* Avatar com Dropdown custom */}
+              <DropdownMenu>
+                <DropdownMenuTrigger className="rounded-full p-0 outline-none focus:ring-0">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
+                    <AvatarFallback>{userName?.charAt(0)?.toUpperCase() || "U"}</AvatarFallback>
+                  </Avatar>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={8}
+                  className="w-56 rounded-xl border border-border/60 shadow-lg bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-2"
+                >
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      router.push("/dashboard/profile")
+                    }}
+                    className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium hover:bg-muted/60 focus:bg-muted/60 cursor-pointer"
+                  >
+                    <User className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                    <span>Perfil</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      handleLogout()
+                    }}
+                    className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 focus:bg-red-50 dark:focus:bg-red-500/10 cursor-pointer"
+                  >
+                    <LogOut className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                    <span>Sair</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
+
+          {/* BODY */}
           <div className="flex-1 overflow-auto">
             <BillingAnalysisView />
           </div>

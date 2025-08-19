@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { RefreshCw } from "lucide-react"
+import { RefreshCw, User, LogOut } from "lucide-react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { NotificationProvider } from "@/components/notification-provider"
@@ -20,7 +20,14 @@ import { NotificationSalesPopover } from "@/components/notification-sales-popove
 import { AchievementProgressHeader } from "@/components/achievement-progress-header"
 import { ThemeToggleButton } from "@/components/theme-toggle-button"
 
-export default function GatewaysDashboardPage() {
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu"
+
+export default function Page() {
   const { session, user, loading, isAuthenticated, error } = useAuth()
   const [userName, setUserName] = useState<string>("")
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null)
@@ -33,11 +40,9 @@ export default function GatewaysDashboardPage() {
   const achievementData = getAchievementData(totalNetSales)
 
   useEffect(() => {
-    console.log("GatewaysDashboardPage: useEffect - Auth state changed", { loading, isAuthenticated, error, user })
     const fetchUserData = async () => {
       if (isAuthenticated && user) {
         setPageStatus("Autenticado")
-        console.log("GatewaysDashboardPage: User authenticated, fetching profile...")
 
         const { data: userProfile, error: profileError } = await supabase
           .from("profiles")
@@ -58,14 +63,9 @@ export default function GatewaysDashboardPage() {
             setUserName(user.email?.split("@")[0] || "Usuário")
           }
           setUserAvatarUrl(userProfile?.avatar_url || null)
-          console.log("GatewaysDashboardPage: User profile fetched", {
-            userName,
-            userAvatarUrl: userProfile?.avatar_url,
-          })
         }
       } else if (!loading && !isAuthenticated) {
         setPageStatus("Não Autenticado")
-        console.log("GatewaysDashboardPage: Not authenticated, redirecting to login if not already there.")
       } else if (error) {
         setPageStatus(`Erro de Autenticação: ${error.message}`)
         console.error("GatewaysDashboardPage: Authentication error:", error)
@@ -75,7 +75,7 @@ export default function GatewaysDashboardPage() {
     fetchUserData()
 
     const handleAvatarUpdate = (event: CustomEvent) => {
-      setUserAvatarUrl(event.detail)
+      setUserAvatarUrl((event as any).detail)
     }
     window.addEventListener("profile-avatar-updated", handleAvatarUpdate as EventListener)
 
@@ -91,7 +91,6 @@ export default function GatewaysDashboardPage() {
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      console.log("GatewaysDashboardPage: Not authenticated, redirecting to login.")
       router.push("/login")
     }
   }, [loading, isAuthenticated, router])
@@ -146,18 +145,55 @@ export default function GatewaysDashboardPage() {
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
+          {/* HEADER */}
           <div className="flex h-16 items-center justify-between px-4 sticky top-0 bg-background z-10">
-            <div className="flex items-center">{/* Título removido */}</div>
+            <div className="flex items-center" />
             <div className="flex items-center gap-4">
               <AchievementProgressHeader achievementData={achievementData} />
               <ThemeToggleButton />
               <NotificationSalesPopover />
-              <Avatar onClick={() => router.push("/dashboard/profile")} className="cursor-pointer">
-                <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
-                <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
+
+              {/* Avatar com Dropdown custom (embrulhado em <DropdownMenu>) */}
+              <DropdownMenu>
+                <DropdownMenuTrigger className="rounded-full p-0 outline-none focus:ring-0">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
+                    <AvatarFallback>{userName?.charAt(0)?.toUpperCase() || "U"}</AvatarFallback>
+                  </Avatar>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={8}
+                  className="w-56 rounded-xl border border-border/60 shadow-lg bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-2"
+                >
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      router.push("/dashboard/profile")
+                    }}
+                    className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium hover:bg-muted/60 focus:bg-muted/60 cursor-pointer"
+                  >
+                    <User className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                    <span>Perfil</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      handleLogout()
+                    }}
+                    className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 focus:bg-red-50 dark:focus:bg-red-500/10 cursor-pointer"
+                  >
+                    <LogOut className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                    <span>Sair</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
+
+          {/* BODY */}
           <div className="flex-1 overflow-auto w-full">
             <GatewayTransactionsView />
           </div>

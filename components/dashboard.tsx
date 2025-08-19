@@ -51,7 +51,12 @@ import { useGatewayTransactions } from "@/lib/gateway-transactions-service"
 import { getAchievementData } from "@/lib/utils"
 import { ThemeToggleButton } from "@/components/theme-toggle-button"
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { User, LogOut } from "lucide-react"
 
 interface DashboardProps {
@@ -63,6 +68,8 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
   const [userName, setUserName] = useState<string>("")
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
   const router = useRouter()
   const { toast } = useToast()
 
@@ -71,21 +78,13 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
   const totalNetSales = consolidatedSummary.netAmount
   const achievementData = getAchievementData(totalNetSales)
 
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
-
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true)
       await supabase.auth.signOut()
-
       localStorage.removeItem("supabase-auth")
       sessionStorage.clear()
-
-      toast({
-        title: "Logout realizado com sucesso",
-        description: "Você foi desconectado do sistema.",
-      })
-
+      toast({ title: "Logout realizado com sucesso", description: "Você foi desconectado do sistema." })
       router.push("/login")
     } catch (error) {
       console.error("Erro ao fazer logout:", error)
@@ -108,41 +107,30 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
         } = await supabase.auth.getUser()
 
         if (userError || !user) {
-          console.error("Erro ao obter usuário:", userError)
           router.push("/login")
           return
         }
 
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile } = await supabase
           .from("profiles")
           .select("first_name, full_name, avatar_url")
           .eq("id", user.id)
           .single()
 
-        if (profileError) {
-          console.error("Erro ao buscar perfil:", profileError)
-        }
+        if (profile?.first_name) setUserName(profile.first_name)
+        else if (profile?.full_name) setUserName(profile.full_name.split(" ")[0])
+        else setUserName(user.email?.split("@")[0] || "Usuário")
 
-        if (profile?.first_name) {
-          setUserName(profile.first_name)
-        } else if (profile?.full_name) {
-          const firstName = profile.full_name.split(" ")[0]
-          setUserName(firstName)
-        } else {
-          const emailName = user.email?.split("@")[0] || "Usuário"
-          setUserName(emailName)
-        }
         setUserAvatarUrl(profile?.avatar_url || null)
 
+        // opcional: registrar acesso
         try {
           await supabase.from("user_interactions").insert({
             user_id: user.id,
             interaction_type: "dashboard_access",
             interaction_details: { timestamp: new Date().toISOString() },
           })
-        } catch (interactionError) {
-          console.error("Erro ao registrar interação:", interactionError)
-        }
+        } catch {}
       } catch (error) {
         console.error("Erro ao buscar dados do usuário:", error)
       } finally {
@@ -152,47 +140,32 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
 
     fetchUserData()
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") {
-        router.push("/login")
-      }
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") router.push("/login")
     })
-
-    return () => {
-      authListener.subscription.unsubscribe()
-    }
-  }, [router, toast])
+    return () => authListener.subscription.unsubscribe()
+  }, [router])
 
   useEffect(() => {
-    const handleNavigateToView = (event: CustomEvent) => {
-      if (event.detail) {
-        setActiveView(event.detail)
-      }
-    }
-
-    const handleAvatarUpdate = (event: CustomEvent) => {
-      setUserAvatarUrl(event.detail)
-    }
+    const handleNavigateToView = (event: CustomEvent) => event.detail && setActiveView(event.detail)
+    const handleAvatarUpdate = (event: CustomEvent) => setUserAvatarUrl(event.detail)
 
     window.addEventListener("navigate-to-view", handleNavigateToView as EventListener)
     window.addEventListener("profile-avatar-updated", handleAvatarUpdate as EventListener)
-
     return () => {
       window.removeEventListener("navigate-to-view", handleNavigateToView as EventListener)
       window.removeEventListener("profile-avatar-updated", handleAvatarUpdate as EventListener)
     }
-  }, [setActiveView])
+  }, [])
 
-  const handleViewChange = (view: string) => {
-    setActiveView(view as ViewType)
-  }
+  const handleViewChange = (view: string) => setActiveView(view as ViewType)
 
   const renderView = () => {
     switch (activeView) {
       case "results-dashboard":
         return <ResultsDashboardView userName={userName} />
       case "ads-dashboard":
-        return <AdsDashboardView userName={userName} editable={true} />
+        return <AdsDashboardView userName={userName} editable />
       case "dashboard":
         return <DashboardView onViewChange={handleViewChange} userName={userName} />
       case "diary":
@@ -200,11 +173,7 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
       case "notes":
         return <NotesView />
       case "calendar":
-        return (
-          <div className="h-full w-full">
-            <CalendarView />
-          </div>
-        )
+        return <CalendarView />
       case "finances":
         return <FinancesView />
       case "mindmap":
@@ -231,7 +200,7 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     )
   }
@@ -241,43 +210,64 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
       <UpdatesInitializer />
       <SidebarProvider>
         <AppSidebar onViewChange={handleViewChange} activeView={activeView} />
-        <SidebarInset>
-          {activeView !== "calendar" && (
-            <div className="flex h-16 items-center justify-between px-4">
-              <div className="flex items-center"></div>
-              <div className="flex items-center gap-4">
-                <AchievementProgressHeader achievementData={achievementData} />
-                <ThemeToggleButton />
-                <NotificationSalesPopover />
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <div className="cursor-pointer">
-                      <Avatar className="hover:ring-2 hover:ring-primary/50 transition-all duration-200">
-                        <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
-                        <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                    </div>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={() => handleViewChange("profile")} className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      Perfil
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut} className="cursor-pointer">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      {isLoggingOut ? "Saindo..." : "Sair"}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          )}
-          <div
-            className={
-              activeView !== "calendar" ? "h-[calc(100%-4rem)] overflow-auto w-full" : "h-full overflow-auto w-full"
-            }
-          >
-            {renderView()}
+
+        <SidebarInset className="flex h-screen w-full">
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+            {activeView !== "calendar" && (
+              <header className="sticky top-0 z-20 bg-background border-b">
+                <div className="h-16 px-4 flex items-center justify-between">
+                  <div />
+                  <div className="flex items-center gap-4">
+                    <AchievementProgressHeader achievementData={achievementData} />
+                    <ThemeToggleButton />
+                    <NotificationSalesPopover />
+
+                    {/* === DROPDOWN PADRONIZADO (igual outras páginas) === */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className="rounded-full p-0 outline-none focus:ring-0">
+                        <Avatar className="h-9 w-9 hover:ring-2 hover:ring-primary/50 transition-all duration-200">
+                          <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
+                          <AvatarFallback>{userName?.charAt(0)?.toUpperCase() || "U"}</AvatarFallback>
+                        </Avatar>
+                      </DropdownMenuTrigger>
+
+                      <DropdownMenuContent
+                        align="end"
+                        sideOffset={8}
+                        className="w-56 rounded-xl border border-border/60 shadow-lg bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-2"
+                      >
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault()
+                            handleViewChange("profile")
+                          }}
+                          className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium hover:bg-muted/60 focus:bg-muted/60 cursor-pointer"
+                        >
+                          <User className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                          <span>Perfil</span>
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault()
+                            handleLogout()
+                          }}
+                          className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 focus:bg-red-50 dark:focus:bg-red-500/10 cursor-pointer"
+                        >
+                          <LogOut className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                          <span>{isLoggingOut ? "Saindo..." : "Sair"}</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {/* === /DROPDOWN PADRONIZADO === */}
+                  </div>
+                </div>
+              </header>
+            )}
+
+            <main className="flex-1 min-h-0 overflow-y-auto w-full">
+              <div className={activeView === "calendar" ? "" : "p-4"}>{renderView()}</div>
+            </main>
           </div>
         </SidebarInset>
       </SidebarProvider>

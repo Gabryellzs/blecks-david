@@ -10,11 +10,9 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { NotificationProvider } from "@/components/notification-provider"
 import { UpdatesInitializer } from "@/components/updates-initializer"
 import MindMapView from "@/components/views/mind-map-view"
-
 import { useRouter } from "next/navigation"
 import { useGatewayTransactions } from "@/lib/gateway-transactions-service"
 import { getAchievementData } from "@/lib/utils"
-import { useTheme } from "@/hooks/use-theme"
 import { supabase } from "@/lib/supabase"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { NotificationSalesPopover } from "@/components/notification-sales-popover"
@@ -23,13 +21,12 @@ import { ThemeToggleButton } from "@/components/theme-toggle-button"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 
 export default function MindmapPage() {
-  const { session, user, loading, isAuthenticated, error } = useAuth()
+  const { user, loading, isAuthenticated, error } = useAuth()
   const [userName, setUserName] = useState<string>("")
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null)
   const [pageStatus, setPageStatus] = useState("Carregando...")
 
   const router = useRouter()
-  const { theme } = useTheme()
   const { getStats } = useGatewayTransactions()
   const consolidatedSummary = getStats()
   const totalNetSales = consolidatedSummary.netAmount
@@ -67,17 +64,16 @@ export default function MindmapPage() {
     const handleAvatarUpdate = (event: CustomEvent) => {
       setUserAvatarUrl((event as any).detail)
     }
-    window.addEventListener("profile-avatar-updated", handleAvatarUpdate as EventListener)
+    window.addEventListener("profile-avatar-updated", handleAvatarUpdate as unknown as EventListener)
 
     return () => {
-      window.removeEventListener("profile-avatar-updated", handleAvatarUpdate as EventListener)
+      window.removeEventListener("profile-avatar-updated", handleAvatarUpdate as unknown as EventListener)
     }
   }, [isAuthenticated, user, loading, error])
 
   const handleLogout = async () => {
-    const { supabase } = await import("@/lib/supabase")
     await supabase.auth.signOut()
-    window.location.href = "/login"
+    router.push("/login")
   }
 
   if (loading) {
@@ -121,7 +117,7 @@ export default function MindmapPage() {
           </AlertDescription>
         </Alert>
 
-        <Button onClick={() => (window.location.href = "/login")}>Ir para página de login</Button>
+        <Button onClick={() => router.push("/login")}>Ir para página de login</Button>
       </div>
     )
   }
@@ -157,7 +153,10 @@ export default function MindmapPage() {
                       className="w-56 rounded-xl border border-border/60 shadow-lg bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-2"
                     >
                       <DropdownMenuItem
-                        onSelect={(e) => { e.preventDefault(); router.push("/dashboard/profile") }}
+                        onSelect={(e) => {
+                          e.preventDefault()
+                          router.push("/dashboard/profile")
+                        }}
                         className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium hover:bg-muted/60 focus:bg-muted/60 cursor-pointer"
                       >
                         <User className="h-4 w-4 opacity-80 group-hover:opacity-100" />
@@ -165,7 +164,10 @@ export default function MindmapPage() {
                       </DropdownMenuItem>
 
                       <DropdownMenuItem
-                        onSelect={(e) => { e.preventDefault(); handleLogout() }}
+                        onSelect={(e) => {
+                          e.preventDefault()
+                          handleLogout()
+                        }}
                         className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 focus:bg-red-50 dark:focus:bg-red-500/10 cursor-pointer"
                       >
                         <LogOut className="h-4 w-4 opacity-80 group-hover:opacity-100" />

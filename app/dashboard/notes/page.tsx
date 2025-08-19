@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -21,7 +20,6 @@ import { useGatewayTransactions } from "@/lib/gateway-transactions-service"
 import { getAchievementData } from "@/lib/utils"
 
 import NotesView from "@/components/views/notes-view"
-import { useRouter } from "next/navigation"
 
 export default function Page() {
   const { session, user, loading, isAuthenticated, error } = useAuth()
@@ -58,10 +56,11 @@ export default function Page() {
         setPageStatus("Erro de Autenticação")
       }
     }
+
     fetchUserData()
     const handleAvatarUpdate = (event: CustomEvent) => setUserAvatarUrl((event as any).detail)
-    window.addEventListener("profile-avatar-updated", handleAvatarUpdate as EventListener)
-    return () => window.removeEventListener("profile-avatar-updated", handleAvatarUpdate as EventListener)
+    window.addEventListener("profile-avatar-updated", handleAvatarUpdate as unknown as EventListener)
+    return () => window.removeEventListener("profile-avatar-updated", handleAvatarUpdate as unknown as EventListener)
   }, [isAuthenticated, user, loading, error])
 
   const handleLogout = async () => {
@@ -115,44 +114,50 @@ export default function Page() {
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
-      {/* HEADER */}
-      <div className="flex h-16 items-center justify-between px-4 sticky top-0 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
-        <div className="flex items-center" />
-        <div className="flex items-center gap-4">
-          <AchievementProgressHeader achievementData={achievementData} />
-          <ThemeToggleButton />
-          <NotificationSalesPopover />
-          {/* Avatar + Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger className="rounded-full p-0 outline-none focus:ring-0">
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
-                <AvatarFallback>{userName?.charAt(0)?.toUpperCase() || "U"}</AvatarFallback>
-              </Avatar>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              sideOffset={8}
-              className="w-56 rounded-xl border border-border/60 shadow-lg bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-2"
-            >
-              <DropdownMenuItem
-                onSelect={(e) => { e.preventDefault(); router.push("/dashboard/profile") }
-                className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium hover:bg-muted/60 focus:bg-muted/60 cursor-pointer"
-              >
-                <User className="h-4 w-4 opacity-80 group-hover:opacity-100" />
-                <span>Perfil</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={(e) => { e.preventDefault(); handleLogout() }
-                className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 focus:bg-red-50 dark:focus:bg-red-500/10 cursor-pointer"
-              >
-                <LogOut className="h-4 w-4 opacity-80 group-hover:opacity-100" />
-                <span>Sair</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+          {/* HEADER */}
+          <div className="flex h-16 items-center justify-between px-4 sticky top-0 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
+            <div className="flex items-center" />
+            <div className="flex items-center gap-4">
+              <AchievementProgressHeader achievementData={achievementData} />
+              <ThemeToggleButton />
+              <NotificationSalesPopover />
+              {/* Avatar + Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger className="rounded-full p-0 outline-none focus:ring-0">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
+                    <AvatarFallback>{userName?.charAt(0)?.toUpperCase() || "U"}</AvatarFallback>
+                  </Avatar>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={8}
+                  className="w-56 rounded-xl border border-border/60 shadow-lg bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-2"
+                >
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      router.push("/dashboard/profile")
+                    }}
+                    className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium hover:bg-muted/60 focus:bg-muted/60 cursor-pointer"
+                  >
+                    <User className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                    <span>Perfil</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      handleLogout()
+                    }}
+                    className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 focus:bg-red-50 dark:focus:bg-red-500/10 cursor-pointer"
+                  >
+                    <LogOut className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                    <span>Sair</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
 
           <div className="flex-1 overflow-auto w-full">
             <NotesView />

@@ -1120,9 +1120,9 @@ export function GatewayTransactionsView({ userName }: GatewayTransactionsViewPro
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
               <TabsTrigger value="gateways">Gateways</TabsTrigger>
               <TabsTrigger value="products">Produtos</TabsTrigger>
-              <TabsTrigger value="transactions">Transações</TabsTrigger>
-              <TabsTrigger value="refunds">Reembolsos</TabsTrigger>
+              <TabsTrigger value="transactions">Pagos</TabsTrigger>
               <TabsTrigger value="abandoned">Abandonadas</TabsTrigger>
+              <TabsTrigger value="refunds">Reembolsos</TabsTrigger>
               <TabsTrigger value="chargebacks">Chargebacks</TabsTrigger>
             </TabsList>
           </div>

@@ -26,7 +26,8 @@ export interface GatewayTransaction {
   net_amount?: number | null
   event_type?: string | null
   status: "completed" | "pending" | "failed" | "refunded" | "abandoned" | "unknown"
-  status_raw?: string | null // preserva o status original do banco (ex.: refused)
+  status_raw?: string | null          // status original do banco (ex.: "refused")
+  is_refused?: boolean                // <- flag calculado
   raw_payload?: any | null
   created_at: string
   updated_at?: string | null
@@ -56,10 +57,10 @@ export interface GatewayStats {
    Helpers de normalização
 ========================= */
 
-// Normalização simples para comparar chaves
-const normalizeKey = (s?: string | null) => (s ?? "").toLowerCase().trim().replace(/\s+/g, "_")
+const normalizeKey = (s?: string | null) =>
+  (s ?? "").toLowerCase().trim().replace(/\s+/g, "_")
 
-// Variações comuns para “abandonadas”
+// — Abandonadas
 const ABANDONED_STATUSES = new Set<string>([
   "abandoned",
   "abandoned_cart",
@@ -69,15 +70,29 @@ const ABANDONED_STATUSES = new Set<string>([
   "expired",
   // "canceled",
 ])
-export const isAbandonedStatus = (status?: string | null) => ABANDONED_STATUSES.has(normalizeKey(status))
+const isAbandonedStatus = (status?: string | null) =>
+  ABANDONED_STATUSES.has(normalizeKey(status))
 
-// Variações para “recusadas”
+// — Recusadas (status/event_type comuns)
 const REFUSED_STATUSES = new Set<string>(["refused", "declined", "rejected"])
-const REFUSED_EVENT_TYPES = new Set<string>(["payment.refused", "payment_refused"])
-export const isRefused = (statusRaw?: string | null, eventType?: string | null) => {
-  const s = normalizeKey(statusRaw)
-  const e = normalizeKey(eventType)
-  return REFUSED_STATUSES.has(s) || REFUSED_EVENT_TYPES.has(e)
+const REFUSED_EVENT_TYPES = new Set<string>([
+  "refused",
+  "declined",
+  "rejected",
+  "payment.refused",
+  "payment_refused",
+])
+
+/** Detecta recusadas considerando status normalizado, status bruto e event_type */
+const isRefusedByFields = (
+  statusNorm?: string | null,
+  statusRaw?: string | null,
+  eventType?: string | null,
+) => {
+  const sNorm = normalizeKey(statusNorm)
+  const sRaw = normalizeKey(statusRaw)
+  const eType = normalizeKey(eventType)
+  return REFUSED_STATUSES.has(sNorm) || REFUSED_STATUSES.has(sRaw) || REFUSED_EVENT_TYPES.has(eType)
 }
 
 // Normaliza status/event_type do banco para enum interno
@@ -91,11 +106,11 @@ const normalizeRawStatus = (
   if (["completed", "approved", "paid", "success", "payment.success"].includes(statusLower)) {
     return "completed"
   }
+  // Recusadas também entram como "failed" no agregado padrão
   if (
     ["failed", "error", "declined", "rejected", "payment.failed", "refused"].includes(statusLower) ||
     REFUSED_EVENT_TYPES.has(eventTypeLower)
   ) {
-    // Recusadas entram no grupo "failed" no agregado padrão
     return "failed"
   }
   if (["refunded", "cancelled", "canceled", "payment.refunded"].includes(statusLower)) {
@@ -140,17 +155,13 @@ export function useGatewayTransactions() {
           return
         }
 
-        if (session?.user?.id) {
-          setUserId(session.user.id)
-        } else {
-          setUserId("demo-user")
-        }
+        if (session?.user?.id) setUserId(session.user.id)
+        else setUserId("demo-user")
       } catch (error) {
         console.error("❌ Erro ao obter usuário:", error)
         setUserId("demo-user")
       }
     }
-
     getUserId()
   }, [])
 
@@ -173,6 +184,11 @@ export function useGatewayTransactions() {
 
       const mappedData = mapTransactions(data || [], userId)
       setTransactions(mappedData)
+
+      // DEBUG: quantas recusadas mapeadas?
+      const refusedCount = mappedData.filter((t) => t.is_refused).length
+      console.log(`[GATEWAY] Mapeadas: ${mappedData.length} | Recusadas detectadas: ${refusedCount}`)
+
       setLastUpdate(new Date())
     } catch (error) {
       console.error("❌ Erro ao buscar dados do gateway:", error)
@@ -193,11 +209,7 @@ export function useGatewayTransactions() {
       .channel(channelName)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "gateway_transactions",
-        },
+        { event: "*", schema: "public", table: "gateway_transactions" },
         (payload) => {
           const payloadUserId = (payload as any).new?.user_id || (payload as any).old?.user_id
           if (payloadUserId === userId || userId === "demo-user") {
@@ -231,6 +243,7 @@ export function useGatewayTransactions() {
   const mapTransactions = (data: any[], currentUserId: string): GatewayTransaction[] => {
     return data.map((item) => {
       const normalizedStatus = normalizeRawStatus(item.status, item.event_type)
+      const statusRaw = item.status ?? null
 
       const tx: GatewayTransaction = {
         id: item.id,
@@ -246,10 +259,12 @@ export function useGatewayTransactions() {
         product_price: Number.parseFloat(item.product_price?.toString() || "0") || null,
         payment_method: item.payment_method || "unknown",
         fee: Number.parseFloat(item.fee?.toString() || "0") || null,
-        net_amount: Number.parseFloat(item.net_amount?.toString() || item.amount?.toString() || "0") || null,
+        net_amount:
+          Number.parseFloat(item.net_amount?.toString() || item.amount?.toString() || "0") || null,
         event_type: item.event_type || null,
         status: normalizedStatus,
-        status_raw: item.status ?? null, // guarda o status bruto
+        status_raw: statusRaw,
+        is_refused: isRefusedByFields(normalizedStatus, statusRaw, item.event_type), // <- flag
         raw_payload: item.raw_payload || null,
         created_at: item.created_at,
         updated_at: item.updated_at || null,
@@ -321,25 +336,40 @@ export function useGatewayTransactions() {
         })
       }
 
-      // Quebra por status usando helpers
+      // DEBUG: ver status_raw presentes após filtros
+      const rawStatusCounts = filteredTransactions.reduce<Record<string, number>>((acc, t) => {
+        const k = normalizeKey(t.status_raw)
+        acc[k] = (acc[k] || 0) + 1
+        return acc
+      }, {})
+      console.log("[GATEWAY] status_raw após filtros:", rawStatusCounts)
+
+      // Quebra por status
       const completedTransactions = filteredTransactions.filter((t) => normalizeKey(t.status) === "completed")
       const pendingTransactions = filteredTransactions.filter((t) => normalizeKey(t.status) === "pending")
       const failedTransactions = filteredTransactions.filter((t) => normalizeKey(t.status) === "failed")
       const refundedTransactions = filteredTransactions.filter((t) => normalizeKey(t.status) === "refunded")
       const abandonedTransactions = filteredTransactions.filter((t) => isAbandonedStatus(t.status))
-      // Recusadas: olhar status_raw/event_type
-      const refusedTransactions = filteredTransactions.filter((t) => isRefused(t.status_raw, t.event_type))
+      const refusedTransactions = filteredTransactions.filter((t) => t.is_refused) // usa o flag
 
-      const totalRevenue = completedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
+      const totalRevenue = completedTransactions.reduce((s, t) => s + (t.amount || 0), 0)
       const totalTransactions = completedTransactions.length
-      const totalFees = completedTransactions.reduce((sum, t) => sum + (t.fees || 0), 0)
+      const totalFees = completedTransactions.reduce((s, t) => s + (t.fees || 0), 0)
 
-      const netAmount = completedTransactions.reduce((sum, t) => sum + (t.net_amount || t.amount || 0), 0)
-      const pendingAmount = pendingTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
-      const failedAmount = failedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
-      const refundedAmount = refundedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
-      const abandonedAmount = abandonedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
-      const refusedAmount = refusedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
+      const netAmount = completedTransactions.reduce((s, t) => s + (t.net_amount || t.amount || 0), 0)
+      const pendingAmount = pendingTransactions.reduce((s, t) => s + (t.amount || 0), 0)
+      const failedAmount = failedTransactions.reduce((s, t) => s + (t.amount || 0), 0)
+      const refundedAmount = refundedTransactions.reduce((s, t) => s + (t.amount || 0), 0)
+      const abandonedAmount = abandonedTransactions.reduce((s, t) => s + (t.amount || 0), 0)
+      const refusedAmount = refusedTransactions.reduce((s, t) => s + (t.amount || 0), 0)
+
+      // DEBUG: contagens finais
+      console.log("[GATEWAY] Counts => completed:", completedTransactions.length,
+        "| pending:", pendingTransactions.length,
+        "| failed:", failedTransactions.length,
+        "| refunded:", refundedTransactions.length,
+        "| abandoned:", abandonedTransactions.length,
+        "| refused:", refusedTransactions.length)
 
       const stats: GatewayStats = {
         totalRevenue,

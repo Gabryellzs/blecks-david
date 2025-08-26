@@ -946,20 +946,33 @@ export function GatewayTransactionsView({ userName }: GatewayTransactionsViewPro
         <Card className="neon-card neon-card-red">
           <CardHeader className="pb-2">
             <CardDescription>Vendas Não Concluídas</CardDescription>
-            <CardTitle className="text-2xl sm:text-3xl text-red-500">
-              {formatCurrency(summary.abandonedAmount)}
+            <CardTitle className="text-2xl sm:text-3xl neon-text">
+              {formatCurrency((summary.abandonedAmount ?? 0) + (summary.refusedAmount ?? 0))}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-sm text-muted-foreground flex flex-col">
-              <div className="flex items-center mb-1">
+            <div className="text-sm text-muted-foreground flex flex-col gap-2">
+              <div className="flex items-center">
                 <TrendingDown className="h-4 w-4 mr-1 text-red-500" />
-                {summary.totalAbandonedTransactions} vendas abandonadas
+                <span>{summary.totalAbandonedTransactions ?? 0} vendas abandonadas</span>
               </div>
-              <div>
-                {summary.totalTransactions > 0
-                  ? `${((summary.totalAbandonedTransactions / summary.totalTransactions) * 100).toFixed(1)}% das suas vendas`
-                  : "0% de vendas abandonadas"}
+              <div className="flex items-center">
+                <TrendingDown className="h-4 w-4 mr-1 text-red-500" />
+                <span>{summary.refusedTransactions ?? 0} vendas recusadas</span>
+              </div>
+              <div className="mt-2">
+                {summary.totalTransactions > 0 ? (
+                  <span>
+                    {(
+                      (((summary.totalAbandonedTransactions ?? 0) + (summary.refusedTransactions ?? 0)) /
+                        summary.totalTransactions) *
+                      100
+                    ).toFixed(2)}
+                    % de vendas não concluídas
+                  </span>
+                ) : (
+                  <span>0% de vendas não concluídas</span>
+                )}
               </div>
             </div>
           </CardContent>

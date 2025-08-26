@@ -26,6 +26,7 @@ export interface GatewayTransaction {
   net_amount?: number | null
   event_type?: string | null
   status: "completed" | "pending" | "failed" | "refunded" | "abandoned" | "unknown"
+  status_raw?: string | null // preserva o status original do banco (ex.: refused)
   raw_payload?: any | null
   created_at: string
   updated_at?: string | null
@@ -47,16 +48,18 @@ export interface GatewayStats {
   pendingTransactions: number
   totalRefunds: number
   refundedAmount: number
+  refusedTransactions: number
+  refusedAmount: number
 }
 
 /* =========================
    Helpers de normalização
 ========================= */
 
-// Normalização “simples” para comparar chaves de status
-const normalizeKey = (s?: string) => (s ?? "").toLowerCase().trim().replace(/\s+/g, "_")
+// Normalização simples para comparar chaves
+const normalizeKey = (s?: string | null) => (s ?? "").toLowerCase().trim().replace(/\s+/g, "_")
 
-// Variações comuns para “não concluídas” em gateways (Kirvano, etc.)
+// Variações comuns para “abandonadas”
 const ABANDONED_STATUSES = new Set<string>([
   "abandoned",
   "abandoned_cart",
@@ -64,49 +67,47 @@ const ABANDONED_STATUSES = new Set<string>([
   "incomplete",
   "incomplete_expired",
   "expired",
-  // "canceled", // habilite se quiser contar canceladas como não-concluídas
+  // "canceled",
 ])
+export const isAbandonedStatus = (status?: string | null) => ABANDONED_STATUSES.has(normalizeKey(status))
 
-export const isAbandonedStatus = (status?: string) => ABANDONED_STATUSES.has(normalizeKey(status))
+// Variações para “recusadas”
+const REFUSED_STATUSES = new Set<string>(["refused", "declined", "rejected"])
+const REFUSED_EVENT_TYPES = new Set<string>(["payment.refused", "payment_refused"])
+export const isRefused = (statusRaw?: string | null, eventType?: string | null) => {
+  const s = normalizeKey(statusRaw)
+  const e = normalizeKey(eventType)
+  return REFUSED_STATUSES.has(s) || REFUSED_EVENT_TYPES.has(e)
+}
 
-// Normaliza status/event_type vindos do banco para o enum interno
+// Normaliza status/event_type do banco para enum interno
 const normalizeRawStatus = (
   statusFromDb: string | null,
   eventTypeFromDb: string | null,
 ): GatewayTransaction["status"] => {
-  const statusLower = (statusFromDb ?? "").toLowerCase()
-  const eventTypeLower = (eventTypeFromDb ?? "").toLowerCase()
-
-  console.log(`[normalizeRawStatus] Input - status: '${statusFromDb}', event_type: '${eventTypeFromDb}'`)
+  const statusLower = normalizeKey(statusFromDb)
+  const eventTypeLower = normalizeKey(eventTypeFromDb)
 
   if (["completed", "approved", "paid", "success", "payment.success"].includes(statusLower)) {
-    console.log(`[normalizeRawStatus] Output: completed (from status)`)
     return "completed"
   }
-  if (["failed", "error", "declined", "rejected", "payment.failed"].includes(statusLower)) {
-    console.log(`[normalizeRawStatus] Output: failed (from status)`)
+  if (
+    ["failed", "error", "declined", "rejected", "payment.failed", "refused"].includes(statusLower) ||
+    REFUSED_EVENT_TYPES.has(eventTypeLower)
+  ) {
+    // Recusadas entram no grupo "failed" no agregado padrão
     return "failed"
   }
   if (["refunded", "cancelled", "canceled", "payment.refunded"].includes(statusLower)) {
-    console.log(`[normalizeRawStatus] Output: refunded (from status)`)
     return "refunded"
   }
-  // Abandono pode vir no status OU no event_type
   if (
     ["checkout.abandonment", "checkout_abandonment"].includes(statusLower) ||
-    ["checkout.abandonment", "checkout_abandonment"].includes(eventTypeLower)
+    ["checkout.abandonment", "checkout_abandonment"].includes(eventTypeLower) ||
+    isAbandonedStatus(statusLower)
   ) {
-    console.log(`[normalizeRawStatus] Output: abandoned (from status or event_type)`)
     return "abandoned"
   }
-
-  // Como fallback, se statusLower bater com variações conhecidas de abandonadas
-  if (isAbandonedStatus(statusLower)) {
-    console.log(`[normalizeRawStatus] Output: abandoned (from variants)`)
-    return "abandoned"
-  }
-
-  console.log(`[normalizeRawStatus] Output: unknown (default)`)
   return "unknown"
 }
 
@@ -141,10 +142,8 @@ export function useGatewayTransactions() {
 
         if (session?.user?.id) {
           setUserId(session.user.id)
-          console.log("✅ Usuário autenticado:", session.user.id)
         } else {
           setUserId("demo-user")
-          console.log("⚠️ Usando usuário demo")
         }
       } catch (error) {
         console.error("❌ Erro ao obter usuário:", error)
@@ -155,11 +154,10 @@ export function useGatewayTransactions() {
     getUserId()
   }, [])
 
-  // Função principal para buscar dados
+  // Buscar dados
   const fetchTransactions = useCallback(async () => {
     if (!userId) return
 
-    console.log("🚀 Buscando transações para usuário:", userId)
     setIsLoading(true)
     setError(null)
 
@@ -173,28 +171,8 @@ export function useGatewayTransactions() {
 
       if (queryError) throw queryError
 
-      console.log("🚀 Dados brutos do Supabase:", data?.length || 0, "registros")
-
-      if (data && data.length > 0) {
-        const statusCount = data.reduce((acc, item) => {
-          const s = item.status || "unknown"
-          acc[s] = (acc[s] || 0) + 1
-          return acc
-        }, {} as Record<string, number>)
-        console.log("🚀 Status encontrados no Supabase:", statusCount)
-      }
-
       const mappedData = mapTransactions(data || [], userId)
       setTransactions(mappedData)
-      console.log("✅ Dados mapeados e carregados:", mappedData.length, "transações")
-
-      const mappedStatusCount = mappedData.reduce((acc, item) => {
-        const s = item.status || "unknown"
-        acc[s] = (acc[s] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
-      console.log("✅ Status após mapeamento:", mappedStatusCount)
-
       setLastUpdate(new Date())
     } catch (error) {
       console.error("❌ Erro ao buscar dados do gateway:", error)
@@ -208,7 +186,6 @@ export function useGatewayTransactions() {
   useEffect(() => {
     if (!userId) return
 
-    console.log("🔧 Configurando Supabase Realtime para usuário:", userId)
     fetchTransactions()
 
     const channelName = `gateway_transactions_${userId}_${Date.now()}`
@@ -222,17 +199,14 @@ export function useGatewayTransactions() {
           table: "gateway_transactions",
         },
         (payload) => {
-          console.log("🔄 Mudança detectada na tabela gateway_transactions:", payload)
-          const payloadUserId = payload.new?.user_id || payload.old?.user_id
+          const payloadUserId = (payload as any).new?.user_id || (payload as any).old?.user_id
           if (payloadUserId === userId || userId === "demo-user") {
-            console.log("✅ Mudança relevante, atualizando dados...")
             fetchTransactions()
             setRefreshCount((prev) => prev + 1)
           }
         },
       )
       .subscribe((status, err) => {
-        console.log("📡 Status da subscription realtime:", status)
         setRealtimeStatus(status)
         if (err) console.error("❌ Erro na subscription:", err)
       })
@@ -240,7 +214,6 @@ export function useGatewayTransactions() {
     setRealtimeChannel(channel)
 
     return () => {
-      console.log("🧹 Limpando subscription realtime")
       if (channel) supabase.removeChannel(channel)
       setRealtimeStatus("CLOSED")
     }
@@ -248,12 +221,10 @@ export function useGatewayTransactions() {
 
   // Refresh manual
   const manualRefresh = useCallback(async () => {
-    console.log("🔄 Refresh manual iniciado.")
     setRefreshCount((prev) => prev + 1)
     setTransactions([])
     setError(null)
     await fetchTransactions()
-    console.log("✅ Refresh manual concluído.")
   }, [fetchTransactions])
 
   // Mapear dados do Supabase → GatewayTransaction
@@ -278,6 +249,7 @@ export function useGatewayTransactions() {
         net_amount: Number.parseFloat(item.net_amount?.toString() || item.amount?.toString() || "0") || null,
         event_type: item.event_type || null,
         status: normalizedStatus,
+        status_raw: item.status ?? null, // guarda o status bruto
         raw_payload: item.raw_payload || null,
         created_at: item.created_at,
         updated_at: item.updated_at || null,
@@ -300,7 +272,6 @@ export function useGatewayTransactions() {
       period?: { from: Date; to: Date }
       search?: string
     }) => {
-      console.log("[getFilteredTransactions] Applying filters:", filters)
       let filtered = [...transactions]
 
       if (filters.gateway) {
@@ -330,7 +301,6 @@ export function useGatewayTransactions() {
         )
       }
 
-      console.log(`[getFilteredTransactions] Found ${filtered.length} transactions after filtering.`)
       return filtered
     },
     [transactions],
@@ -338,23 +308,17 @@ export function useGatewayTransactions() {
 
   const getStats = useCallback(
     (filters?: { gateway?: PaymentGatewayType; period?: { from: Date; to: Date } }): GatewayStats => {
-      console.log("📈 Calculando stats para gateway:", filters?.gateway || "all")
-      console.log("📈 Total de transações carregadas:", transactions.length)
-
       let filteredTransactions = [...transactions]
 
       if (filters?.gateway) {
         filteredTransactions = filteredTransactions.filter((t) => t.gateway_id === filters.gateway)
-        console.log(`📈 Filtrado por ${filters.gateway}: ${filteredTransactions.length} transações`)
       }
 
       if (filters?.period) {
-        const original = filteredTransactions.length
         filteredTransactions = filteredTransactions.filter((t) => {
           const dt = new Date(t.created_at)
           return dt >= filters.period!.from && dt <= filters.period!.to
         })
-        console.log(`📈 Filtrado por período: ${original} -> ${filteredTransactions.length} transações`)
       }
 
       // Quebra por status usando helpers
@@ -363,30 +327,11 @@ export function useGatewayTransactions() {
       const failedTransactions = filteredTransactions.filter((t) => normalizeKey(t.status) === "failed")
       const refundedTransactions = filteredTransactions.filter((t) => normalizeKey(t.status) === "refunded")
       const abandonedTransactions = filteredTransactions.filter((t) => isAbandonedStatus(t.status))
-
-      // Debug: contagem por status bruto normalizado
-      const statusCounts = filteredTransactions.reduce<Record<string, number>>((acc, t) => {
-        const s = normalizeKey(t.status)
-        acc[s] = (acc[s] || 0) + 1
-        return acc
-      }, {})
-      console.log("Status counts:", statusCounts)
-      console.log("Abandoned detected via helper:", abandonedTransactions.length)
-
-      console.log("📈 Breakdown por status:")
-      console.log("  - Completed:", completedTransactions.length)
-      console.log("  - Pending:", pendingTransactions.length)
-      console.log("  - Failed:", failedTransactions.length)
-      console.log("  - Refunded:", refundedTransactions.length)
-      console.log("  - Abandoned:", abandonedTransactions.length)
+      // Recusadas: olhar status_raw/event_type
+      const refusedTransactions = filteredTransactions.filter((t) => isRefused(t.status_raw, t.event_type))
 
       const totalRevenue = completedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
       const totalTransactions = completedTransactions.length
-
-      console.log("📈 RESULTADO FINAL:")
-      console.log("  - Total de vendas (completed):", totalTransactions)
-      console.log("  - Receita total:", totalRevenue)
-
       const totalFees = completedTransactions.reduce((sum, t) => sum + (t.fees || 0), 0)
 
       const netAmount = completedTransactions.reduce((sum, t) => sum + (t.net_amount || t.amount || 0), 0)
@@ -394,6 +339,7 @@ export function useGatewayTransactions() {
       const failedAmount = failedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
       const refundedAmount = refundedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
       const abandonedAmount = abandonedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
+      const refusedAmount = refusedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
 
       const stats: GatewayStats = {
         totalRevenue,
@@ -409,17 +355,9 @@ export function useGatewayTransactions() {
         refundedAmount,
         totalAbandonedTransactions: abandonedTransactions.length,
         abandonedAmount,
+        refusedTransactions: refusedTransactions.length,
+        refusedAmount,
       }
-
-      console.log("📈 Stats finais calculadas:", {
-        gateway: filters?.gateway || "all",
-        receita: totalRevenue,
-        transacoesConcluidas: totalTransactions,
-        taxas: totalFees,
-        liquido: netAmount,
-        reembolsos: refundedAmount,
-        abandonadas: abandonedAmount,
-      })
 
       return stats
     },
@@ -428,7 +366,6 @@ export function useGatewayTransactions() {
 
   // Teste de realtime (opcional)
   const testRealtimeConnection = useCallback(async () => {
-    console.log("🧪 Testando conexão realtime...")
     try {
       const testTransaction = {
         user_id: userId,
@@ -447,12 +384,10 @@ export function useGatewayTransactions() {
         console.error("❌ Erro ao inserir transação de teste:", error)
         return false
       }
-      console.log("✅ Transação de teste inserida:", data)
 
       setTimeout(async () => {
         if (data && data[0]) {
           await supabase.from("gateway_transactions").delete().eq("id", data[0].id)
-          console.log("🧹 Transação de teste removida")
         }
       }, 5000)
 

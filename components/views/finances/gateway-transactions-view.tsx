@@ -808,22 +808,33 @@ const refusedUI = useMemo(() => {
         <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
           <Dialog open={isGatewayConfigOpen} onOpenChange={setIsGatewayConfigOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="text-xs sm:text-sm bg-transparent" onClick={() => setIsGatewayConfigOpen(true)}>
+              <Button
+                variant="outline"
+                className="text-xs sm:text-sm bg-transparent"
+                onClick={() => setIsGatewayConfigOpen(true)}
+              >
                 <Settings className="h-4 w-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">Configurar Gateways</span>
                 <span className="sm:hidden">Config</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-[95vw] sm:max-w-4xl">
-              <DialogHeader>
-                <DialogTitle>Configuração de Gateways</DialogTitle>
-                <DialogDescription>Configure as integrações com os gateways de pagamento.</DialogDescription>
-              </DialogHeader>
-              <div className="py-4">
-                <GatewayConfig />
-              </div>
+
+            {/* Mantém o mesmo tamanho de antes e remove o cabeçalho externo */}
+            <DialogContent className="max-w-[95vw] sm:max-w-4xl p-0">
+              {/* Botão de fechar no canto superior direito */}
+              <button
+                onClick={() => setIsGatewayConfigOpen(false)}
+                className="absolute right-3 top-3 rounded-md text-muted-foreground hover:text-foreground focus:outline-none"
+                aria-label="Fechar"
+              >
+                ✕
+              </button>
+
+              {/* Conteúdo direto (já tem título e descrição) */}
+              <GatewayConfig />
             </DialogContent>
           </Dialog>
+
 
           <Button
             variant="outline"

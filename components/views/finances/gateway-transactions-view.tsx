@@ -958,6 +958,111 @@ const refusedUI = useMemo(() => {
             </div>
           </CardContent>
         </Card>
+        <Card className="neon-card neon-card-green">
+          <CardHeader className="pb-2">
+            <CardDescription>Taxa de Aprovação</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Cartão</span>
+                <div className="flex items-center gap-2">
+                  <div className="relative w-6 h-6">
+                    <svg className="w-6 h-6 transform -rotate-90" viewBox="0 0 24 24">
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        fill="none"
+                        className="text-gray-300"
+                      />
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        fill="none"
+                        strokeDasharray={`${2 * Math.PI * 10}`}
+                        strokeDashoffset={`${2 * Math.PI * 10 * (1 - (summary.approvalRates?.cartao || 0) / 100)}`}
+                        className="text-blue-500 transition-all duration-300"
+                      />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium">
+                    {summary.approvalRates?.cartao ? `${summary.approvalRates.cartao.toFixed(1)}%` : "N/A"}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Pix</span>
+                <div className="flex items-center gap-2">
+                  <div className="relative w-6 h-6">
+                    <svg className="w-6 h-6 transform -rotate-90" viewBox="0 0 24 24">
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        fill="none"
+                        className="text-gray-300"
+                      />
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        fill="none"
+                        strokeDasharray={`${2 * Math.PI * 10}`}
+                        strokeDashoffset={`${2 * Math.PI * 10 * (1 - (summary.approvalRates?.pix || 0) / 100)}`}
+                        className="text-blue-500 transition-all duration-300"
+                      />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium">
+                    {summary.approvalRates?.pix ? `${summary.approvalRates.pix.toFixed(1)}%` : "N/A"}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Boleto</span>
+                <div className="flex items-center gap-2">
+                  <div className="relative w-6 h-6">
+                    <svg className="w-6 h-6 transform -rotate-90" viewBox="0 0 24 24">
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        fill="none"
+                        className="text-gray-300"
+                      />
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        fill="none"
+                        strokeDasharray={`${2 * Math.PI * 10}`}
+                        strokeDashoffset={`${2 * Math.PI * 10 * (1 - (summary.approvalRates?.boleto || 0) / 100)}`}
+                        className="text-blue-500 transition-all duration-300"
+                      />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium">
+                    {summary.approvalRates?.boleto ? `${summary.approvalRates.boleto.toFixed(1)}%` : "N/A"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="flex flex-col gap-6">

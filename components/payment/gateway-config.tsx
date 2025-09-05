@@ -513,16 +513,6 @@ export function GatewayConfig() {
               </div>
 
               <div className="flex flex-col space-y-2">
-                <Button
-                  onClick={handleCreateWebhook}
-                  disabled={!isCreateWebhookButtonEnabled}
-                  className={cn(
-                    "hover:shadow-[0_0_10px_rgba(59,130,246,0.5)]",
-                    !isCreateWebhookButtonEnabled && "opacity-50 cursor-not-allowed",
-                  )}
-                >
-                  {isCreatingWebhook ? "Criando Webhook..." : "CRIAR WEBHOOK"}
-                </Button>
 
                 {!isCreateWebhookButtonEnabled && !isLoadingUser && !authError && (
                   <p className="text-xs text-muted-foreground text-center">
@@ -537,9 +527,6 @@ export function GatewayConfig() {
         </div>
       </CardContent>
       <CardFooter className="flex justify-between">
-        <p className="text-sm text-muted-foreground">
-          As URLs de webhook são armazenadas localmente e direcionam para gateway_transactions.
-        </p>
         <a href="#" className="text-sm text-blue-400 hover:underline">
           Clique aqui para ver como integrar
         </a>

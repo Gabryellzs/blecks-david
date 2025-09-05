@@ -494,12 +494,18 @@ const getPaymentLabel = (method?: string | null) => {
   }, [getFilteredTransactions, dateRange, selectedGateway])
 
   const prepareGatewayDistributionData = useCallback(() => {
-    if (!summary || !summary.gatewaySummaries || summary.gatewaySummaries.length === 0) return []
-    return summary.gatewaySummaries.map((gateway) => ({
-      name: gatewayConfigs.find((gc) => gc.id === gateway.gatewayId)?.name || gateway.gatewayId,
-      value: gateway.totalAmount,
+  if (!summary?.gatewaySummaries?.length) return []
+
+  return summary.gatewaySummaries
+    .filter((g) =>
+      selectedGateway === "all" ? true : g.gatewayId === selectedGateway
+    )
+    .filter((g) => (g.totalAmount ?? 0) > 0)
+    .map((g) => ({
+      name: gatewayConfigs.find((gc) => gc.id === g.gatewayId)?.name || g.gatewayId,
+      value: g.totalAmount ?? 0,
     }))
-  }, [summary, gatewayConfigs])
+}, [summary, gatewayConfigs, selectedGateway])
 
   const prepareTransactionCountData = useCallback(() => {
     if (!summary || !summary.gatewaySummaries || summary.gatewaySummaries.length === 0) return []
@@ -681,6 +687,65 @@ const getPaymentLabel = (method?: string | null) => {
     }
   }
 
+  // 1) PREPARA OS DADOS + CAPTURA QUAIS GATEWAYS APARECERAM
+const { chartData: revenueData, revenueGatewayKeys } = useMemo(() => {
+  const dateMap = new Map<string, any>();
+  const seenGateways = new Set<string>();
+
+  const filtered = getFilteredTransactions({
+    status: "completed",
+    period: dateRange?.from && dateRange?.to ? { from: dateRange.from, to: dateRange.to } : undefined,
+    gateway: selectedGateway === "all" ? undefined : selectedGateway,
+  });
+
+  filtered.forEach((t) => {
+    const createdAt =
+      t.created_at instanceof Date ? t.created_at :
+      typeof t.created_at === "string" ? new Date(t.created_at) :
+      null;
+    if (!createdAt || isNaN(createdAt.getTime())) return;
+
+    const k = createdAt.toISOString().slice(0, 10);
+    if (!dateMap.has(k)) {
+      dateMap.set(k, { date: k, total: 0 });
+    }
+
+    const row = dateMap.get(k);
+    const gw = t.gateway_id as string;
+    const v = t.amount || 0;
+
+    row.total += v;
+    row[gw] = (row[gw] || 0) + v;
+
+    if (v > 0) seenGateways.add(gw);
+  });
+
+  const sorted = Array.from(dateMap.values()).sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  ).map((d) => ({ ...d, date: format(new Date(d.date), "dd/MM", { locale: ptBR }) }));
+
+  return { chartData: sorted, revenueGatewayKeys: seenGateways };
+}, [getFilteredTransactions, dateRange, selectedGateway]);
+
+// 2) MONTA AS CATEGORIAS DINÂMICAS
+const revenueCategories = useMemo(() => {
+  if (selectedGateway !== "all") return ["total", selectedGateway];
+
+  const gwList = Array.from(revenueGatewayKeys);
+  // se ninguém vendeu, mostra só "total"
+  return gwList.length ? ["total", ...gwList] : ["total"];
+}, [revenueGatewayKeys, selectedGateway]);
+
+// 3) USA NO LineChart
+<LineChart
+  data={revenueData}
+  index="date"
+  categories={revenueCategories}
+  colors={chartColors}
+  valueFormatter={(v) => formatCurrency(v)}
+  className="h-full w-full"
+/>
+
 
 // fora do JSX, acima do `return (...)`
 const REFUSED_STATUSES = new Set([
@@ -712,6 +777,26 @@ const refusedUI = useMemo(() => {
     return isRefused && inRange && matchesGateway
   })
 }, [transactions, dateRange, selectedGateway])
+
+// Faturamento
+const revenueChartData = useMemo(() => {
+  return prepareGatewayDistributionData()
+    .filter((d) => d.value > 0) // só gateways com receita
+    .map((d) => ({
+      name: d.name,
+      Receita: d.value,
+    }))
+}, [prepareGatewayDistributionData])
+
+// Transações
+const countChartData = useMemo(() => {
+  return prepareTransactionCountData()
+    .filter((d) => d.count > 0) // só gateways com vendas
+    .map((d) => ({
+      name: d.name,
+      "Transações": d.count,
+    }))
+}, [prepareTransactionCountData])
 
 
 
@@ -951,7 +1036,7 @@ const refusedUI = useMemo(() => {
         <Card className="neon-card neon-card-red">
           <CardHeader className="pb-2">
             <CardDescription>Reembolsos</CardDescription>
-            <CardTitle className="text-2xl sm:text-3xl text-red-500">
+            <CardTitle className="text-2xl sm:text-3xl neon-text">
               {formatCurrency(summary.refundedAmount)}
             </CardTitle>
           </CardHeader>
@@ -973,7 +1058,7 @@ const refusedUI = useMemo(() => {
         <Card className="neon-card neon-card-orange">
           <CardHeader className="pb-2">
             <CardDescription>Chargebacks</CardDescription>
-            <CardTitle className="text-2xl sm:text-3xl text-orange-500">
+            <CardTitle className="text-2xl sm:text-3xl neon-text">
               {formatCurrency(summary.chargebackAmount || 0)}
             </CardTitle>
           </CardHeader>
@@ -1122,25 +1207,11 @@ const refusedUI = useMemo(() => {
                 <CardContent>
                   <div className="h-[300px] sm:h-[350px] mx-auto w-full">
                     <LineChart
-                      data={prepareRevenueData()}
+                      data={revenueData}
                       index="date"
-                      categories={
-                        selectedGateway === "all"
-                          ? [
-                              "total",
-                              "kirvano",
-                              "cakto",
-                              "kiwify",
-                              "pepper",
-                              "nuvemshop",
-                              "woocommerce",
-                              "loja_integrada",
-                              "cartpanda",
-                            ]
-                          : ["total", selectedGateway]
-                      }
+                      categories={revenueCategories}
                       colors={chartColors}
-                      valueFormatter={(value) => formatCurrency(value)}
+                      valueFormatter={(v) => formatCurrency(v)}
                       className="h-full w-full"
                     />
                   </div>
@@ -1252,13 +1323,15 @@ const refusedUI = useMemo(() => {
                 </CardHeader>
                 <CardContent>
                   <BarChart
-                    data={prepareGatewayDistributionData()}
+                    data={revenueChartData}
                     index="name"
-                    categories={["value"]}
+                    categories={["Receita"]}
+                    showLegend={false}
+                    valueFormatter={(v) => formatCurrency(Number(v))}
                     colors={["#3B82F6"]}
-                    valueFormatter={(value) => formatCurrency(value)}
                     className="h-80"
                   />
+
                 </CardContent>
               </Card>
               <Card className="neon-card neon-card-purple">
@@ -1268,13 +1341,15 @@ const refusedUI = useMemo(() => {
                 </CardHeader>
                 <CardContent>
                   <BarChart
-                    data={prepareTransactionCountData()}
+                    data={countChartData}
                     index="name"
-                    categories={["count"]}
+                    categories={["Transações"]}
+                    showLegend={false}
+                    valueFormatter={(v) => `${Number(v)} transações`}
                     colors={["#8B5CF6"]}
-                    valueFormatter={(value) => `${value} transações`}
                     className="h-80"
                   />
+
                 </CardContent>
               </Card>
             </div>

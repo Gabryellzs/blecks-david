@@ -416,6 +416,7 @@ const getPaymentLabel = (method?: string | null) => {
     transfer: 'Transferência',
     paypal: 'PayPal',
     wallet: 'Carteira',
+    unknown: 'Desconhecido',
   }
   return map[m] ?? (method ? method : 'N/A')
 }

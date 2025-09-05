@@ -15,10 +15,8 @@ import {
 } from "chart.js"
 import { Line, Bar, Doughnut } from "react-chartjs-2"
 
-// Registrar os componentes necessários do Chart.js
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend)
 
-// Definir cores padrão para os gráficos
 const defaultColors = [
   "#4F46E5", // indigo
   "#0EA5E9", // sky
@@ -29,7 +27,9 @@ const defaultColors = [
   "#6B7280", // gray
 ]
 
-// Componente LineChart
+/* =========================
+   LineChart
+========================= */
 export function LineChart({
   data,
   index,
@@ -37,21 +37,20 @@ export function LineChart({
   colors = defaultColors,
   valueFormatter = (value) => value.toString(),
   className = "",
+  showLegend = true,
+  legendPosition = "top",
 }) {
   const chartData = React.useMemo(() => {
     if (!data || !data.length) return { labels: [], datasets: [] }
-
     const labels = data.map((item) => item[index])
-
     const datasets = categories.map((category, i) => ({
       label: category,
       data: data.map((item) => item[category] || 0),
       borderColor: colors[i % colors.length],
-      backgroundColor: colors[i % colors.length] + "33", // Add transparency
+      backgroundColor: colors[i % colors.length] + "33",
       tension: 0.2,
       fill: false,
     }))
-
     return { labels, datasets }
   }, [data, index, categories, colors])
 
@@ -60,18 +59,15 @@ export function LineChart({
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: "top",
+        display: !!showLegend,
+        position: legendPosition,
       },
       tooltip: {
         callbacks: {
           label: (context) => {
             let label = context.dataset.label || ""
-            if (label) {
-              label += ": "
-            }
-            if (context.parsed.y !== null) {
-              label += valueFormatter(context.parsed.y)
-            }
+            if (label) label += ": "
+            if (context.parsed.y !== null) label += valueFormatter(context.parsed.y)
             return label
           },
         },
@@ -94,7 +90,9 @@ export function LineChart({
   )
 }
 
-// Componente BarChart
+/* =========================
+   BarChart
+========================= */
 export function BarChart({
   data,
   index,
@@ -102,12 +100,12 @@ export function BarChart({
   colors = defaultColors,
   valueFormatter = (value) => value.toString(),
   className = "",
+  showLegend = true,
+  legendPosition = "top",
 }) {
   const chartData = React.useMemo(() => {
     if (!data || !data.length) return { labels: [], datasets: [] }
-
     const labels = data.map((item) => item[index])
-
     const datasets = categories.map((category, i) => ({
       label: category,
       data: data.map((item) => item[category] || 0),
@@ -115,7 +113,6 @@ export function BarChart({
       borderColor: colors[i % colors.length],
       borderWidth: 1,
     }))
-
     return { labels, datasets }
   }, [data, index, categories, colors])
 
@@ -124,18 +121,15 @@ export function BarChart({
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: "top",
+        display: !!showLegend,
+        position: legendPosition,
       },
       tooltip: {
         callbacks: {
           label: (context) => {
             let label = context.dataset.label || ""
-            if (label) {
-              label += ": "
-            }
-            if (context.parsed.y !== null) {
-              label += valueFormatter(context.parsed.y)
-            }
+            if (label) label += ": "
+            if (context.parsed.y !== null) label += valueFormatter(context.parsed.y)
             return label
           },
         },
@@ -158,7 +152,9 @@ export function BarChart({
   )
 }
 
-// Componente DonutChart
+/* =========================
+   DonutChart
+========================= */
 export function DonutChart({
   data,
   index,
@@ -166,13 +162,13 @@ export function DonutChart({
   colors = defaultColors,
   valueFormatter = (value) => value.toString(),
   className = "",
+  showLegend = true,
+  legendPosition = "right",
 }) {
   const chartData = React.useMemo(() => {
     if (!data || !data.length) return { labels: [], datasets: [] }
-
     const labels = data.map((item) => item[index])
     const values = data.map((item) => item[category] || 0)
-
     return {
       labels,
       datasets: [
@@ -191,7 +187,8 @@ export function DonutChart({
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: "right",
+        display: !!showLegend,
+        position: legendPosition,
       },
       tooltip: {
         callbacks: {
@@ -199,7 +196,7 @@ export function DonutChart({
             const label = context.label || ""
             const value = context.raw || 0
             const total = context.dataset.data.reduce((a, b) => a + b, 0)
-            const percentage = Math.round((value / total) * 100)
+            const percentage = total ? Math.round((value / total) * 100) : 0
             return `${label}: ${valueFormatter(value)} (${percentage}%)`
           },
         },
@@ -215,5 +212,4 @@ export function DonutChart({
   )
 }
 
-// Manter compatibilidade com a API anterior
 export const AreaChart = LineChart

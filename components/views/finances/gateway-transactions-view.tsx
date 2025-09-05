@@ -1489,7 +1489,7 @@ const refusedUI = useMemo(() => {
                 <CardDescription>Transações de checkout Abandonado e Recusado</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-8 max-h-[400px] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-6">
 
                   {/* --- ABANDONADAS --- */}
                   <div className="space-y-3">

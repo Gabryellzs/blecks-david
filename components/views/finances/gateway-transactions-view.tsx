@@ -400,6 +400,27 @@ export function GatewayTransactionsView({ userName }: GatewayTransactionsViewPro
     }
   }
 
+  // Traduz o payment_method salvo no banco para rótulo PT-BR
+const getPaymentLabel = (method?: string | null) => {
+  const m = String(method ?? '').toLowerCase().trim()
+  const map: Record<string, string> = {
+    card: 'Cartão',
+    credit_card: 'Cartão',
+    credit: 'Cartão',
+    debit_card: 'Cartão (débito)',
+    debit: 'Cartão (débito)',
+    pix: 'Pix',
+    pix_qr: 'Pix',
+    boleto: 'Boleto',
+    slip: 'Boleto',
+    transfer: 'Transferência',
+    paypal: 'PayPal',
+    wallet: 'Carteira',
+  }
+  return map[m] ?? (method ? method : 'N/A')
+}
+
+
   const getWhatsAppLink = (phone: string | null | undefined) => {
     if (!phone) return "#"
     const cleanedPhone = phone.replace(/\\D/g, "")
@@ -926,17 +947,17 @@ const refusedUI = useMemo(() => {
           </CardContent>
         </Card>
 
-        <Card className="neon-card neon-card-pink">
+        <Card className="neon-card neon-card-red">
           <CardHeader className="pb-2">
             <CardDescription>Reembolsos</CardDescription>
-            <CardTitle className="text-2xl sm:text-3xl text-pink-500">
+            <CardTitle className="text-2xl sm:text-3xl text-red-500">
               {formatCurrency(summary.refundedAmount)}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-sm text-muted-foreground flex flex-col">
               <div className="flex items-center mb-1">
-                <Undo2 className="h-4 w-4 mr-1 text-pink-500" />
+                <Undo2 className="h-4 w-4 mr-1 text-red-500" />
                 {summary.totalRefunds} Reembolsos
               </div>
               <div>
@@ -1512,7 +1533,7 @@ const refusedUI = useMemo(() => {
                             </div>
                          </div>
 
-                          <div className="grid grid-cols-2 gap-1 text-sm">
+                          <div className="grid grid-cols-[max-content,1fr] gap-y-2 gap-x-3 text-sm leading-6 items-baseline">
                             <div className="text-muted-foreground">Data:</div>
                             <div>{new Date(transaction.created_at).toLocaleDateString("pt-BR")}</div>
 
@@ -1523,16 +1544,16 @@ const refusedUI = useMemo(() => {
                             <div>{transaction.customer_email}</div>
                             <div className="text-muted-foreground">Telefone:</div>
                             <div className="flex items-center gap-2">
-                              <div>{transaction.customer_phone || "N/A"}</div>
-                              {transaction.customer_phone && (
-                                <Button asChild variant="ghost" size="icon" className="h-6 w-6">
-                                  <a
-                                    href={getWhatsAppLink(transaction.customer_phone)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    aria-label="Enviar mensagem no WhatsApp"
-                                  >
-                                    <svg
+                                <div>{transaction.customer_phone || "N/A"}</div>
+                                {transaction.customer_phone && (
+                                  <Button asChild variant="ghost" size="icon" className="h-6 w-6">
+                                    <a
+                                      href={getWhatsAppLink(transaction.customer_phone)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      aria-label="Enviar mensagem no WhatsApp"
+                                    >
+                                      <svg
   xmlns="http://www.w3.org/2000/svg"
   fill="currentColor"
   viewBox="0 0 24 24"
@@ -1541,12 +1562,14 @@ const refusedUI = useMemo(() => {
   <path d="M20.52 3.48A11.8 11.8 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.17 1.6 6L0 24l6.25-1.64A11.93 11.93 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 22c-1.84 0-3.62-.5-5.18-1.45l-.37-.22-3.72.97.99-3.63-.24-.37A9.99 9.99 0 0 1 2 12c0-5.53 4.47-10 10-10s10 4.47 10 10-4.47 10-10 10zm5.03-7.28c-.28-.14-1.65-.82-1.9-.92-.26-.1-.45-.14-.64.14-.19.28-.74.92-.91 1.11-.17.19-.34.21-.62.07-.28-.14-1.18-.44-2.25-1.41-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.31.42-.47.14-.16.19-.28.28-.47.09-.19.05-.36-.02-.5-.07-.14-.64-1.55-.88-2.12-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.5.07-.76.36s-1 1-1 2.43 1.03 2.82 1.17 3.02c.14.19 2.03 3.1 4.93 4.34.69.3 1.23.48 1.65.61.69.22 1.31.19 1.8.12.55-.08 1.65-.68 1.89-1.34.23-.66.23-1.22.16-1.34-.07-.12-.26-.19-.55-.33z" />
 </svg>
 
-                                  </a>
-                                </Button>
-                              )}
-                            </div>
+                                    </a>
+                                  </Button>
+                                )}
+                              </div>
+                              <div className="text-muted-foreground">Pagamento:</div>
+                              <div>{getPaymentLabel(transaction.payment_method)}</div>
                             <div className="text-muted-foreground">Gateway:</div>
-                           <div>
+                            <div>
                              <span className="inline-flex items-center">
                                 <span
                                   className="w-2 h-2 rounded-full mr-1"
@@ -1579,7 +1602,7 @@ const refusedUI = useMemo(() => {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-1 text-sm">
+                          <div className="grid grid-cols-[max-content,1fr] gap-y-2 gap-x-3 text-sm leading-6 items-baseline">
                             <div className="text-muted-foreground">Data:</div>
                             <div>{new Date(transaction.created_at).toLocaleDateString("pt-BR")}</div>
 
@@ -1613,6 +1636,8 @@ const refusedUI = useMemo(() => {
                                 </Button>
                               )}
                             </div>
+                            <div className="text-muted-foreground">Pagamento:</div>
+                            <div>{getPaymentLabel(transaction.payment_method)}</div>
                             <div className="text-muted-foreground">Gateway:</div>
                             <div>
                               <span className="inline-flex items-center">

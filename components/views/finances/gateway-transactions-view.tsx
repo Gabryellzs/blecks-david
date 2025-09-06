@@ -64,25 +64,25 @@ export function GatewayTransactionsView({ userName }: GatewayTransactionsViewPro
   } = useGatewayTransactions()
 
   // Configurações de gateway fixas para teste
-  const gatewayConfigs = [
-    { id: "kirvano", name: "Kirvano", color: "#6B7280" },
-    { id: "cakto", name: "Cakto", color: "#10B985" },
-    { id: "kiwify", name: "Kiwify", color: "#10B981" },
-    { id: "hotmart", name: "Hotmart", color: "#ff5e00ff" },
-    { id: "monetizze", name: "Monetizze", color: "#5500ffff" },
-    { id: "eduzz", name: "Eduzz", color: "#e2ba2bff" },
-    { id: "pepper", name: "Pepper", color: "#ff0000ff" },
-    { id: "braip", name: "Braip", color: "#840891ff" },
-    { id: "lastlink", name: "Lastlink", color: "#00fa15ff" },
-    { id: "disrupty", name: "Disrupty", color: "#ffff00ff" },
-    { id: "perfectpay", name: "PerfectPay", color: "#05f3ffff" },
-    { id: "goatpay", name: "Goatpay", color: "#dfc323ff" },
-    { id: "tribopay", name: "Tribopay", color: "#0fd347ff" },
-    { id: "nuvemshop", name: "Nuvemshop", color: "#00C2B2" },
-    { id: "woocommerce", name: "WooCommerce", color: "#96588A" },
-    { id: "loja_integrada", name: "Loja Integrada", color: "#32c0cdff" },
-    { id: "cartpanda", name: "Cartpanda", color: "#1e00ffff" },
-  ]
+const gatewayConfigs = [
+  { id: "kirvano",       name: "Kirvano",       color: "#6B7280",   logo: "/images/gateway-logos/kirvano.png" },
+  { id: "cakto",         name: "Cakto",         color: "#10B985",   logo: "/images/gateway-logos/cakto.png" },
+  { id: "kiwify",        name: "Kiwify",        color: "#10B981",   logo: "/images/gateway-logos/kiwify.png" },
+  { id: "hotmart",       name: "Hotmart",       color: "#ff5e00ff", logo: "/images/gateway-logos/hotmart.png" },
+  { id: "monetizze",     name: "Monetizze",     color: "#5500ffff", logo: "/images/gateway-logos/monetizze.png" },
+  { id: "eduzz",         name: "Eduzz",         color: "#e2ba2bff", logo: "/images/gateway-logos/eduzz.jpeg" },
+  { id: "pepper",        name: "Pepper",        color: "#ff0000ff", logo: "/images/gateway-logos/pepper.png" },
+  { id: "braip",         name: "Braip",         color: "#840891ff", logo: "/images/gateway-logos/braip.jpeg" },
+  { id: "lastlink",      name: "Lastlink",      color: "#00fa15ff", logo: "/images/gateway-logos/lastlink.png" },
+  { id: "disrupty",      name: "Disrupty",      color: "#ffff00ff", logo: "/images/gateway-logos/disrupty.png" },
+  { id: "perfectpay",    name: "PerfectPay",    color: "#05f3ffff", logo: "/images/gateway-logos/perfectpay.jpeg" },
+  { id: "goatpay",       name: "Goatpay",       color: "#dfc323ff", logo: "/images/gateway-logos/goatpay.jpeg" },
+  { id: "tribopay",      name: "Tribopay",      color: "#0fd347ff", logo: "/images/gateway-logos/tribopay.jpeg" },
+  { id: "nuvemshop",     name: "Nuvemshop",     color: "#00C2B2",   logo: "/images/gateway-logos/nuvemshop.png" },
+  { id: "woocommerce",   name: "WooCommerce",   color: "#96588A",   logo: "/images/gateway-logos/woocommerce.png" },
+  { id: "loja_integrada",name: "Loja Integrada",color: "#32c0cdff", logo: "/images/gateway-logos/loja_integrada.png" },
+  { id: "cartpanda",     name: "Cartpanda",     color: "#1e00ffff", logo: "/images/gateway-logos/cartpanda.png" },
+]
 
   const gatewayColors = gatewayConfigs.map((g) => g.color);
 
@@ -802,6 +802,11 @@ const countByGatewayName: Record<string, number> = Object.fromEntries(
   prepareTransactionCountData().map(d => [d.name, d.count])
 )
 
+const logoByGatewayName = useMemo(
+  () => Object.fromEntries(gatewayConfigs.map(g => [g.name, g.logo] as const)),
+  [gatewayConfigs]
+)
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-2">
@@ -1361,8 +1366,9 @@ const countByGatewayName: Record<string, number> = Object.fromEntries(
 
             <div className="grid gap-6 grid-cols-1 md:grid-cols-4">
               {prepareGatewayDistributionData().map((gateway) => {
-                const color = colorByGatewayName[gateway.name] ?? "#6B7280";
-                const txCount = countByGatewayName[gateway.name] ?? 0;
+                const color  = colorByGatewayName[gateway.name] ?? "#6B7280"
+                const logo   = logoByGatewayName[gateway.name]   // ex.: /images/gateway-logos/kirvano.png
+                const txCount = countByGatewayName[gateway.name] ?? 0
 
                 return (
                   <Card
@@ -1372,9 +1378,25 @@ const countByGatewayName: Record<string, number> = Object.fromEntries(
                     style={{ ["--gw" as any]: color }}
                   >
                     <CardHeader className="pb-2">
-                      <CardDescription>{gateway.name}</CardDescription>
+                      <div className="flex items-center gap-2">
+                        {logo ? (
+                          // se não usa next/image, esse <img> está ok
+                          <img
+                            src={logo}
+                            alt={`${gateway.name} logo`}
+                            className="h-5 w-5 rounded-[4px] object-contain"
+                            width={20}
+                            height={20}
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none" }}
+                          />
+                        ) : null}
+                        <CardDescription className="!mt-0">{gateway.name}</CardDescription>
+                      </div>
+
+                      {/* valor sempre branco */}
                       <CardTitle className="text-white">{formatCurrency(gateway.value)}</CardTitle>
                     </CardHeader>
+
                     <CardContent className="pt-4">
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
@@ -1392,7 +1414,7 @@ const countByGatewayName: Record<string, number> = Object.fromEntries(
                       </div>
                     </CardContent>
                   </Card>
-                );
+                )
               })}
             </div>
 

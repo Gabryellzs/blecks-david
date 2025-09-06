@@ -211,3 +211,52 @@
     opacity: 1;
   }
 }
+
+/* ========= Neon base para TODOS os cards ========= */
+.neon-card {
+  position: relative;
+
+  /* Cor padrão caso o card não defina --gw inline */
+  --gw: var(--gw, #8b5cf6); /* roxo leve */
+
+  /* Glow SEMPRE LIGADO (bem sutil) */
+  box-shadow:
+    0 0 8px 1px color-mix(in oklab, var(--gw), transparent 80%),
+    inset 0 0 5px 0 color-mix(in oklab, var(--gw), transparent 100%);
+
+  transition: box-shadow .25s ease, transform .2s ease, filter .2s ease;
+  border-color: transparent; /* evita “linha” de borda */
+}
+
+/* Glow MAIS FORTE no hover/focus */
+.neon-card:hover,
+.neon-card:focus-within {
+  box-shadow:
+    0 0 15px 2px color-mix(in oklab, var(--gw), transparent 60%),
+    inset 0 0 12px 0 color-mix(in oklab, var(--gw), transparent 100%);
+}
+
+/* ========= Barra neon do topo: SEMPRE visível ========= */
+.neon-card.neon-top::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gw), transparent);
+  opacity: 100;                 /* fraco, sempre ligado */
+  transform: translateX(-100%);
+  animation: gw-sweep 4s linear infinite;
+  pointer-events: none;
+}
+
+/* No hover a barra fica mais forte/rápida (opcional) */
+.neon-card.neon-top:hover::before,
+.neon-card.neon-top:focus-within::before {
+  opacity: .9;
+  animation-duration: 2.2s;
+  filter: drop-shadow(0 0 10px var(--gw));
+}
+
+@keyframes gw-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}

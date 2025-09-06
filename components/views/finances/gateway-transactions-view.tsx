@@ -66,23 +66,30 @@ export function GatewayTransactionsView({ userName }: GatewayTransactionsViewPro
   // Configurações de gateway fixas para teste
   const gatewayConfigs = [
     { id: "kirvano", name: "Kirvano", color: "#6B7280" },
-    { id: "cakto", name: "Cakto", color: "#4F46E5" },
+    { id: "cakto", name: "Cakto", color: "#10B985" },
     { id: "kiwify", name: "Kiwify", color: "#10B981" },
-    { id: "hotmart", name: "Hotmart", color: "#FF6B00" },
-    { id: "monetizze", name: "Monetizze", color: "#FFD700" },
-    { id: "eduzz", name: "Eduzz", color: "#8A2BE2" },
-    { id: "pepper", name: "Pepper", color: "#FF4500" },
-    { id: "braip", name: "Braip", color: "#00CED1" },
-    { id: "lastlink", name: "Lastlink", color: "#DA70D6" },
-    { id: "disrupty", name: "Disrupty", color: "#ADFF2F" },
-    { id: "perfectpay", name: "PerfectPay", color: "#FF6347" },
-    { id: "goatpay", name: "Goatpay", color: "#4682B4" },
-    { id: "tribopay", name: "Tribopay", color: "#20B2AA" },
+    { id: "hotmart", name: "Hotmart", color: "#ff5e00ff" },
+    { id: "monetizze", name: "Monetizze", color: "#5500ffff" },
+    { id: "eduzz", name: "Eduzz", color: "#e2ba2bff" },
+    { id: "pepper", name: "Pepper", color: "#ff0000ff" },
+    { id: "braip", name: "Braip", color: "#840891ff" },
+    { id: "lastlink", name: "Lastlink", color: "#00fa15ff" },
+    { id: "disrupty", name: "Disrupty", color: "#ffff00ff" },
+    { id: "perfectpay", name: "PerfectPay", color: "#05f3ffff" },
+    { id: "goatpay", name: "Goatpay", color: "#dfc323ff" },
+    { id: "tribopay", name: "Tribopay", color: "#0fd347ff" },
     { id: "nuvemshop", name: "Nuvemshop", color: "#00C2B2" },
     { id: "woocommerce", name: "WooCommerce", color: "#96588A" },
-    { id: "loja_integrada", name: "Loja Integrada", color: "#32CD32" },
-    { id: "cartpanda", name: "Cartpanda", color: "#FF69B4" },
+    { id: "loja_integrada", name: "Loja Integrada", color: "#32c0cdff" },
+    { id: "cartpanda", name: "Cartpanda", color: "#1e00ffff" },
   ]
+
+  const gatewayColors = gatewayConfigs.map((g) => g.color);
+
+   const colorByGatewayName = useMemo(
+    () => Object.fromEntries(gatewayConfigs.map(g => [g.name, g.color] as const)),
+    [gatewayConfigs]
+  )
 
   // Calcula net_amount real só de completed
   const calculateNetAmountFromSupabase = useCallback(
@@ -379,14 +386,17 @@ export function GatewayTransactionsView({ userName }: GatewayTransactionsViewPro
       case "last_month":
         fromDate = startOfMonth(subMonths(today, 1))
         toDate = endOfMonth(subMonths(today, 1))
+        setDateRange({ from: fromDate, to: toDate });
         break
       case "90d":
         fromDate = subDays(today, 89)
         toDate = endOfDay(today)
+        setDateRange({ from: fromDate, to: toDate });
         break
       case "1y":
         fromDate = subMonths(today, 11)
         toDate = endOfDay(today)
+        setDateRange({ from: fromDate, to: toDate });
         break
       case "custom_month":
         setTempDateRange(undefined)
@@ -424,7 +434,7 @@ const getPaymentLabel = (method?: string | null) => {
 
   const getWhatsAppLink = (phone: string | null | undefined) => {
     if (!phone) return "#"
-    const cleanedPhone = phone.replace(/\\D/g, "")
+    const cleanedPhone = phone.replace(/\D/g, "")
     const formattedPhone = cleanedPhone.startsWith("55") ? cleanedPhone : `55${cleanedPhone}`
     return `https://wa.me/${formattedPhone}`
   }
@@ -736,16 +746,6 @@ const revenueCategories = useMemo(() => {
   return gwList.length ? ["total", ...gwList] : ["total"];
 }, [revenueGatewayKeys, selectedGateway]);
 
-// 3) USA NO LineChart
-<LineChart
-  data={revenueData}
-  index="date"
-  categories={revenueCategories}
-  colors={chartColors}
-  valueFormatter={(v) => formatCurrency(v)}
-  className="h-full w-full"
-/>
-
 
 // fora do JSX, acima do `return (...)`
 const REFUSED_STATUSES = new Set([
@@ -798,7 +798,9 @@ const countChartData = useMemo(() => {
     }))
 }, [prepareTransactionCountData])
 
-
+const countByGatewayName: Record<string, number> = Object.fromEntries(
+  prepareTransactionCountData().map(d => [d.name, d.count])
+)
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -956,10 +958,10 @@ const countChartData = useMemo(() => {
       </div>
 
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
-        <Card className="neon-card neon-card-blue">
+        <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#7ece68ff" }}>
           <CardHeader className="pb-2">
             <CardDescription>Receita Total</CardDescription>
-            <CardTitle className="text-2xl sm:text-3xl neon-text-blue">
+            <CardTitle className="text-2xl sm:text-3xl neon-text-green">
               {formatCurrency(summary.netAmount + summary.totalFees)}
             </CardTitle>
           </CardHeader>
@@ -967,19 +969,19 @@ const countChartData = useMemo(() => {
             <div className="text-sm text-muted-foreground">Valor Bruto</div>
           </CardContent>
         </Card>
-        <Card className="neon-card neon-card-purple">
+        <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#7ece68ff" }}>
           <CardHeader className="pb-2">
             <CardDescription>Vendas</CardDescription>
-            <CardTitle className="text-2xl sm:text-3xl neon-text-purple">{summary.totalTransactions}</CardTitle>
+            <CardTitle className="text-2xl sm:text-3xl neon-text-green">{summary.totalTransactions}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-sm text-muted-foreground">Dados reais de vendas</div>
           </CardContent>
         </Card>
-        <Card className="neon-card neon-card-amber">
+        <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#bf8c35ff" }}>
           <CardHeader className="pb-2">
             <CardDescription>Taxas</CardDescription>
-            <CardTitle className="text-2xl sm:text-3xl neon-text-amber">{formatCurrency(summary.totalFees)}</CardTitle>
+            <CardTitle className="text-2xl sm:text-3xl neon-text-green">{formatCurrency(summary.totalFees)}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-sm text-muted-foreground flex items-center">
@@ -987,7 +989,7 @@ const countChartData = useMemo(() => {
             </div>
           </CardContent>
         </Card>
-        <Card className="neon-card">
+        <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#7ece68ff" }}>
           <CardHeader className="pb-2">
             <CardDescription>Valor Líquido</CardDescription>
             <CardTitle className="text-2xl sm:text-3xl neon-text">{formatCurrency(summary.netAmount)}</CardTitle>
@@ -998,7 +1000,7 @@ const countChartData = useMemo(() => {
         </Card>
 
         {/* ✅ CARD ATUALIZADO: usa refusedTransactions e refusedAmount do summary */}
-        <Card className="neon-card neon-card-red">
+        <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#bf8c35ff" }}>
           <CardHeader className="pb-2">
             <CardDescription>Vendas Não Concluídas</CardDescription>
             <CardTitle className="text-2xl sm:text-3xl neon-text">
@@ -1033,7 +1035,7 @@ const countChartData = useMemo(() => {
           </CardContent>
         </Card>
 
-        <Card className="neon-card neon-card-red">
+        <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#bf8c35ff" }}>
           <CardHeader className="pb-2">
             <CardDescription>Reembolsos</CardDescription>
             <CardTitle className="text-2xl sm:text-3xl neon-text">
@@ -1055,7 +1057,7 @@ const countChartData = useMemo(() => {
           </CardContent>
         </Card>
 
-        <Card className="neon-card neon-card-orange">
+        <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#bf8c35ff" }}>
           <CardHeader className="pb-2">
             <CardDescription>Chargebacks</CardDescription>
             <CardTitle className="text-2xl sm:text-3xl neon-text">
@@ -1076,7 +1078,7 @@ const countChartData = useMemo(() => {
             </div>
           </CardContent>
         </Card>
-        <Card className="neon-card neon-card-green">
+        <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#bf8c35ff" }}>
           <CardHeader className="pb-2">
             <CardDescription>Taxa de Aprovação</CardDescription>
           </CardHeader>
@@ -1199,7 +1201,7 @@ const countChartData = useMemo(() => {
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-              <Card className="neon-card neon-card-blue">
+              <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#2a71b8ff" }}>
                 <CardHeader>
                   <CardTitle>Receita ao Longo do Tempo</CardTitle>
                   <CardDescription>Evolução da receita no período selecionado</CardDescription>
@@ -1218,7 +1220,7 @@ const countChartData = useMemo(() => {
                 </CardContent>
               </Card>
 
-              <Card className="neon-card neon-card-purple">
+              <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#b300ffff" }}>
                 <CardHeader>
                   <CardTitle>Distribuição por Gateway</CardTitle>
                   <CardDescription>Participação de cada gateway no faturamento</CardDescription>
@@ -1240,7 +1242,10 @@ const countChartData = useMemo(() => {
             </div>
 
             <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
-              <Card className="neon-card neon-card-purple md:col-span-2">
+              <Card
+                className="neon-card neon-top md:col-span-2"
+                style={{ ["--gw" as any]: "#10B981" }}
+              >
                 <CardHeader>
                   <CardTitle>Desempenho Diário</CardTitle>
                   <CardDescription>Faturamento dos últimos 7 dias</CardDescription>
@@ -1259,7 +1264,7 @@ const countChartData = useMemo(() => {
                 </CardContent>
               </Card>
 
-              <Card className="neon-card neon-card-amber">
+              <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#bf8c35ff" }}>
                 <CardHeader>
                   <CardTitle>Metas do Período</CardTitle>
                   <CardDescription>Progresso em relação às metas</CardDescription>
@@ -1316,7 +1321,7 @@ const countChartData = useMemo(() => {
 
           <TabsContent value="gateways" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
-              <Card className="neon-card neon-card-blue">
+              <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#2a71b8ff" }}>
                 <CardHeader>
                   <CardTitle>Desempenho por Gateway</CardTitle>
                   <CardDescription>Comparativo de faturamento por gateway</CardDescription>
@@ -1328,13 +1333,13 @@ const countChartData = useMemo(() => {
                     categories={["Receita"]}
                     showLegend={false}
                     valueFormatter={(v) => formatCurrency(Number(v))}
-                    colors={["#3B82F6"]}
+                    colorsByLabel={colorByGatewayName}
                     className="h-80"
                   />
 
                 </CardContent>
               </Card>
-              <Card className="neon-card neon-card-purple">
+              <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#b300ffff" }}>
                 <CardHeader>
                   <CardTitle>Transações por Gateway</CardTitle>
                   <CardDescription>Número de transações por gateway</CardDescription>
@@ -1346,7 +1351,7 @@ const countChartData = useMemo(() => {
                     categories={["Transações"]}
                     showLegend={false}
                     valueFormatter={(v) => `${Number(v)} transações`}
-                    colors={["#8B5CF6"]}
+                    colorsByLabel={colorByGatewayName}
                     className="h-80"
                   />
 
@@ -1355,35 +1360,26 @@ const countChartData = useMemo(() => {
             </div>
 
             <div className="grid gap-6 grid-cols-1 md:grid-cols-4">
-              {prepareGatewayDistributionData().map((gateway, index) => {
-                const neonClass =
-                  index % 4 === 0
-                    ? "neon-card"
-                    : index % 4 === 1
-                    ? "neon-card neon-card-blue"
-                    : index % 4 === 2
-                    ? "neon-card neon-card-purple"
-                    : "neon-card neon-card-amber"
-                const textClass =
-                  index % 4 === 0
-                    ? "neon-text"
-                    : index % 4 === 1
-                    ? "neon-text-blue"
-                    : index % 4 === 2
-                    ? "neon-text-purple"
-                    : "neon-text-amber"
+              {prepareGatewayDistributionData().map((gateway) => {
+                const color = colorByGatewayName[gateway.name] ?? "#6B7280";
+                const txCount = countByGatewayName[gateway.name] ?? 0;
 
                 return (
-                  <Card key={index} className={neonClass}>
+                  <Card
+                    key={gateway.name}
+                    className="neon-card neon-top"
+                    data-gw
+                    style={{ ["--gw" as any]: color }}
+                  >
                     <CardHeader className="pb-2">
                       <CardDescription>{gateway.name}</CardDescription>
-                      <CardTitle className={textClass}>{formatCurrency(gateway.value)}</CardTitle>
+                      <CardTitle className="text-white">{formatCurrency(gateway.value)}</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4">
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Transações:</span>
-                          <span className="font-medium">{prepareTransactionCountData()[index]?.count || 0}</span>
+                          <span className="font-medium">{txCount}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Taxas:</span>
@@ -1396,13 +1392,14 @@ const countChartData = useMemo(() => {
                       </div>
                     </CardContent>
                   </Card>
-                )
+                );
               })}
             </div>
+
           </TabsContent>
 
           <TabsContent value="products" className="space-y-6">
-            <Card className="neon-card neon-card-amber">
+            <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#b9a210ff" }}>
               <CardHeader>
                 <CardTitle>Produtos Mais Vendidos</CardTitle>
                 <CardDescription>Top produtos por faturamento</CardDescription>
@@ -1420,7 +1417,7 @@ const countChartData = useMemo(() => {
                 </div>
               </CardContent>
             </Card>
-            <Card className="neon-card">
+            <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#46f140ff" }}>
               <CardHeader>
                 <CardTitle>Distribuição de Vendas</CardTitle>
                 <CardDescription>Vendas por produto</CardDescription>
@@ -1442,7 +1439,7 @@ const countChartData = useMemo(() => {
           </TabsContent>
 
           <TabsContent value="transactions" className="space-y-6">
-            <Card className="neon-card neon-card-blue">
+            <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#2a71b8ff" }}>
               <CardHeader>
                 <CardTitle>Últimas Transações</CardTitle>
                 <CardDescription>Transações mais recentes de todos os gateways</CardDescription>
@@ -1511,7 +1508,7 @@ const countChartData = useMemo(() => {
           </TabsContent>
 
           <TabsContent value="refunds" className="space-y-6">
-            <Card className="neon-card neon-card-pink">
+            <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#ff00e6ff" }}>
               <CardHeader>
                 <CardTitle>Últimos Reembolsos</CardTitle>
                 <CardDescription>Reembolsos mais recentes de todos os gateways</CardDescription>
@@ -1580,7 +1577,7 @@ const countChartData = useMemo(() => {
           </TabsContent>
 
           <TabsContent value="abandoned" className="space-y-6">
-            <Card className="neon-card neon-card-red">
+            <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#ff0000ff" }}>
               <CardHeader>
                 <CardTitle>Vendas Abandonadas e Recusadas</CardTitle>
                 <CardDescription>Transações de checkout Abandonado e Recusado</CardDescription>
@@ -1737,7 +1734,7 @@ const countChartData = useMemo(() => {
 
 
           <TabsContent value="chargebacks" className="space-y-6">
-            <Card className="neon-card neon-card-orange">
+            <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#ff6e00ff" }}>
               <CardHeader>
                 <CardTitle>Últimos Chargebacks</CardTitle>
                 <CardDescription>Chargebacks mais recentes de todos os gateways</CardDescription>

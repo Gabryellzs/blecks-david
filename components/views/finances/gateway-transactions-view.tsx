@@ -1321,12 +1321,12 @@ const countByGatewayName: Record<string, number> = Object.fromEntries(
 
           <TabsContent value="gateways" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
-              <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#2a71b8ff" }}>
+              <Card className="neon-card neon-top md:col-span-1" style={{ ["--gw" as any]: "#2a71b8ff" }}>
                 <CardHeader>
                   <CardTitle>Desempenho por Gateway</CardTitle>
                   <CardDescription>Comparativo de faturamento por gateway</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="h-[380px] sm:h-[420px] lg:h-[250px]">
                   <BarChart
                     data={revenueChartData}
                     index="name"
@@ -1334,17 +1334,17 @@ const countByGatewayName: Record<string, number> = Object.fromEntries(
                     showLegend={false}
                     valueFormatter={(v) => formatCurrency(Number(v))}
                     colorsByLabel={colorByGatewayName}
-                    className="h-80"
+                    className="!h-full w-full"
                   />
 
                 </CardContent>
               </Card>
-              <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#b300ffff" }}>
+              <Card className="neon-card neon-top md:col-span-1" style={{ ["--gw" as any]: "#b300ff" }}>
                 <CardHeader>
                   <CardTitle>Transações por Gateway</CardTitle>
                   <CardDescription>Número de transações por gateway</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="h-[380px] sm:h-[420px] lg:h-[250px]">
                   <BarChart
                     data={countChartData}
                     index="name"
@@ -1352,7 +1352,7 @@ const countByGatewayName: Record<string, number> = Object.fromEntries(
                     showLegend={false}
                     valueFormatter={(v) => `${Number(v)} transações`}
                     colorsByLabel={colorByGatewayName}
-                    className="h-80"
+                    className="!h-full w-full"
                   />
 
                 </CardContent>

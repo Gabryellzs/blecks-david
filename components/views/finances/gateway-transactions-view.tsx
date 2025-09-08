@@ -84,6 +84,17 @@ const gatewayConfigs = [
   { id: "cartpanda",     name: "Cartpanda",     color: "#1e00ffff", logo: "/images/gateway-logos/cartpanda.png" },
 ]
 
+const colorByGatewayId = useMemo(
+  () => Object.fromEntries(gatewayConfigs.map(g => [g.id, g.color] as const)),
+  [gatewayConfigs]
+)
+
+const lineColorsByLabel = useMemo(() => {
+  const map: Record<string, string> = { total: "#6B7280" } // cinza do "total"
+  gatewayConfigs.forEach(g => { map[g.id] = g.color })
+  return map
+}, [gatewayConfigs])
+
   const gatewayColors = gatewayConfigs.map((g) => g.color);
 
    const colorByGatewayName = useMemo(
@@ -1217,7 +1228,11 @@ const logoByGatewayName = useMemo(
                       data={revenueData}
                       index="date"
                       categories={revenueCategories}
-                      colors={chartColors}
+                      colors={revenueCategories.map((c) => {
+                          if (c === "total") return "#f8b600ff"
+                          const gw = gatewayConfigs.find((g) => g.id === c)
+                          return gw?.color || "#ccc" // cor definida no gatewayConfigs
+                        })}
                       valueFormatter={(v) => formatCurrency(v)}
                       className="h-full w-full"
                     />
@@ -1237,7 +1252,11 @@ const logoByGatewayName = useMemo(
                       index="name"
                       category="value"
                       valueFormatter={(value) => formatCurrency(value)}
-                      colors={chartColors.slice(1)}
+                      colors={revenueCategories.map((c) => {
+                          if (c === "total") return "#f8b600ff"
+                          const gw = gatewayConfigs.find((g) => g.id === c)
+                          return gw?.color || "#ccc" // cor definida no gatewayConfigs
+                        })}
                       className="h-full w-full"
                       options={donutOptions}
                     />
@@ -1261,7 +1280,11 @@ const logoByGatewayName = useMemo(
                       data={prepareDailyPerformanceData}
                       index="date"
                       categories={["bruto", "liquido"]}
-                      colors={["#F59E0B", "#3B82F6"]}
+                      colors={revenueCategories.map((c) => {
+                          if (c === "total") return "#f8b600ff"
+                          const gw = gatewayConfigs.find((g) => g.id === c)
+                          return gw?.color || "#ccc" // cor definida no gatewayConfigs
+                        })}
                       valueFormatter={(value) => formatCurrency(value)}
                       className="h-full w-full"
                     />

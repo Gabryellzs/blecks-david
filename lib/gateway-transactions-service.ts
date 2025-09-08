@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "./supabase"
 import type { PaymentGatewayType } from "./payment-gateway-types"
 import type { RealtimeChannel } from "@supabase/supabase-js"
@@ -27,7 +27,7 @@ export interface GatewayTransaction {
   event_type?: string | null
   status: "completed" | "pending" | "failed" | "refunded" | "abandoned" | "unknown"
   status_raw?: string | null          // status original do banco (ex.: "refused")
-  is_refused?: boolean                // <- flag calculado
+  is_refused?: boolean                // flag calculado
   raw_payload?: any | null
   created_at: string
   updated_at?: string | null
@@ -60,7 +60,7 @@ export interface GatewayStats {
 const normalizeKey = (s?: string | null) =>
   (s ?? "").toLowerCase().trim().replace(/\s+/g, "_")
 
-// — Abandonadas
+// Abandonadas
 const ABANDONED_STATUSES = new Set<string>([
   "abandoned",
   "abandoned_cart",
@@ -68,12 +68,11 @@ const ABANDONED_STATUSES = new Set<string>([
   "incomplete",
   "incomplete_expired",
   "expired",
-  // "canceled",
 ])
 const isAbandonedStatus = (status?: string | null) =>
   ABANDONED_STATUSES.has(normalizeKey(status))
 
-// — Recusadas (status/event_type comuns)
+// Recusadas
 const REFUSED_STATUSES = new Set<string>(["refused", "declined", "rejected"])
 const REFUSED_EVENT_TYPES = new Set<string>([
   "refused",
@@ -83,7 +82,6 @@ const REFUSED_EVENT_TYPES = new Set<string>([
   "payment_refused",
 ])
 
-/** Detecta recusadas considerando status normalizado, status bruto e event_type */
 const isRefusedByFields = (
   statusNorm?: string | null,
   statusRaw?: string | null,
@@ -106,7 +104,7 @@ const normalizeRawStatus = (
   if (["completed", "approved", "paid", "success", "payment.success"].includes(statusLower)) {
     return "completed"
   }
-  // Recusadas também entram como "failed" no agregado padrão
+  // Recusadas entram como "failed" no agregado
   if (
     ["failed", "error", "declined", "rejected", "payment.failed", "refused"].includes(statusLower) ||
     REFUSED_EVENT_TYPES.has(eventTypeLower)
@@ -137,8 +135,10 @@ export function useGatewayTransactions() {
   const [userId, setUserId] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
   const [refreshCount, setRefreshCount] = useState(0)
-  const [realtimeChannel, setRealtimeChannel] = useState<RealtimeChannel | null>(null)
   const [realtimeStatus, setRealtimeStatus] = useState<string>("CLOSED")
+
+  // Mantém a referência do canal atual (não re-renderiza ao mudar)
+  const channelRef = useRef<RealtimeChannel | null>(null)
 
   // Obter ID do usuário autenticado
   useEffect(() => {
@@ -165,80 +165,6 @@ export function useGatewayTransactions() {
     getUserId()
   }, [])
 
-  // Buscar dados
-  const fetchTransactions = useCallback(async () => {
-    if (!userId) return
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const { data, error: queryError } = await supabase
-        .from("gateway_transactions")
-        .select("*, product_price")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .range(0, 999999)
-
-      if (queryError) throw queryError
-
-      const mappedData = mapTransactions(data || [], userId)
-      setTransactions(mappedData)
-
-      // DEBUG: quantas recusadas mapeadas?
-      const refusedCount = mappedData.filter((t) => t.is_refused).length
-      console.log(`[GATEWAY] Mapeadas: ${mappedData.length} | Recusadas detectadas: ${refusedCount}`)
-
-      setLastUpdate(new Date())
-    } catch (error) {
-      console.error("❌ Erro ao buscar dados do gateway:", error)
-      setError(error as Error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [userId])
-
-  // Realtime
-  useEffect(() => {
-    if (!userId) return
-
-    fetchTransactions()
-
-    const channelName = `gateway_transactions_${userId}_${Date.now()}`
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "gateway_transactions" },
-        (payload) => {
-          const payloadUserId = (payload as any).new?.user_id || (payload as any).old?.user_id
-          if (payloadUserId === userId || userId === "demo-user") {
-            fetchTransactions()
-            setRefreshCount((prev) => prev + 1)
-          }
-        },
-      )
-      .subscribe((status, err) => {
-        setRealtimeStatus(status)
-        if (err) console.error("❌ Erro na subscription:", err)
-      })
-
-    setRealtimeChannel(channel)
-
-    return () => {
-      if (channel) supabase.removeChannel(channel)
-      setRealtimeStatus("CLOSED")
-    }
-  }, [userId, fetchTransactions])
-
-  // Refresh manual
-  const manualRefresh = useCallback(async () => {
-    setRefreshCount((prev) => prev + 1)
-    setTransactions([])
-    setError(null)
-    await fetchTransactions()
-  }, [fetchTransactions])
-
   // Mapear dados do Supabase → GatewayTransaction
   const mapTransactions = (data: any[], currentUserId: string): GatewayTransaction[] => {
     return data.map((item) => {
@@ -264,7 +190,7 @@ export function useGatewayTransactions() {
         event_type: item.event_type || null,
         status: normalizedStatus,
         status_raw: statusRaw,
-        is_refused: isRefusedByFields(normalizedStatus, statusRaw, item.event_type), // <- flag
+        is_refused: isRefusedByFields(normalizedStatus, statusRaw, item.event_type),
         raw_payload: item.raw_payload || null,
         created_at: item.created_at,
         updated_at: item.updated_at || null,
@@ -275,6 +201,107 @@ export function useGatewayTransactions() {
       return tx
     })
   }
+
+  // Buscar dados
+  const fetchTransactions = useCallback(async () => {
+    if (!userId) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { data, error: queryError } = await supabase
+        .from("gateway_transactions")
+        .select("*, product_price")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .range(0, 999_999)
+
+      if (queryError) throw queryError
+
+      const mappedData = mapTransactions(data || [], userId)
+      setTransactions(mappedData)
+
+      // DEBUG
+      const refusedCount = mappedData.filter((t) => t.is_refused).length
+      console.log(`[GATEWAY] Mapeadas: ${mappedData.length} | Recusadas detectadas: ${refusedCount}`)
+
+      setLastUpdate(new Date())
+    } catch (error) {
+      console.error("❌ Erro ao buscar dados do gateway:", error)
+      setError(error as Error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [userId])
+
+  /** Cria a inscrição Realtime (se ainda não existir) */
+  const subscribeRealtime = useCallback(() => {
+    if (!userId) return null
+    if (channelRef.current) return channelRef.current // já temos canal
+
+    const channelName = `gateway_transactions_${userId}_${Date.now()}`
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "gateway_transactions" },
+        (payload) => {
+          const payloadUserId = (payload as any).new?.user_id || (payload as any).old?.user_id
+          if (payloadUserId === userId || userId === "demo-user") {
+            fetchTransactions()
+            setRefreshCount((prev) => prev + 1)
+          }
+        },
+      )
+      .subscribe((status, err) => {
+        setRealtimeStatus(status)
+        if (err) console.error("❌ Erro na subscription:", err)
+      })
+
+    channelRef.current = channel
+    return channel
+  }, [userId, fetchTransactions])
+
+  /** Reinicia a conexão realtime (para usar no botão Atualizar) */
+  const restartRealtime = useCallback(async () => {
+    try {
+      setRealtimeStatus("SUBSCRIBING")
+      if (channelRef.current) {
+        await supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
+      subscribeRealtime()
+      return true
+    } catch (e) {
+      console.error("❌ Erro ao reiniciar realtime:", e)
+      setRealtimeStatus("CHANNEL_ERROR")
+      return false
+    }
+  }, [subscribeRealtime])
+
+  // Efeito inicial: busca + subscribe
+  useEffect(() => {
+    if (!userId) return
+    fetchTransactions()
+    subscribeRealtime()
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
+      setRealtimeStatus("CLOSED")
+    }
+  }, [userId, fetchTransactions, subscribeRealtime])
+
+  // Refresh manual (dados)
+  const manualRefresh = useCallback(async () => {
+    setRefreshCount((prev) => prev + 1)
+    setTransactions([])
+    setError(null)
+    await fetchTransactions()
+  }, [fetchTransactions])
 
   /* =========================
      Filtros e Stats
@@ -336,7 +363,6 @@ export function useGatewayTransactions() {
         })
       }
 
-      // DEBUG: ver status_raw presentes após filtros
       const rawStatusCounts = filteredTransactions.reduce<Record<string, number>>((acc, t) => {
         const k = normalizeKey(t.status_raw)
         acc[k] = (acc[k] || 0) + 1
@@ -344,13 +370,12 @@ export function useGatewayTransactions() {
       }, {})
       console.log("[GATEWAY] status_raw após filtros:", rawStatusCounts)
 
-      // Quebra por status
       const completedTransactions = filteredTransactions.filter((t) => normalizeKey(t.status) === "completed")
       const pendingTransactions = filteredTransactions.filter((t) => normalizeKey(t.status) === "pending")
       const failedTransactions = filteredTransactions.filter((t) => normalizeKey(t.status) === "failed")
       const refundedTransactions = filteredTransactions.filter((t) => normalizeKey(t.status) === "refunded")
       const abandonedTransactions = filteredTransactions.filter((t) => isAbandonedStatus(t.status))
-      const refusedTransactions = filteredTransactions.filter((t) => t.is_refused) // usa o flag
+      const refusedTransactions = filteredTransactions.filter((t) => t.is_refused)
 
       const totalRevenue = completedTransactions.reduce((s, t) => s + (t.amount || 0), 0)
       const totalTransactions = completedTransactions.length
@@ -363,13 +388,14 @@ export function useGatewayTransactions() {
       const abandonedAmount = abandonedTransactions.reduce((s, t) => s + (t.amount || 0), 0)
       const refusedAmount = refusedTransactions.reduce((s, t) => s + (t.amount || 0), 0)
 
-      // DEBUG: contagens finais
-      console.log("[GATEWAY] Counts => completed:", completedTransactions.length,
+      console.log(
+        "[GATEWAY] Counts => completed:", completedTransactions.length,
         "| pending:", pendingTransactions.length,
         "| failed:", failedTransactions.length,
         "| refunded:", refundedTransactions.length,
         "| abandoned:", abandonedTransactions.length,
-        "| refused:", refusedTransactions.length)
+        "| refused:", refusedTransactions.length,
+      )
 
       const stats: GatewayStats = {
         totalRevenue,
@@ -439,5 +465,6 @@ export function useGatewayTransactions() {
     getFilteredTransactions,
     realtimeStatus,
     testRealtimeConnection,
+    restartRealtime,             // <-- use no botão "Atualizar"
   }
 }

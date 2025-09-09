@@ -856,6 +856,23 @@ const refusedUI = useMemo(
   [refusedRaw]
 )
 
+const abandonedDedupAmount = useMemo(
+  () => abandonedUI.reduce((sum, t) => sum + Number(t.net_amount || 0), 0),
+  [abandonedUI]
+)
+
+const refusedDedupAmount = useMemo(
+  () => refusedUI.reduce((sum, t) => sum + Number(t.net_amount || 0), 0),
+  [refusedUI]
+)
+
+const notCompletedDedupAmount = useMemo(
+  () => abandonedDedupAmount + refusedDedupAmount,
+  [abandonedDedupAmount, refusedDedupAmount]
+)
+
+const notCompletedDedupCount = abandonedUI.length + refusedUI.length
+
 // Faturamento
 const revenueChartData = useMemo(() => {
   return prepareGatewayDistributionData()
@@ -1093,28 +1110,24 @@ const makeCustomerKey = (t: any) =>
           <CardHeader className="pb-2">
             <CardDescription>Vendas Não Concluídas</CardDescription>
             <CardTitle className="text-2xl sm:text-3xl neon-text">
-              {formatCurrency((summary.abandonedAmount ?? 0) + (summary.refusedAmount ?? 0))}
+              {formatCurrency(notCompletedDedupAmount)}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-sm text-muted-foreground flex flex-col gap-2">
               <div className="flex items-center">
                 <TrendingDown className="h-4 w-4 mr-1 text-red-500" />
-                <span>{summary.totalAbandonedTransactions ?? 0} vendas abandonadas</span>
+                <span>{abandonedUI.length} vendas abandonadas</span>
               </div>
               <div className="flex items-center">
                 <TrendingDown className="h-4 w-4 mr-1 text-red-500" />
-                <span>{summary.refusedTransactions ?? 0} vendas recusadas</span>
+                <span>{refusedUI.length} vendas recusadas</span>
               </div>
               <div className="mt-2">
                 {summary.totalTransactions > 0 ? (
                   <span>
-                    {(
-                      (((summary.totalAbandonedTransactions ?? 0) + (summary.refusedTransactions ?? 0)) /
-                        summary.totalTransactions) *
-                      100
-                    ).toFixed(2)}
-                    % de vendas não concluídas
+                    {((notCompletedDedupCount / summary.totalTransactions) * 100).toFixed(2)}
+                        % de vendas não concluídas
                   </span>
                 ) : (
                   <span>0% de vendas não concluídas</span>

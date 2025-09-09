@@ -757,6 +757,21 @@ const revenueCategories = useMemo(() => {
   return gwList.length ? ["total", ...gwList] : ["total"];
 }, [revenueGatewayKeys, selectedGateway]);
 
+const gatewayDistributionData = useMemo(
+  () => prepareGatewayDistributionData(),
+  [prepareGatewayDistributionData]
+);
+
+const gatewayDistributionColors = useMemo(() => {
+  const cols = gatewayDistributionData.map(
+    (d) => colorByGatewayName[d.name] ?? "#6B7280"
+  )
+  // 👇 hack: se só tiver 1 gateway, duplica a cor
+  if (cols.length === 1) {
+    return [cols[0], cols[0]]
+  }
+  return cols
+}, [gatewayDistributionData, colorByGatewayName])
 
 // fora do JSX, acima do `return (...)`
 const REFUSED_STATUSES = new Set([
@@ -1252,11 +1267,7 @@ const logoByGatewayName = useMemo(
                       index="name"
                       category="value"
                       valueFormatter={(value) => formatCurrency(value)}
-                      colors={revenueCategories.map((c) => {
-                          if (c === "total") return "#f8b600ff"
-                          const gw = gatewayConfigs.find((g) => g.id === c)
-                          return gw?.color || "#ccc" // cor definida no gatewayConfigs
-                        })}
+                      colors={gatewayDistributionColors}
                       className="h-full w-full"
                       options={donutOptions}
                     />
@@ -1538,7 +1549,15 @@ const logoByGatewayName = useMemo(
                             <div className="text-muted-foreground">Gateway:</div>
                             <div>
                               <span className="inline-flex items-center">
-                                <span className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: gateway?.color || "#ccc" }}></span>
+                                {gateway?.logo ? (
+                                  <img
+                                    src={gateway.logo}
+                                    alt={`${gateway.name} logo`}
+                                    className="h-4 w-4 mr-1 rounded-sm object-contain"
+                                  />
+                                ) : (
+                                  <span className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: gateway?.color || "#ccc" }}></span>
+                                )}
                                 {gateway?.name || transaction.gateway_id}
                               </span>
                             </div>
@@ -1607,7 +1626,15 @@ const logoByGatewayName = useMemo(
                             <div className="text-muted-foreground">Gateway:</div>
                             <div>
                               <span className="inline-flex items-center">
-                                <span className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: gateway?.color || "#ccc" }}></span>
+                                {gateway?.logo ? (
+                                  <img
+                                    src={gateway.logo}
+                                    alt={`${gateway.name} logo`}
+                                    className="h-4 w-4 mr-1 rounded-sm object-contain"
+                                  />
+                                ) : (
+                                  <span className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: gateway?.color || "#ccc" }}></span>
+                                )}
                                 {gateway?.name || transaction.gateway_id}
                               </span>
                             </div>
@@ -1689,10 +1716,15 @@ const logoByGatewayName = useMemo(
                             <div className="text-muted-foreground">Gateway:</div>
                             <div>
                              <span className="inline-flex items-center">
-                                <span
-                                  className="w-2 h-2 rounded-full mr-1"
-                                  style={{ backgroundColor: gateway?.color || "#ccc" }}
-                                />
+                                {gateway?.logo ? (
+                                  <img
+                                    src={gateway.logo}
+                                    alt={`${gateway.name} logo`}
+                                    className="h-4 w-4 mr-1 rounded-sm object-contain"
+                                  />
+                                ) : (
+                                  <span className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: gateway?.color || "#ccc" }}></span>
+                                )}
                                 {gateway?.name || transaction.gateway_id}
                               </span>
                             </div>
@@ -1759,10 +1791,15 @@ const logoByGatewayName = useMemo(
                             <div className="text-muted-foreground">Gateway:</div>
                             <div>
                               <span className="inline-flex items-center">
-                                <span
-                                  className="w-2 h-2 rounded-full mr-1"
-                                  style={{ backgroundColor: gateway?.color || "#ccc" }}
-                                />
+                                {gateway?.logo ? (
+                                  <img
+                                    src={gateway.logo}
+                                    alt={`${gateway.name} logo`}
+                                    className="h-4 w-4 mr-1 rounded-sm object-contain"
+                                  />
+                                ) : (
+                                  <span className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: gateway?.color || "#ccc" }}></span>
+                                )}
                                 {gateway?.name || transaction.gateway_id}
                               </span>
                             </div>
@@ -1833,7 +1870,15 @@ const logoByGatewayName = useMemo(
                             <div className="text-muted-foreground">Gateway:</div>
                             <div>
                               <span className="inline-flex items-center">
-                                <span className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: gateway?.color || "#ccc" }}></span>
+                                {gateway?.logo ? (
+                                  <img
+                                    src={gateway.logo}
+                                    alt={`${gateway.name} logo`}
+                                    className="h-4 w-4 mr-1 rounded-sm object-contain"
+                                  />
+                                ) : (
+                                  <span className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: gateway?.color || "#ccc" }}></span>
+                                )}
                                 {gateway?.name || transaction.gateway_id}
                               </span>
                             </div>

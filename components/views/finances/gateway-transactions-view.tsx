@@ -201,7 +201,7 @@ const lineColorsByLabel = useMemo(() => {
       totalRefunds: stats.totalRefunds,
       refundedAmount: stats.refundedAmount,
       totalChargebacks: chargebackTransactions.length,
-      chargebackAmount: chargebackTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0),
+      chargebackAmount: chargebackTransactions.reduce((sum, t) => sum + Number(t.net_amount || 0), 0),
 
       // por gateway
       approvalRates,
@@ -211,7 +211,7 @@ const lineColorsByLabel = useMemo(() => {
           period,
           status: "completed",
         })
-        const totalAmount = gatewayTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
+        const totalAmount = gatewayTransactions.reduce((sum, t) => sum + (t.net_amount || 0), 0)
         const totalFees = gatewayTransactions.reduce((sum, t) => sum + (t.fee || 0), 0)
         const gatewayNetAmount = gatewayTransactions.reduce((sum, t) => sum + (t.net_amount || 0), 0)
 
@@ -498,8 +498,8 @@ const getPaymentLabel = (method?: string | null) => {
       }
 
       const entry = dateMap.get(date)
-      entry.total += transaction.amount || 0
-      entry[transaction.gateway_id] = (entry[transaction.gateway_id] || 0) + (transaction.amount || 0)
+      entry.total += transaction.net_amount || 0
+      entry[transaction.gateway_id] = (entry[transaction.gateway_id] || 0) + (transaction.net_amount || 0)
     })
 
     const chartData = Array.from(dateMap.values()).sort(
@@ -546,7 +546,7 @@ const getPaymentLabel = (method?: string | null) => {
 
     filteredTransactions.forEach((transaction) => {
       const currentAmount = productMap.get(transaction.product_name) || 0
-      productMap.set(transaction.product_name, currentAmount + (transaction.amount || 0))
+      productMap.set(transaction.product_name, currentAmount + (transaction.net_amount || 0))
     })
 
     const productData = Array.from(productMap.entries()).map(([name, valor]) => ({ name, valor }))
@@ -665,8 +665,7 @@ const getPaymentLabel = (method?: string | null) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       renderCenterText("gateway-distribution-chart", summary?.totalAmount || 0)
-      const productData = prepareProductDistributionData
-      const totalProductSales = productData.reduce((sum, p) => sum + p.valor, 0)
+      const totalProductSales = prepareProductDistributionData.reduce((sum, p) => sum + p.valor, 0)
       renderCenterText("product-distribution-chart", totalProductSales)
     }, 500)
     return () => clearTimeout(timer)
@@ -733,7 +732,7 @@ const { chartData: revenueData, revenueGatewayKeys } = useMemo(() => {
 
     const row = dateMap.get(k);
     const gw = t.gateway_id as string;
-    const v = t.amount || 0;
+    const v = t.net_amount || 0;
 
     row.total += v;
     row[gw] = (row[gw] || 0) + v;
@@ -784,25 +783,78 @@ const REFUSED_STATUSES = new Set([
   "charge_refused",
 ])
 
-const refusedUI = useMemo(() => {
-  return transactions.filter((t) => {
-    const st = String(t.status || "").toLowerCase()
-    const ev = String(t.event_type || "").toLowerCase()
+const normStr = (s?: string | null) =>
+  String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase()
 
-    const isRefused = REFUSED_STATUSES.has(st) || REFUSED_STATUSES.has(ev)
+const normPhone = (s?: string | null) => String(s ?? "").replace(/\D/g, "")
 
-    const createdAt = t.created_at ? new Date(t.created_at) : null
-    const inRange =
-      !!createdAt &&
-      (!dateRange?.from || createdAt >= dateRange.from) &&
-      (!dateRange?.to || createdAt <= dateRange.to)
+// mantém só a tentativa mais recente por cliente (prioridade: email > fone > nome)
+const dedupeByCustomer = (items: any[]) => {
+  const byKey = new Map<string, any>()
+  for (const t of items) {
+    const key =
+      normStr(t?.customer_email) ||
+      normPhone(t?.customer_phone) ||
+      normStr(t?.customer_name) ||
+      String(t?.id ?? Math.random())
 
-    const matchesGateway =
-      selectedGateway === "all" || t.gateway_id === selectedGateway
+    const prev = byKey.get(key)
+    if (!prev) {
+      byKey.set(key, t)
+    } else {
+      const ta = new Date(prev?.created_at ?? 0).getTime()
+      const tb = new Date(t?.created_at ?? 0).getTime()
+      if (isFinite(tb) && tb > ta) byKey.set(key, t) // fica com a mais recente
+    }
+  }
+  // ordena por data desc pra lista ficar bonitinha
+  return Array.from(byKey.values()).sort(
+    (a, b) => new Date(b?.created_at ?? 0).getTime() - new Date(a?.created_at ?? 0).getTime()
+  )
+}
 
-    return isRefused && inRange && matchesGateway
-  })
+const abandonedRaw = useMemo(() => {
+  return getFilteredTransactions({
+    status: "abandoned",
+    gateway: selectedGateway === "all" ? undefined : selectedGateway,
+    period: dateRange?.from && dateRange?.to
+      ? { from: dateRange.from, to: dateRange.to }
+      : undefined,
+  });
+}, [getFilteredTransactions, selectedGateway, dateRange]);
+
+const abandonedUI = useMemo(
+  () => dedupeByCustomer(abandonedRaw),
+  [abandonedRaw]
+)
+
+// --- RECUSADAS (raw + dedup) ---
+const refusedRaw = useMemo(() => {
+  return transactions
+    .filter((t) => {
+      const st = String(t.status || "").toLowerCase()
+      const ev = String(t.event_type || "").toLowerCase()
+      const isRefused = REFUSED_STATUSES.has(st) || REFUSED_STATUSES.has(ev)
+
+      const createdAt = t.created_at ? new Date(t.created_at) : null
+      const inRange =
+        !!createdAt &&
+        (!dateRange?.from || createdAt >= dateRange.from) &&
+        (!dateRange?.to || createdAt <= dateRange.to)
+
+      const matchesGateway = selectedGateway === "all" || t.gateway_id === selectedGateway
+      return isRefused && inRange && matchesGateway
+    })
+    .sort((a, b) =>
+      new Date(b?.created_at ?? 0).getTime() - new Date(a?.created_at ?? 0).getTime()
+    )
 }, [transactions, dateRange, selectedGateway])
+
+
+const refusedUI = useMemo(
+  () => dedupeByCustomer(refusedRaw),
+  [refusedRaw]
+)
 
 // Faturamento
 const revenueChartData = useMemo(() => {
@@ -832,6 +884,12 @@ const logoByGatewayName = useMemo(
   () => Object.fromEntries(gatewayConfigs.map(g => [g.name, g.logo] as const)),
   [gatewayConfigs]
 )
+
+const makeCustomerKey = (t: any) =>
+  (t.customer_email?.toLowerCase().trim()) ||
+  (t.customer_phone?.replace(/\D/g, '').replace(/^55/, '')) ||
+  (t.customer_name?.toLowerCase().trim()) ||
+  String(t.customer_id ?? '');
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -1513,7 +1571,7 @@ const logoByGatewayName = useMemo(
                         <div key={index} className="block border rounded-md p-3">
                           <div className="flex justify-between items-center mb-2">
                             <div className="font-medium">{transaction.product_name}</div>
-                            <div className="font-bold">{formatCurrency(transaction.amount)}</div>
+                            <div className="font-bold">{formatCurrency(transaction.net_amount ?? transaction.amount ?? 0)}</div>
                           </div>
                           <div className="grid grid-cols-2 gap-1 text-sm">
                             <div className="text-muted-foreground">Data:</div>
@@ -1590,7 +1648,7 @@ const logoByGatewayName = useMemo(
                         <div key={index} className="block border rounded-md p-3">
                           <div className="flex justify-between items-center mb-2">
                             <div className="font-medium">{transaction.product_name}</div>
-                            <div className="font-bold">{formatCurrency(transaction.amount)}</div>
+                            <div className="font-bold">{formatCurrency(transaction.net_amount ?? transaction.amount ?? 0)}</div>
                           </div>
                           <div className="grid grid-cols-2 gap-1 text-sm">
                             <div className="text-muted-foreground">Data:</div>
@@ -1660,22 +1718,16 @@ const logoByGatewayName = useMemo(
                   {/* --- ABANDONADAS --- */}
                   <div className="space-y-3">
                     <div className="text-sm font-semibold text-muted-foreground">
-                      Abandonadas ({summary.totalAbandonedTransactions ?? 0})
+                      Abandonadas ({abandonedUI.length})
                     </div>
 
-                    {getFilteredTransactions({
-                      status: "abandoned",
-                      gateway: selectedGateway === "all" ? undefined : selectedGateway,
-                      period: dateRange?.from && dateRange?.to ? { from: dateRange.from, to: dateRange.to } : undefined,
-                    }).map((transaction, index) => {
+                    {abandonedUI.map((transaction, index) => {
                       const gateway = gatewayConfigs.find((gc) => gc.id === transaction.gateway_id)
                       return (
                         <div key={`ab-${index}`} className="block border rounded-md p-3">
                           <div className="flex justify-between items-center mb-2">
                             <div className="font-medium">{transaction.product_name}</div>
-                            <div className="font-bold">
-                              {formatCurrency(transaction.product_price ?? transaction.amount ?? 0)}
-                            </div>
+                            <div className="font-bold">{formatCurrency(transaction.net_amount ?? transaction.amount ?? 0)}</div>
                          </div>
 
                           <div className="grid grid-cols-[max-content,1fr] gap-y-2 gap-x-3 text-sm leading-6 items-baseline">
@@ -1748,7 +1800,7 @@ const logoByGatewayName = useMemo(
                             <div className="flex justify-between items-center mb-2">
                             <div className="font-medium">{transaction.product_name}</div>
                             <div className="font-bold">
-                             {formatCurrency(transaction.amount ?? transaction.product_price ?? 0)}
+                             {formatCurrency(transaction.net_amount ?? transaction.amount ?? 0)}
                             </div>
                           </div>
 

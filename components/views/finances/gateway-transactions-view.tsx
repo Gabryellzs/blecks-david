@@ -443,12 +443,26 @@ const getPaymentLabel = (method?: string | null) => {
 }
 
 
-  const getWhatsAppLink = (phone: string | null | undefined) => {
-    if (!phone) return "#"
-    const cleanedPhone = phone.replace(/\D/g, "")
-    const formattedPhone = cleanedPhone.startsWith("55") ? cleanedPhone : `55${cleanedPhone}`
-    return `https://wa.me/${formattedPhone}`
-  }
+const getWhatsAppLink = (phone: string | null | undefined) => {
+  if (!phone) return "#"
+
+  // 1) Mantém só dígitos
+  let digits = String(phone).replace(/\D/g, "")
+
+  // 2) Remove prefixo internacional "00", se vier
+  if (digits.startsWith("00")) digits = digits.slice(2)
+
+  // 3) Garante DDI 55
+  if (!digits.startsWith("55")) digits = "55" + digits
+
+  // 4) Remove zero de tronco logo após o DDI (ex.: 550… -> 55…)
+  if (digits.startsWith("550")) digits = "55" + digits.slice(3)
+
+  // 5) Sanity check simples (Brasil ~12–13 dígitos: 55 + DDD + número)
+  if (digits.length < 12) return "#"
+
+  return `https://wa.me/${digits}`
+}
 
   // ----- Charts prep
   const prepareRevenueData = useCallback(() => {

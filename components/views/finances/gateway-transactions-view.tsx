@@ -589,10 +589,14 @@ const getPaymentLabel = (method?: string | null) => {
 
         const existingData = dailyDataMap.get(dateStr) || { date: formattedDate, bruto: 0, liquido: 0 }
 
-        const amount = transaction.amount || 0
-        const netAmount = transaction.net_amount || 0
+        const netAmount = Number(transaction.net_amount || 0)
+        let fees = Number(transaction.fee || 0)
+        if (!fees && transaction.amount != null) {
+          const diff = Number(transaction.amount) - netAmount
+          if (isFinite(diff) && diff >= 0) fees = diff
+        }
 
-        existingData.bruto += amount
+        existingData.bruto += netAmount + fees
         existingData.liquido += netAmount
         dailyDataMap.set(dateStr, existingData)
       } catch {}
@@ -1485,7 +1489,6 @@ const makeCustomerKey = (t: any) =>
                     <CardHeader className="pb-2">
                       <div className="flex items-center gap-2">
                         {logo ? (
-                          // se não usa next/image, esse <img> está ok
                           <img
                             src={logo}
                             alt={`${gateway.name} logo`}
@@ -1497,26 +1500,47 @@ const makeCustomerKey = (t: any) =>
                         ) : null}
                         <CardDescription className="!mt-0">{gateway.name}</CardDescription>
                       </div>
+                      {(() => {
+                        const gwId =
+                          gatewayConfigs.find(gc => gc.name === gateway.name)?.id ?? gateway.name
+                        const sum = summary.gatewaySummaries.find(s => s.gatewayId === gwId)
+                        const fees = Number(sum?.totalFees ?? 0)
+                        const net  = Number(sum?.netAmount  ?? 0)
+                        const gross = net + fees
 
-                      {/* valor sempre branco */}
-                      <CardTitle className="text-white">{formatCurrency(gateway.value)}</CardTitle>
+                        return (
+                          <CardTitle className="text-white">
+                            {formatCurrency(gross)} {/* título = bruto = líquido + taxas */}
+                          </CardTitle>
+                        )
+                      })()}
                     </CardHeader>
 
                     <CardContent className="pt-4">
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Transações:</span>
-                          <span className="font-medium">{txCount}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Taxas:</span>
-                          <span className="font-medium">{formatCurrency(gateway.value * 0.05)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Líquido:</span>
-                          <span className="font-medium">{formatCurrency(gateway.value * 0.95)}</span>
-                        </div>
-                      </div>
+                      {(() => {
+                        const gwId =
+                          gatewayConfigs.find(gc => gc.name === gateway.name)?.id ?? gateway.name
+                        const sum = summary.gatewaySummaries.find(s => s.gatewayId === gwId)
+                        const fees = Number(sum?.totalFees ?? 0)
+                        const net  = Number(sum?.netAmount  ?? 0)
+
+                        return (
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Transações:</span>
+                              <span className="font-medium">{txCount}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Taxas:</span>
+                              <span className="font-medium">{formatCurrency(fees)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Líquido:</span>
+                              <span className="font-medium">{formatCurrency(net)}</span>
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </CardContent>
                   </Card>
                 )

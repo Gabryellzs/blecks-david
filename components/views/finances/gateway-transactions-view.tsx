@@ -1014,10 +1014,10 @@ const makeCustomerKey = (t: any) => {
                   today: "text-white font-extrabold",
                   past: "text-white font-semibold",
                   future: "text-zinc-600 opacity-60 cursor-not-allowed",
-                  selected: "!bg-gray-500 !text-white !font-bold",
-                  range_start: "!bg-gray-600 !text-white !font-bold",
-                  range_end: "!bg-gray-600 !text-white !font-bold",
-                  range_middle: "!bg-gray-700/20 !text-white/90",
+                  selected:     "!bg-gray-500 !text-white !font-bold !scale-90 !rounded-md !shadow-none !ring-0",
+                  range_start:  "!bg-gray-600 !text-white !font-bold !scale-90 !rounded-md !shadow-none !ring-0",
+                  range_end:    "!bg-gray-600 !text-white !font-bold !scale-90 !rounded-md !shadow-none !ring-0",
+                  range_middle: "!bg-gray-700/30 !text-white/90 !scale-90 !rounded-md !shadow-none !ring-0",
                 }}
 
                 selected={tempDateRange}
@@ -1046,7 +1046,7 @@ const makeCustomerKey = (t: any) => {
                   head_cell: "text-[11px] font-semibold h-7 w-7 grid place-items-center",
                   row: "grid grid-cols-7 gap-x-1 gap-y-1",
                   cell: "p-1.5 grid place-items-center",
-                  day: "h-8 w-8 sm:h-9 sm:w-9 rounded-[6px] text-sm hover:bg-white/5",
+                  day: "h-9 w-9 rounded-md text-sm hover:bg-white/5 transition-transform transform-gpu",
                   /* hoje = branco + negrito (e mantém o ring, se quiser) */
                   day_today: "text-white font-bold ring-1 ring-red-500/60",
                   /* fora do mês atual */

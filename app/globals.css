@@ -223,5 +223,46 @@ body.dark .rdp-nav_button:hover,
 .rdp-day_range_middle { background-color: rgba(255,255,255,0.07) !important; }
 .rdp-day_selected,
 .rdp-day_range_start,
-.rdp-day_range_end { box-shadow: none !important; }
+.rdp-day_range_end,
+.rdp-day_range_middle {
+  width: calc(2rem - 6px) !important;   /* ~1.625rem */
+  height: calc(2rem - 6px) !important;
+  margin: 3px !important;               /* espaço extra entre dias contíguos */
+  box-shadow: none !important;          /* evita “borrão” entre chips */
+  border-radius: 6px !important;
+}
 
+.rdp-day:not(.rdp-day_selected):not(.rdp-day_range_start):not(.rdp-day_range_end):not(.rdp-day_range_middle):hover {
+  transform: scale(0.96);
+}
+
+.rdp-table td[role="gridcell"][aria-selected="true"],
+.rdp-table td[role="gridcell"][data-selected="true"],
+.rdp-table td[role="gridcell"][data-range-start="true"],
+.rdp-table td[role="gridcell"][data-range-end="true"],
+.rdp-table td[role="gridcell"][data-range-middle="true"]{
+  background: transparent !important;
+}
+
+/* 2) aplica o “chip” no BUTTON e reduz o tamanho */
+.rdp-table td[role="gridcell"][aria-selected="true"] > .rdp-day_button,
+.rdp-table td[role="gridcell"][data-selected="true"] > .rdp-day_button,
+.rdp-table td[role="gridcell"][data-range-start="true"] > .rdp-day_button,
+.rdp-table td[role="gridcell"][data-range-end="true"] > .rdp-day_button,
+.rdp-table td[role="gridcell"][data-range-middle="true"] > .rdp-day_button{
+  display: grid; place-items: center;
+  width: 100%; height: 100%;
+  transform: scale(0.88);                 /* ajuste fino: 0.85–0.94 */
+  border-radius: 8px !important;
+  background: rgba(148,163,184,.28) !important; /* ex.: cinza; troque se quiser */
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+/* 3) hover dos dias normais também um pouco menor (opcional) */
+.rdp-table td[role="gridcell"]:not([aria-disabled="true"]):not([aria-selected="true"])
+  > .rdp-day_button:hover{
+  transform: scale(0.95);
+  background: rgba(255,255,255,.06);
+  border-radius: 8px;
+}

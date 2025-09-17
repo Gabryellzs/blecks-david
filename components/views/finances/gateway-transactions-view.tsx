@@ -857,6 +857,8 @@ const dedupeByCustomer = (items: any[]) => {
   )
 }
 
+const [showCustomShortcut, setShowCustomShortcut] = useState(false);
+
 const abandonedRaw = useMemo(() => {
   return getFilteredTransactions({
     status: "abandoned",
@@ -916,6 +918,7 @@ const notCompletedDedupAmount = useMemo(
 )
 
 const notCompletedDedupCount = abandonedUI.length + refusedUI.length
+const [periodSelectOpen, setPeriodSelectOpen] = useState(false);
 
 // Faturamento
 const revenueChartData = useMemo(() => {
@@ -975,17 +978,32 @@ const makeCustomerKey = (t: any) => {
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Selecione o período" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all_time">Máximo</SelectItem>
-              <SelectItem value="today">Hoje</SelectItem>
-              <SelectItem value="yesterday">Ontem</SelectItem>
-              <SelectItem value="7d">Últimos 7 dias</SelectItem>
-              <SelectItem value="30d">Últimos 30 dias</SelectItem>
-              <SelectItem value="90d">Últimos 90 dias</SelectItem>
-              <SelectItem value="custom_month">Personalizado</SelectItem>
+            <SelectContent className="p-1">
+              <SelectItem value="all_time" className="!pr-2">Máximo</SelectItem>
+              <SelectItem value="today" className="!pr-2">Hoje</SelectItem>
+              <SelectItem value="yesterday" className="!pr-2">Ontem</SelectItem>
+              <SelectItem value="7d" className="!pr-2">Últimos 7 dias</SelectItem>
+              <SelectItem value="30d" className="!pr-2">Últimos 30 dias</SelectItem>
+              <SelectItem value="90d" className="!pr-2">Últimos 90 dias</SelectItem>
+              <SelectItem value="custom_month" className="!pr-2">Personalizado</SelectItem>
             </SelectContent>
           </Select>
-
+          {(selectedPeriod === "custom_month" || showCustomShortcut) && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => {
+                // permite reabrir o popup a qualquer momento
+                setIsCustomRangeOpen(true);
+              }}
+              aria-label="Abrir calendário personalizado"
+              title="Personalizado"
+            >
+              <CalendarIcon className="h-4 w-4" />
+            </Button>
+          )}
           <Dialog open={isCustomRangeOpen} onOpenChange={setIsCustomRangeOpen}>
             <DialogContent 
               className="date-range-dialog sm:max-w-[400px] p-4 bg-[#08080A] text-white border border-white/10"

@@ -123,7 +123,6 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
 
         setUserAvatarUrl(profile?.avatar_url || null)
 
-        // opcional: registrar acesso
         try {
           await supabase.from("user_interactions").insert({
             user_id: user.id,
@@ -148,13 +147,13 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
 
   useEffect(() => {
     const handleNavigateToView = (event: CustomEvent) => event.detail && setActiveView(event.detail)
-    const handleAvatarUpdate = (event: CustomEvent) => setUserAvatarUrl(event.detail)
+    const handleAvatarUpdate = (event: CustomEvent) => setUserAvatarUrl(event.detail as string)
 
-    window.addEventListener("navigate-to-view", handleNavigateToView as EventListener)
-    window.addEventListener("profile-avatar-updated", handleAvatarUpdate as EventListener)
+    window.addEventListener("navigate-to-view", handleNavigateToView as unknown as EventListener)
+    window.addEventListener("profile-avatar-updated", handleAvatarUpdate as unknown as EventListener)
     return () => {
-      window.removeEventListener("navigate-to-view", handleNavigateToView as EventListener)
-      window.removeEventListener("profile-avatar-updated", handleAvatarUpdate as EventListener)
+      window.removeEventListener("navigate-to-view", handleNavigateToView as unknown as EventListener)
+      window.removeEventListener("profile-avatar-updated", handleAvatarUpdate as unknown as EventListener)
     }
   }, [])
 
@@ -214,7 +213,7 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
         <SidebarInset className="flex h-screen w-full">
           <div className="flex-1 min-w-0 min-h-0 flex flex-col">
             {activeView !== "calendar" && (
-              <header className="sticky top-0 z-20 bg-background border-b">
+              <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b-0">
                 <div className="h-16 px-4 flex items-center justify-between">
                   <div />
                   <div className="flex items-center gap-4">
@@ -222,7 +221,7 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
                     <ThemeToggleButton />
                     <NotificationSalesPopover />
 
-                    {/* === DROPDOWN PADRONIZADO (igual outras páginas) === */}
+                    {/* === DROPDOWN PADRONIZADO === */}
                     <DropdownMenu>
                       <DropdownMenuTrigger className="rounded-full p-0 outline-none focus:ring-0">
                         <Avatar className="h-9 w-9 hover:ring-2 hover:ring-primary/50 transition-all duration-200">
@@ -262,11 +261,13 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
                     {/* === /DROPDOWN PADRONIZADO === */}
                   </div>
                 </div>
-              </header>
+              </div>
             )}
 
             <main className="flex-1 min-h-0 overflow-y-auto w-full">
-              <div className={activeView === "calendar" ? "" : "p-4"}>{renderView()}</div>
+              <div className={activeView === "calendar" ? "" : "p-4"}>
+                {renderView()}
+              </div>
             </main>
           </div>
         </SidebarInset>

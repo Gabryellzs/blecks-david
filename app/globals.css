@@ -124,48 +124,25 @@
 
 /* =========================
    DayPicker (react-day-picker v8)
-   — sem prefixo .rdp no ancestral
    ========================= */
 
-/* Navegação ao lado do texto do mês */
-.rdp-caption{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-}
+.rdp-caption{ display:flex; align-items:center; justify-content:space-between; }
 .rdp-nav{ position:static !important; }
 
-/* Garante que o ícone herde a cor do botão */
 .rdp-button_previous svg,
 .rdp-button_next svg,
 .rdp-chevron,
-.rdp-chevron *{
-  fill: currentColor !important;
-  stroke: currentColor !important;
-}
+.rdp-chevron *{ fill: currentColor !important; stroke: currentColor !important; }
 
-/* ===== Tema claro: setas pretas ===== */
 html:not(.dark) .rdp-button_previous,
 html:not(.dark) .rdp-button_next,
-html:not(.dark) .rdp-nav_button{
-  color:#111 !important;
-}
+html:not(.dark) .rdp-nav_button{ color:#111 !important; }
 html:not(.dark) .rdp-button_previous svg polygon,
-html:not(.dark) .rdp-button_next svg polygon{
-  fill:#111 !important;
-  stroke:#111 !important;
-}
+html:not(.dark) .rdp-button_next svg polygon{ fill:#111 !important; stroke:#111 !important; }
+.rdp-nav_button:hover{ background-color: rgba(0,0,0,.06) !important; border-color: rgba(0,0,0,.12) !important; }
 
-/* Hover no claro */
-.rdp-nav_button:hover{
-  background-color: rgba(0,0,0,.06) !important;
-  border-color: rgba(0,0,0,.12) !important;
-}
-
-/* Grade do mês centralizada */
 .rdp-month_grid{ text-align:center; width:100%; }
 
-/* ===== Tema escuro: setas brancas (forçado) ===== */
 html.dark .rdp-button_previous,
 html.dark .rdp-button_next,
 html.dark .rdp-nav_button,
@@ -174,61 +151,41 @@ body.dark .rdp-button_next,
 body.dark .rdp-nav_button,
 .dark .rdp-button_previous,
 .dark .rdp-button_next,
-.dark .rdp-nav_button{
-  color:#fff !important;
-}
+.dark .rdp-nav_button{ color:#fff !important; }
 html.dark .rdp-button_previous svg polygon,
 html.dark .rdp-button_next svg polygon,
 body.dark .rdp-button_previous svg polygon,
 body.dark .rdp-button_next svg polygon,
 .dark .rdp-button_previous svg polygon,
-.dark .rdp-button_next svg polygon{
-  fill:#fff !important;
-  stroke:#fff !important;
-}
-
-/* Hover no escuro */
+.dark .rdp-button_next svg polygon{ fill:#fff !important; stroke:#fff !important; }
 html.dark .rdp-nav_button:hover,
 body.dark .rdp-nav_button:hover,
-.dark .rdp-nav_button:hover{
-  background-color: rgba(255,255,255,.10) !important;
-  border-color: rgba(255,255,255,.15) !important;
-}
+.dark .rdp-nav_button:hover{ background-color: rgba(255,255,255,.10) !important; border-color: rgba(255,255,255,.15) !important; }
+
 .date-range-dialog > button[aria-label="Close"],
 .date-range-dialog > button[aria-label="Fechar"],
-.date-range-dialog > button.absolute.right-4.top-4 {
-  display: none !important;
-}
+.date-range-dialog > button.absolute.right-4.top-4 { display: none !important; }
 
-.rdp-weekday,
-.rdp-head_cell abbr {
-  color: #f97316 !important; /* tailwind orange-500 */
-  text-decoration: none !important; /* remove sublinhado pontilhado do <abbr> */
+.rdp-weekday, .rdp-head_cell abbr {
+  color: #f97316 !important;
+  text-decoration: none !important;
 }
+.dark .rdp-weekday, .rdp-head_cell abbr { color: #fb923c !important; }
 
-/* (opcional) se quiser tom diferente no dark */
-.dark .rdp-weekday,
-.dark .rdp-head_cell abbr {
-  color: #fb923c !important; /* orange-400 */
-}
-
-/* força grid com espaçamento entre células */
 .rdp-row { display: grid !important; grid-template-columns: repeat(7, minmax(0,1fr)) !important; gap: 4px !important; }
 .rdp-cell { padding: 6px !important; display: grid !important; place-items: center !important; }
 
-/* chip menor */
 .rdp-day { height: 2rem !important; width: 2rem !important; border-radius: 6px !important; }
 
-/* range mais sutil */
 .rdp-day_range_middle { background-color: rgba(255,255,255,0.07) !important; }
 .rdp-day_selected,
 .rdp-day_range_start,
 .rdp-day_range_end,
 .rdp-day_range_middle {
-  width: calc(2rem - 6px) !important;   /* ~1.625rem */
+  width: calc(2rem - 6px) !important;
   height: calc(2rem - 6px) !important;
-  margin: 3px !important;               /* espaço extra entre dias contíguos */
-  box-shadow: none !important;          /* evita “borrão” entre chips */
+  margin: 3px !important;
+  box-shadow: none !important;
   border-radius: 6px !important;
 }
 
@@ -240,11 +197,8 @@ body.dark .rdp-nav_button:hover,
 .rdp-table td[role="gridcell"][data-selected="true"],
 .rdp-table td[role="gridcell"][data-range-start="true"],
 .rdp-table td[role="gridcell"][data-range-end="true"],
-.rdp-table td[role="gridcell"][data-range-middle="true"]{
-  background: transparent !important;
-}
+.rdp-table td[role="gridcell"][data-range-middle="true"]{ background: transparent !important; }
 
-/* 2) aplica o “chip” no BUTTON e reduz o tamanho */
 .rdp-table td[role="gridcell"][aria-selected="true"] > .rdp-day_button,
 .rdp-table td[role="gridcell"][data-selected="true"] > .rdp-day_button,
 .rdp-table td[role="gridcell"][data-range-start="true"] > .rdp-day_button,
@@ -252,14 +206,13 @@ body.dark .rdp-nav_button:hover,
 .rdp-table td[role="gridcell"][data-range-middle="true"] > .rdp-day_button{
   display: grid; place-items: center;
   width: 100%; height: 100%;
-  transform: scale(0.88);                 /* ajuste fino: 0.85–0.94 */
+  transform: scale(0.88);
   border-radius: 8px !important;
-  background: rgba(148,163,184,.28) !important; /* ex.: cinza; troque se quiser */
+  background: rgba(148,163,184,.28) !important;
   color: #fff !important;
   box-shadow: none !important;
 }
 
-/* 3) hover dos dias normais também um pouco menor (opcional) */
 .rdp-table td[role="gridcell"]:not([aria-disabled="true"]):not([aria-selected="true"])
   > .rdp-day_button:hover{
   transform: scale(0.95);
@@ -268,3 +221,35 @@ body.dark .rdp-nav_button:hover,
 }
 
 .donut-center-text { display: none !important; }
+
+/* =========================================================
+   ANTI-LINHA no layout com sidebar-wrapper
+   (alvo direto: o sticky com border-b do seu print)
+   ========================================================= */
+
+/* 1) Remove qualquer .border-b em qualquer sticky top-0 no wrapper do dashboard */
+.group\/sidebar-wrapper .sticky.top-0.border-b,
+.group\/sidebar-wrapper .sticky.border-b,
+.group\/sidebar-wrapper [class*="border-b"][class*="sticky"][class*="top-0"] {
+  border-bottom: 0 !important;
+}
+
+/* 2) Remove .border-b genérico dentro do wrapper (fallback) */
+.group\/sidebar-wrapper .border-b,
+.group\/sidebar-wrapper [class*="border-b-"] {
+  border-bottom: 0 !important;
+  border-bottom-width: 0 !important;
+}
+
+/* 3) Garante que o header e tudo dentro dele não gerem linha/sombra */
+.group\/sidebar-wrapper header,
+.group\/sidebar-wrapper header * {
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+
+/* 4) Elimina separadores visuais */
+.group\/sidebar-wrapper [role="separator"],
+.group\/sidebar-wrapper hr {
+  display: none !important;
+}

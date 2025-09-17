@@ -199,3 +199,29 @@ body.dark .rdp-nav_button:hover,
 .date-range-dialog > button.absolute.right-4.top-4 {
   display: none !important;
 }
+
+.rdp-weekday,
+.rdp-head_cell abbr {
+  color: #f97316 !important; /* tailwind orange-500 */
+  text-decoration: none !important; /* remove sublinhado pontilhado do <abbr> */
+}
+
+/* (opcional) se quiser tom diferente no dark */
+.dark .rdp-weekday,
+.dark .rdp-head_cell abbr {
+  color: #fb923c !important; /* orange-400 */
+}
+
+/* força grid com espaçamento entre células */
+.rdp-row { display: grid !important; grid-template-columns: repeat(7, minmax(0,1fr)) !important; gap: 4px !important; }
+.rdp-cell { padding: 6px !important; display: grid !important; place-items: center !important; }
+
+/* chip menor */
+.rdp-day { height: 2rem !important; width: 2rem !important; border-radius: 6px !important; }
+
+/* range mais sutil */
+.rdp-day_range_middle { background-color: rgba(255,255,255,0.07) !important; }
+.rdp-day_selected,
+.rdp-day_range_start,
+.rdp-day_range_end { box-shadow: none !important; }
+

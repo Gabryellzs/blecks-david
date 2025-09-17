@@ -1011,10 +1011,9 @@ const makeCustomerKey = (t: any) => {
                   today, // redundante, mas ajuda a garantir o bold
                 }}
                 modifiersClassNames={{
-                  today: "text-white font-bold",
+                  today: "text-white font-extrabold",
                   past: "text-white font-semibold",
                   future: "text-zinc-600 opacity-60 cursor-not-allowed",
-                  today: "text-white font-extrabold",
                   selected: "!bg-gray-500 !text-white !font-bold",
                   range_start: "!bg-gray-600 !text-white !font-bold",
                   range_end: "!bg-gray-600 !text-white !font-bold",
@@ -1031,7 +1030,7 @@ const makeCustomerKey = (t: any) => {
                 fromDate={new Date("2025-01-01")}
                 locale={ptBR}
                 formatters={{
-                  formatCaption: (month) => format(month, "LLLL yyyy", { locale: ptBR }),
+                  formatWeekdayName: (date) => format(date, "EEEEE", { locale: ptBR }).toUpperCase(),
                 }}
                 classNames={{
                   months: "grid grid-cols-1",
@@ -1039,16 +1038,15 @@ const makeCustomerKey = (t: any) => {
                   caption: "relative px-1",
                   caption_label:
                     "block w-full text-center px-10 text-[18px] sm:text-[20px] font-small text-white/90",
-                  nav: "absolute left-20 right-20 top-15 h-8 flex items-center justify-between px-1 pointer-events-none",
+                  nav: "absolute inset-x-12 top-12 -translate-y-1 h-8 flex items-center justify-between px-10 z-10",
                   nav_button:
-                    "pointer-events-auto h-7 w-7 rounded-md bg-white/10 hover:bg-white/15 border border-white/10 grid place-items-center",
-                  table: "w-full border-collapse mt-9",
+                    "h-7 w-7 rounded-md bg-white/10 hover:bg-white/15 border border-white/10 grid place-items-center",
+                  table: "w-full mt-9",
                   head_row: "grid grid-cols-7",
-                  head_cell:
-                    "text-[11px] font-semibold text-red-400/90 h-7 w-7 grid place-items-center",
-                  row: "grid grid-cols-7",
-                  /* base SEM cor; quem define cor são os modificadores */
-                  day: "h-9 w-9 rounded-md text-sm hover:bg-white/10",
+                  head_cell: "text-[11px] font-semibold h-7 w-7 grid place-items-center",
+                  row: "grid grid-cols-7 gap-x-1 gap-y-1",
+                  cell: "p-1.5 grid place-items-center",
+                  day: "h-8 w-8 sm:h-9 sm:w-9 rounded-[6px] text-sm hover:bg-white/5",
                   /* hoje = branco + negrito (e mantém o ring, se quiser) */
                   day_today: "text-white font-bold ring-1 ring-red-500/60",
                   /* fora do mês atual */
@@ -1056,10 +1054,10 @@ const makeCustomerKey = (t: any) => {
                   /* futuro (disabled) = cinza escuro + cursor bloqueado */
                   day_disabled: "text-zinc-600 opacity-60 cursor-not-allowed",
                   /* seleção */
-                  day_selected: "bg-red-600 text-white font-bold",
-                  day_range_start: "rounded-md bg-red-600 text-white font-bold",
-                  day_range_end: "rounded-md bg-red-600 text-white font-bold",
-                  day_range_middle: "bg-red-600/20 text-white/90",
+                  day_selected: "!bg-white/15 text-white !font-semibold ring-1 ring-white/20",
+                  day_range_start: "rounded-[6px] !bg-white/20 text-white ring-1 ring-white/25",
+                  day_range_end: "rounded-[6px] !bg-white/20 text-white ring-1 ring-white/25",
+                  day_range_middle: "!bg-white/8 text-white/90",
                 }}
                 components={{
                   IconLeft: () => <ChevronLeft className="h-4 w-4 text-white" />,

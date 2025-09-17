@@ -13,8 +13,10 @@ import {
   TrendingDown,
   Undo2,
   CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
-import { format, subDays, subMonths, isAfter, isEqual, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns"
+import { format, subDays, subMonths, isAfter, isEqual, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfToday, } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { useGatewayTransactions } from "@/lib/gateway-transactions-service"
@@ -43,14 +45,14 @@ export function GatewayTransactionsView({ userName }: GatewayTransactionsViewPro
     from: startOfDay(new Date()),
     to: endOfDay(new Date()),
   })
+  const today = startOfToday();
   const [selectedPeriod, setSelectedPeriod] = useState("today")
   const [isLoading, setIsLoading] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [selectedGateway, setSelectedGateway] = useState<PaymentGatewayType | "all">("all")
   const [isGatewayConfigOpen, setIsGatewayConfigOpen] = useState(false)
-  const [isStartDatePickerOpen, setIsStartDatePickerOpen] = useState(false)
-  const [isEndDatePickerOpen, setIsEndDatePickerOpen] = useState(false)
   const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(dateRange)
+  const [isCustomRangeOpen, setIsCustomRangeOpen] = useState(false)
 
   const {
     transactions,
@@ -360,66 +362,77 @@ const lineColorsByLabel = useMemo(() => {
     }, 500)
   }
 
-  const handlePeriodChange = (value: string) => {
-    setSelectedPeriod(value)
-    const today = new Date()
-    let fromDate: Date | undefined
-    let toDate: Date | undefined = endOfDay(today)
+const handlePeriodChange = (value: string) => {
+  setSelectedPeriod(value)
 
-    switch (value) {
-      case "all_time":
-        fromDate = new Date("1900-01-01")
-        toDate = endOfDay(today)
-        setDateRange({ from: fromDate, to: toDate })
-        break
-      case "today":
-        fromDate = startOfDay(today)
-        setDateRange({ from: fromDate, to: toDate })
-        break
-      case "yesterday":
-        fromDate = startOfDay(subDays(today, 1))
-        toDate = endOfDay(subDays(today, 1))
-        setDateRange({ from: fromDate, to: toDate })
-        break
-      case "7d":
-        fromDate = startOfDay(subDays(today, 6))
-        setDateRange({ from: fromDate, to: toDate })
-        break
-      case "30d":
-        fromDate = subDays(today, 29)
-        setDateRange({ from: fromDate, to: toDate })
-        break
-      case "this_month":
-        fromDate = startOfMonth(today)
-        toDate = endOfMonth(today)
-        setDateRange({ from: fromDate, to: toDate })
-        break
-      case "last_month":
-        fromDate = startOfMonth(subMonths(today, 1))
-        toDate = endOfMonth(subMonths(today, 1))
-        setDateRange({ from: fromDate, to: toDate });
-        break
-      case "90d":
-        fromDate = subDays(today, 89)
-        toDate = endOfDay(today)
-        setDateRange({ from: fromDate, to: toDate });
-        break
-      case "1y":
-        fromDate = subMonths(today, 11)
-        toDate = endOfDay(today)
-        setDateRange({ from: fromDate, to: toDate });
-        break
-      case "custom_month":
-        setTempDateRange(undefined)
-        setIsStartDatePickerOpen(false)
-        setIsEndDatePickerOpen(false)
-        break
-      default:
-        fromDate = startOfDay(today)
-        setDateRange({ from: fromDate, to: toDate })
-        break
+  const now = new Date()                     // referência única de “agora” para este handler
+  let fromDate: Date | undefined
+  let toDate: Date | undefined
+
+  switch (value) {
+    case "all_time": {
+      fromDate = startOfDay(new Date("1900-01-01"))
+      toDate   = endOfDay(now)
+      break
+    }
+    case "today": {
+      fromDate = startOfDay(now)
+      toDate   = endOfDay(now)
+      break
+    }
+    case "yesterday": {
+      const y = subDays(now, 1)
+      fromDate = startOfDay(y)
+      toDate   = endOfDay(y)
+      break
+    }
+    case "7d": {
+      fromDate = startOfDay(subDays(now, 6))
+      toDate   = endOfDay(now)
+      break
+    }
+    case "30d": {
+      fromDate = startOfDay(subDays(now, 29))
+      toDate   = endOfDay(now)
+      break
+    }
+    case "90d": {
+      fromDate = startOfDay(subDays(now, 89))
+      toDate   = endOfDay(now)
+      break
+    }
+    case "1y": {
+      fromDate = startOfDay(subMonths(now, 11))
+      toDate   = endOfDay(now)
+      break
+    }
+    case "this_month": {
+      fromDate = startOfMonth(now)
+      toDate   = endOfMonth(now)
+      break
+    }
+    case "last_month": {
+      const lm = subMonths(now, 1)
+      fromDate = startOfMonth(lm)
+      toDate   = endOfMonth(lm)
+      break
+    }
+    case "custom_month": {
+      setTempDateRange(undefined)
+      setIsCustomRangeOpen(true)
+      return // não define dateRange aqui
+    }
+    default: {
+      fromDate = startOfDay(now)
+      toDate   = endOfDay(now)
+      break
     }
   }
+
+  // aqui já temos from/to definidos
+  setDateRange({ from: fromDate!, to: toDate! })
+}
+
 
   // Traduz o payment_method salvo no banco para rótulo PT-BR
 const getPaymentLabel = (method?: string | null) => {
@@ -568,9 +581,8 @@ const getWhatsAppLink = (phone: string | null | undefined) => {
   }, [getFilteredTransactions, dateRange, selectedGateway])
 
   const prepareDailyPerformanceData = useMemo(() => {
+    const todayEnd = endOfDay(today);
     const dailyDataMap = new Map<string, { date: string; bruto: number; liquido: number }>()
-
-    const today = endOfDay(new Date())
     const sevenDaysAgo = startOfDay(subDays(today, 6))
 
     let currentDate = new Date(sevenDaysAgo)
@@ -647,26 +659,40 @@ const getWhatsAppLink = (phone: string | null | undefined) => {
     },
   }
 
-  const renderCenterText = (chartId: string, totalValue: number) => {
+  const renderCenterText = (chartId: string, totalValue: number, label = "Total") => {
     setTimeout(() => {
       const chart = document.getElementById(chartId)
-      if (chart) {
+      if (!chart) return
         chart.style.position = "relative"
-        const existingText = chart.querySelector(".donut-center-text")
-        if (existingText) chart.removeChild(existingText)
-        const centerTextDiv = document.createElement("div")
-        centerTextDiv.className = "donut-center-text"
-        centerTextDiv.style.position = "absolute"
-        centerTextDiv.style.top = "50%"
-        centerTextDiv.style.left = "40%"
-        centerTextDiv.style.transform = "translate(-50%, -50%)"
-        centerTextDiv.style.textAlign = "center"
-        centerTextDiv.style.pointerEvents = "none"
-        centerTextDiv.style.zIndex = "10"
-        chart.appendChild(centerTextDiv)
-      }
-    }, 300)
-  }
+        const className = "donut-center-text"
+        let el = chart.querySelector(`.${className}`) as HTMLDivElement | null
+        if (!el) {
+          el = document.createElement("div")
+          el.className = className
+          chart.appendChild(el)
+        }
+        
+        el.style.position = "absolute"
+        el.style.top = "50%"
+        el.style.left = "50%"               // <- antes estava 40%
+        el.style.transform = "translate(-50%, -50%)"
+        el.style.textAlign = "center"
+        el.style.pointerEvents = "none"
+        el.style.zIndex = "10"
+        el.style.fontWeight = "700"
+        el.style.lineHeight = "1.1"
+
+        const formatted = new Intl.NumberFormat("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        }).format(Number(totalValue || 0))
+
+        el.innerHTML = `
+          <div style="font-size:12px; opacity:.75">${label}</div>
+          <div style="font-size:16px;">${formatted}</div>
+        `
+      }, 300)
+    }
 
   useEffect(() => {
     const cleanup = setupAutoSync()
@@ -920,11 +946,13 @@ const logoByGatewayName = useMemo(
   [gatewayConfigs]
 )
 
-const makeCustomerKey = (t: any) =>
-  (t.customer_email?.toLowerCase().trim()) ||
-  (t.customer_phone?.replace(/\D/g, '').replace(/^55/, '')) ||
-  (t.customer_name?.toLowerCase().trim()) ||
-  String(t.customer_id ?? '');
+const makeCustomerKey = (t: any) => {
+  const email = t?.customer_email?.toLowerCase().trim()
+  const phone = t?.customer_phone?.replace(/\D/g, "").replace(/^55/, "")
+  const name  = t?.customer_name?.toLowerCase().trim()
+  const cid   = String(t?.customer_id ?? "")
+  return email || phone || name || cid
+}
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -958,67 +986,116 @@ const makeCustomerKey = (t: any) =>
             </SelectContent>
           </Select>
 
-          {selectedPeriod === "custom_month" && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Popover open={isStartDatePickerOpen} onOpenChange={setIsStartDatePickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn("w-[180px] justify-start text-left font-normal", !tempDateRange?.from && "text-muted-foreground")}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {tempDateRange?.from ? format(tempDateRange.from, "dd/MM/yyyy", { locale: ptBR }) : "Data Inicial"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={tempDateRange?.from}
-                    onSelect={(date) => setTempDateRange((prev) => ({ ...prev, from: date }))}
-                    initialFocus
-                    fromDate={new Date("2025-01-01")}
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
+          <Dialog open={isCustomRangeOpen} onOpenChange={setIsCustomRangeOpen}>
+            <DialogContent 
+              className="date-range-dialog sm:max-w-[400px] p-4 bg-[#08080A] text-white border border-white/10"
+>
+              <DialogHeader className="pb-0">
+              </DialogHeader>
 
-              <Popover open={isEndDatePickerOpen} onOpenChange={setIsEndDatePickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn("w-[180px] justify-start text-left font-normal", !tempDateRange?.to && "text-muted-foreground")}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {tempDateRange?.to ? format(tempDateRange.to, "dd/MM/yyyy", { locale: ptBR }) : "Data Final"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={tempDateRange?.to}
-                    onSelect={(date) => setTempDateRange((prev) => ({ ...prev, to: date }))}
-                    initialFocus
-                    fromDate={new Date("2025-01-01")}
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
+              <Calendar
+                mode="range"
+                numberOfMonths={1}
+                showOutsideDays={false}
+                weekStartsOn={1}
+                captionLayout="buttons"
 
-              <div className="flex gap-2">
+                /* ---- BLOQUEIA FUTURO ---- */
+                toDate={today}
+                disabled={{ after: today }}
+
+                /* ---- ESTILOS POR MODIFICADOR ---- */
+                modifiers={{
+                  past: { before: today },
+                  future: { after: today },
+                  today, // redundante, mas ajuda a garantir o bold
+                }}
+                modifiersClassNames={{
+                  today: "text-white font-bold",
+                  past: "text-white font-semibold",
+                  future: "text-zinc-600 opacity-60 cursor-not-allowed",
+                  today: "text-white font-extrabold",
+                  selected: "!bg-gray-500 !text-white !font-bold",
+                  range_start: "!bg-gray-600 !text-white !font-bold",
+                  range_end: "!bg-gray-600 !text-white !font-bold",
+                  range_middle: "!bg-gray-700/20 !text-white/90",
+                }}
+
+                selected={tempDateRange}
+                onSelect={(range) => {
+                  if (!range) return setTempDateRange(undefined)
+                  const from = range.from ? startOfDay(range.from) : undefined
+                  const to   = range.to   ? endOfDay(range.to)     : undefined
+                  setTempDateRange({ from, to })
+                }}
+                fromDate={new Date("2025-01-01")}
+                locale={ptBR}
+                formatters={{
+                  formatCaption: (month) => format(month, "LLLL yyyy", { locale: ptBR }),
+                }}
+                classNames={{
+                  months: "grid grid-cols-1",
+                  month: "space-y-5",
+                  caption: "relative px-1",
+                  caption_label:
+                    "block w-full text-center px-10 text-[18px] sm:text-[20px] font-small text-white/90",
+                  nav: "absolute left-20 right-20 top-15 h-8 flex items-center justify-between px-1 pointer-events-none",
+                  nav_button:
+                    "pointer-events-auto h-7 w-7 rounded-md bg-white/10 hover:bg-white/15 border border-white/10 grid place-items-center",
+                  table: "w-full border-collapse mt-9",
+                  head_row: "grid grid-cols-7",
+                  head_cell:
+                    "text-[11px] font-semibold text-red-400/90 h-7 w-7 grid place-items-center",
+                  row: "grid grid-cols-7",
+                  /* base SEM cor; quem define cor são os modificadores */
+                  day: "h-9 w-9 rounded-md text-sm hover:bg-white/10",
+                  /* hoje = branco + negrito (e mantém o ring, se quiser) */
+                  day_today: "text-white font-bold ring-1 ring-red-500/60",
+                  /* fora do mês atual */
+                  day_outside: "text-white/25",
+                  /* futuro (disabled) = cinza escuro + cursor bloqueado */
+                  day_disabled: "text-zinc-600 opacity-60 cursor-not-allowed",
+                  /* seleção */
+                  day_selected: "bg-red-600 text-white font-bold",
+                  day_range_start: "rounded-md bg-red-600 text-white font-bold",
+                  day_range_end: "rounded-md bg-red-600 text-white font-bold",
+                  day_range_middle: "bg-red-600/20 text-white/90",
+                }}
+                components={{
+                  IconLeft: () => <ChevronLeft className="h-4 w-4 text-white" />,
+                  IconRight: () => <ChevronRight className="h-4 w-4 text-white" />,
+                }}
+                className="rounded-md"
+              />
+
+              {/* AÇÕES */}
+              <div className="mt-4 flex justify-end gap-2">
                 <Button
+                  variant="outline"
+                  className="bg-white/5 border-white/10 text-white/80 hover:bg-white/10"
+                  onClick={() => setIsCustomRangeOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-white hover:bg-white text-black"
                   onClick={() => {
                     if (validateDateRange(tempDateRange)) {
-                      setDateRange(tempDateRange)
-                      setIsStartDatePickerOpen(false)
-                      setIsEndDatePickerOpen(false)
+                      setDateRange({
+                        from: startOfDay(tempDateRange!.from!),
+                        to: endOfDay(tempDateRange!.to!),
+                      })
+                      setSelectedPeriod("custom_month")
+                      setIsCustomRangeOpen(false)
                     }
                   }}
+                  disabled={!tempDateRange?.from || !tempDateRange?.to}
                 >
                   Aplicar
                 </Button>
               </div>
-            </div>
-          )}
+            </DialogContent>
+          </Dialog>
 
           <Select
             value={selectedGateway}

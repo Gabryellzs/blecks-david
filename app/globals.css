@@ -266,3 +266,5 @@ body.dark .rdp-nav_button:hover,
   background: rgba(255,255,255,.06);
   border-radius: 8px;
 }
+
+.donut-center-text { display: none !important; }

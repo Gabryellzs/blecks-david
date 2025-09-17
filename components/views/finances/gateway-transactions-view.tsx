@@ -645,54 +645,18 @@ const getWhatsAppLink = (phone: string | null | undefined) => {
 
   const chartColors = ["#6B7280", "#4F46E5", "#0EA5E9", "#10B981", "#F59E0B", "#FF4500", "#00C2B2", "#96588A", "#32CD32", "#FF69B4"]
 
-  const donutOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    cutout: "75%",
-    plugins: {
-      legend: {
-        position: "right" as const,
-        align: "center" as const,
-        labels: { boxWidth: 12, padding: 15, font: { size: 12 } },
+  const donutOptions = useMemo(
+    () => ({
+      cutout: '75%',
+      responsive: true,              // <- estava escrito "esponsive"
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: true },
       },
-      tooltip: { padding: 10, boxPadding: 5 },
-    },
-  }
-
-  const renderCenterText = (chartId: string, totalValue: number, label = "Total") => {
-    setTimeout(() => {
-      const chart = document.getElementById(chartId)
-      if (!chart) return
-        chart.style.position = "relative"
-        const className = "donut-center-text"
-        let el = chart.querySelector(`.${className}`) as HTMLDivElement | null
-        if (!el) {
-          el = document.createElement("div")
-          el.className = className
-          chart.appendChild(el)
-        }
-        
-        el.style.position = "absolute"
-        el.style.top = "50%"
-        el.style.left = "50%"               // <- antes estava 40%
-        el.style.transform = "translate(-50%, -50%)"
-        el.style.textAlign = "center"
-        el.style.pointerEvents = "none"
-        el.style.zIndex = "10"
-        el.style.fontWeight = "700"
-        el.style.lineHeight = "1.1"
-
-        const formatted = new Intl.NumberFormat("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        }).format(Number(totalValue || 0))
-
-        el.innerHTML = `
-          <div style="font-size:12px; opacity:.75">${label}</div>
-          <div style="font-size:16px;">${formatted}</div>
-        `
-      }, 300)
-    }
+    }),
+    []
+  )
 
   useEffect(() => {
     const cleanup = setupAutoSync()
@@ -705,15 +669,6 @@ const getWhatsAppLink = (phone: string | null | undefined) => {
     }
     return cleanup
   }, [setupAutoSync, importToFinance, toast])
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      renderCenterText("gateway-distribution-chart", summary?.totalAmount || 0)
-      const totalProductSales = prepareProductDistributionData.reduce((sum, p) => sum + p.valor, 0)
-      renderCenterText("product-distribution-chart", totalProductSales)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [summary, prepareProductDistributionData])
 
   const salesTarget = 100
   const revenueTarget = 20000
@@ -1448,7 +1403,7 @@ const makeCustomerKey = (t: any) => {
                       data={prepareGatewayDistributionData()}
                       index="name"
                       category="value"
-                      valueFormatter={(value) => formatCurrency(value)}
+                      valueFormatter={(v) => formatCurrency(v)}
                       colors={gatewayDistributionColors}
                       className="h-full w-full"
                       options={donutOptions}

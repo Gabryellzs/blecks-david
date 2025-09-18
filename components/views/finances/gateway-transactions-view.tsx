@@ -86,6 +86,12 @@ const gatewayConfigs = [
   { id: "cartpanda",     name: "Cartpanda",     color: "#1e00ffff", logo: "/images/gateway-logos/cartpanda.png" },
 ]
 
+const isSingleDay = useMemo(() => {
+  if (!dateRange?.from || !dateRange?.to) return false
+  return isEqual(startOfDay(dateRange.from), startOfDay(dateRange.to))
+}, [dateRange])
+
+
 const colorByGatewayId = useMemo(
   () => Object.fromEntries(gatewayConfigs.map(g => [g.id, g.color] as const)),
   [gatewayConfigs]
@@ -706,45 +712,75 @@ const getWhatsAppLink = (phone: string | null | undefined) => {
     }
   }
 
-  // 1) PREPARA OS DADOS + CAPTURA QUAIS GATEWAYS APARECERAM
-const { chartData: revenueData, revenueGatewayKeys } = useMemo(() => {
-  const dateMap = new Map<string, any>();
-  const seenGateways = new Set<string>();
+// 1) PREPARA OS DADOS + CAPTURA QUAIS GATEWAYS APARECERAM (por hora quando 1 dia; por dia quando >1)
+const { chartData: revenueData, indexKey: revenueIndexKey, revenueGatewayKeys } = useMemo(() => {
+  const seenGateways = new Set<string>()
 
   const filtered = getFilteredTransactions({
     status: "completed",
     period: dateRange?.from && dateRange?.to ? { from: dateRange.from, to: dateRange.to } : undefined,
     gateway: selectedGateway === "all" ? undefined : selectedGateway,
-  });
+  })
 
+  // --- modo 1 DIA: agrega por hora (00..23)
+  if (isSingleDay && dateRange?.from) {
+    const byHour = new Map<number, any>()
+    for (let h = 0; h < 24; h++) {
+      byHour.set(h, { hour: `${String(h).padStart(2, "0")}:00`, total: 0 })
+    }
+
+    filtered.forEach((t) => {
+      const createdAt =
+        t.created_at instanceof Date ? t.created_at :
+        typeof t.created_at === "string" ? new Date(t.created_at) :
+        null
+      if (!createdAt || isNaN(createdAt.getTime())) return
+
+      const h = createdAt.getHours()
+      const row = byHour.get(h)
+      const gw  = t.gateway_id as string
+      const v   = t.net_amount || 0
+
+      row.total += v
+      row[gw] = (row[gw] || 0) + v
+      if (v > 0) seenGateways.add(gw)
+    })
+
+    return {
+      chartData: Array.from(byHour.values()),
+      indexKey: "hour",
+      revenueGatewayKeys: seenGateways,
+    }
+  }
+
+  // --- modo VÁRIOS DIAS: agrega por dia
+  const byDay = new Map<string, any>()
   filtered.forEach((t) => {
     const createdAt =
       t.created_at instanceof Date ? t.created_at :
       typeof t.created_at === "string" ? new Date(t.created_at) :
-      null;
-    if (!createdAt || isNaN(createdAt.getTime())) return;
+      null
+    if (!createdAt || isNaN(createdAt.getTime())) return
 
-    const k = createdAt.toISOString().slice(0, 10);
-    if (!dateMap.has(k)) {
-      dateMap.set(k, { date: k, total: 0 });
-    }
+    const key = createdAt.toISOString().slice(0, 10) // yyyy-mm-dd
+    if (!byDay.has(key)) byDay.set(key, { date: key, total: 0 })
 
-    const row = dateMap.get(k);
-    const gw = t.gateway_id as string;
-    const v = t.net_amount || 0;
+    const row = byDay.get(key)
+    const gw  = t.gateway_id as string
+    const v   = t.net_amount || 0
 
-    row.total += v;
-    row[gw] = (row[gw] || 0) + v;
+    row.total += v
+    row[gw] = (row[gw] || 0) + v
+    if (v > 0) seenGateways.add(gw)
+  })
 
-    if (v > 0) seenGateways.add(gw);
-  });
+  const sorted = Array.from(byDay.values())
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .map((d) => ({ ...d, date: format(new Date(d.date), "dd/MM", { locale: ptBR }) }))
 
-  const sorted = Array.from(dateMap.values()).sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-  ).map((d) => ({ ...d, date: format(new Date(d.date), "dd/MM", { locale: ptBR }) }));
+  return { chartData: sorted, indexKey: "date", revenueGatewayKeys: seenGateways }
+}, [getFilteredTransactions, dateRange, selectedGateway, isSingleDay])
 
-  return { chartData: sorted, revenueGatewayKeys: seenGateways };
-}, [getFilteredTransactions, dateRange, selectedGateway]);
 
 // 2) MONTA AS CATEGORIAS DINÂMICAS
 const revenueCategories = useMemo(() => {
@@ -1378,7 +1414,7 @@ const makeCustomerKey = (t: any) => {
                   <div className="h-[300px] sm:h-[350px] mx-auto w-full">
                     <LineChart
                       data={revenueData}
-                      index="date"
+                      index={revenueIndexKey}
                       categories={revenueCategories}
                       colors={revenueCategories.map((c) => {
                           if (c === "total") return "#f8b600ff"

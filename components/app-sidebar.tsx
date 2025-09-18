@@ -126,13 +126,8 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     },
   ]
 
-  const handleNavigation = (href: string) => {
-    router.push(href)
-  }
-
-  const toggleSidebar = () => {
-    setIsExpanded(!isExpanded)
-  }
+  const handleNavigation = (href: string) => router.push(href)
+  const toggleSidebar = () => setIsExpanded((v) => !v)
 
   const SidebarToggleIcon = () => (
     <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -157,48 +152,61 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
         `}
         >
           {/* Header */}
-          <div className="flex flex-col p-4">
-            <div className="flex flex-col items-center">
-              <div className="mb-2 relative w-[65px] h-[70px]">
+          <div className="p-4">
+            <div className="relative h-[70px]">
+              <div className="absolute left-[-12px] top-1/2 -translate-y-1/2 w-[65px] h-[70px]">
                 <Image
-                  src={
-                    theme === "dark" ? "/images/sidebar-logo-dark-theme.png" : "/images/sidebar-logo-light-theme.png"
-                  }
+                  src={theme === "dark" ? "/images/sidebar-logo-dark-theme.png" : "/images/sidebar-logo-light-theme.png"}
                   alt="BLECK's Logo"
                   fill
                   style={{ objectFit: "contain" }}
                   priority
                 />
               </div>
-              {isExpanded && <h1 className="text-xl font-bold text-foreground">BLECK's</h1>}
+
+              {/* Título: ao lado quando expandida; oculto quando colapsada */}
+              <span
+                className={`
+                  absolute top-1/2 -translate-y-1/2 left-[69px]
+                  text-xl font-bold text-foreground tracking-wide whitespace-nowrap
+                  transition-all duration-300 ease-out
+                  ${isExpanded ? "opacity-100 translate-x-0 max-w-[220px]" : "opacity-0 -translate-x-2 max-w-0"}
+                  overflow-hidden pointer-events-none
+                `}
+              >
+                BLECK's
+              </span>
             </div>
           </div>
 
           {/* Menu Items */}
           <div className="px-3 mt-8">
-            {isExpanded && (
-              <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Menu</div>
-            )}
             <div className="space-y-1">
               {menuItems.map((item) => (
                 <div key={item.id} className="relative group">
                   <Button
-  variant="ghost"
-  onClick={() => handleNavigation(item.href)}
-  className={`
-    w-full justify-start h-11 px-3 text-sm
-    ${
-      pathname === item.href
-        ? "bg-accent text-accent-foreground"
-        : "hover:bg-accent hover:text-accent-foreground text-foreground"
-    }
-    ${!isExpanded ? "justify-center px-0" : ""}
-  `}
->
-  <item.icon className="!h-5 !w-5" />
-  {isExpanded && <span className="ml-3">{item.title}</span>}
-</Button>
-
+                    variant="ghost"
+                    onClick={() => handleNavigation(item.href)}
+                    className={`
+                      w-full h-11 pl-2.5 pr-3 text-sm
+                      justify-start
+                      ${
+                        pathname === item.href
+                          ? "bg-accent text-accent-foreground"
+                          : "hover:bg-accent hover:text-accent-foreground text-foreground"
+                      }
+                    `}
+                  >
+                    <item.icon className="!h-5 !w-5 shrink-0" />
+                    <span
+                      className={`
+                        ml- overflow-hidden transition-all duration-200
+                        ${isExpanded ? "opacity-100 max-w-[220px]" : "opacity-0 max-w-0"}
+                      `}
+                     >
+                      {item.title}
+                     </span>
+                  </Button>
 
                   {/* Tooltip quando colapsado */}
                   {!isExpanded && (

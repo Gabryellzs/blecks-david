@@ -53,6 +53,7 @@ export function GatewayTransactionsView({ userName }: GatewayTransactionsViewPro
   const [isGatewayConfigOpen, setIsGatewayConfigOpen] = useState(false)
   const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(dateRange)
   const [isCustomRangeOpen, setIsCustomRangeOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const {
     transactions,
@@ -482,6 +483,31 @@ const getWhatsAppLink = (phone: string | null | undefined) => {
 
   return `https://wa.me/${digits}`
 }
+
+const filterBySearch = (rows: any[]) => {
+  const raw = searchQuery.trim()
+  if (!raw) return rows
+
+  // normaliza texto (remove acentos e baixa)
+  const norm = (s?: string | null) =>
+    String(s ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+
+  // só dígitos p/ telefone
+  const digits = (s?: string | null) => String(s ?? "").replace(/\D/g, "")
+
+  const q = norm(raw)          // termo normalizado
+  const qDigits = digits(raw)  // termo só com dígitos (pra telefone)
+
+  return rows.filter((t) =>
+    norm(t.customer_name).includes(q) ||
+    norm(t.customer_email).includes(q) ||
+    (qDigits && digits(t.customer_phone).includes(qDigits))
+  )
+}
+
 
   // ----- Charts prep
   const prepareRevenueData = useCallback(() => {
@@ -1689,22 +1715,41 @@ const makeCustomerKey = (t: any) => {
 
           <TabsContent value="transactions" className="space-y-6">
             <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#2a71b8ff" }}>
-              <CardHeader>
-                <CardTitle>Últimas Transações</CardTitle>
-                <CardDescription>Transações mais recentes de todos os gateways</CardDescription>
+              <CardHeader className="p-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 !space-y-0">
+                <div className="min-w-0">
+                  <CardTitle>Últimas Transações</CardTitle>
+                  <CardDescription>Transações mais recentes de todos os gateways</CardDescription>
+                </div>
+
+                <div className="relative w-full sm:w-1/3">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar por nome, email ou telefone..."
+                    className="w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
               </CardHeader>
+
               <CardContent>
                 <div className="max-h-[600px] overflow-y-auto">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {getFilteredTransactions({
-                      status: "completed",
-                      gateway: selectedGateway === "all" ? undefined : selectedGateway,
-                      period: dateRange?.from && dateRange?.to ? { from: dateRange.from, to: dateRange.to } : undefined,
-                    }).map((transaction, index) => {
+                    {filterBySearch(
+                      getFilteredTransactions({
+                        status: "completed",
+                        gateway: selectedGateway === "all" ? undefined : selectedGateway,
+                        period:
+                          dateRange?.from && dateRange?.to
+                            ? { from: dateRange.from, to: dateRange.to }
+                            : undefined,
+                      })
+                    ).map((transaction, index) => {
                       const gateway = gatewayConfigs.find((gc) => gc.id === transaction.gateway_id)
+
                       return (
                         <div key={index} className="relative border rounded-md p-4">
-                          {/* valor no canto direito, como no print */}
+                          {/* valor no canto direito */}
                           <div className="absolute right-4 top-4 font-extrabold text-lg">
                             {formatCurrency(transaction.net_amount ?? transaction.amount ?? 0)}
                           </div>
@@ -1734,7 +1779,6 @@ const makeCustomerKey = (t: any) => {
                                     rel="noopener noreferrer"
                                     aria-label="Enviar mensagem no WhatsApp"
                                   >
-                                    {/* ícone do WhatsApp */}
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" className="h-4 w-4 text-green-500">
                                       <path d="M20.52 3.48A11.8 11.8 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.17 1.6 6L0 24l6.25-1.64A11.93 11.93 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 22c-1.84 0-3.62-.5-5.18-1.45l-.37-.22-3.72.97.99-3.63-.24-.37A9.99 9.99 0 0 1 2 12c0-5.53 4.47-10 10-10s10 4.47 10 10-4.47 10-10 10zm5.03-7.28c-.28-.14-1.65-.82-1.9-.92-.26-.1-.45-.14-.64.14-.19.28-.74.92-.91 1.11-.17.19-.34.21-.62.07-.28-.14-1.18-.44-2.25-1.41-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.31.42-.47.14-.16.19-.28.28-.47.09-.19.05-.36-.02-.5-.07-.14-.64-1.55-.88-2.12-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.5.07-.76.36s-1 1-1 2.43 1.03 2.82 1.17 3.02c.14.19 2.03 3.1 4.93 4.34.69.3 1.23.48 1.65.61.69.22 1.31.19 1.8.12.55-.08 1.65-.68 1.89-1.34.23-.66.23-1.22.16-1.34-.07-.12-.26-.19-.55-.33z"/>
                                     </svg>
@@ -1753,7 +1797,10 @@ const makeCustomerKey = (t: any) => {
                                     className="h-4 w-4 mr-1 rounded-sm object-contain"
                                   />
                                 ) : (
-                                  <span className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: gateway?.color || "#ccc" }} />
+                                  <span
+                                    className="w-2 h-2 rounded-full mr-1"
+                                    style={{ backgroundColor: gateway?.color || "#ccc" }}
+                                  />
                                 )}
                                 {gateway?.name || transaction.gateway_id}
                               </span>
@@ -1765,6 +1812,7 @@ const makeCustomerKey = (t: any) => {
                         </div>
                       )
                     })}
+
                   </div>
                 </div>
               </CardContent>
@@ -1773,18 +1821,35 @@ const makeCustomerKey = (t: any) => {
 
           <TabsContent value="refunds" className="space-y-6">
             <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#ff00e6ff" }}>
-              <CardHeader>
-                <CardTitle>Últimos Reembolsos</CardTitle>
-                <CardDescription>Reembolsos mais recentes de todos os gateways</CardDescription>
+              <CardHeader className="p-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 !space-y-0">
+                <div className="min-w-0">
+                  <CardTitle>Últimas Transações</CardTitle>
+                  <CardDescription>Transações mais recentes de todos os gateways</CardDescription>
+                </div>
+
+                <div className="relative w-full sm:w-1/3">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar por nome, email ou telefone..."
+                    className="w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="max-h-[600px] overflow-y-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {getFilteredTransactions({
-                        status: "refunded",
-                        gateway: selectedGateway === "all" ? undefined : selectedGateway,
-                        period: dateRange?.from && dateRange?.to ? { from: dateRange.from, to: dateRange.to } : undefined,
-                      }).map((transaction, index) => {
+                      {filterBySearch(
+                        getFilteredTransactions({
+                          status: "refunded",
+                          gateway: selectedGateway === "all" ? undefined : selectedGateway,
+                          period:
+                            dateRange?.from && dateRange?.to
+                              ? { from: dateRange.from, to: dateRange.to }
+                              : undefined,
+                        })
+                      ).map((transaction, index) => {
                         const gateway = gatewayConfigs.find((gc) => gc.id === transaction.gateway_id)
                         return (
                           <div key={index} className="relative border rounded-md p-4">
@@ -1861,20 +1926,32 @@ const makeCustomerKey = (t: any) => {
 
           <TabsContent value="abandoned" className="space-y-6">
             <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#ff0000ff" }}>
-              <CardHeader>
-                <CardTitle>Vendas Abandonadas e Recusadas</CardTitle>
-                <CardDescription>Transações de checkout Abandonado e Recusado</CardDescription>
+              <CardHeader className="p-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 !space-y-0">
+                <div className="min-w-0">
+                  <CardTitle>Vendas Abandonadas e Recusadas</CardTitle>
+                  <CardDescription>Transações de checkout Abandonado e Recusado</CardDescription>
+                </div>
+
+                <div className="relative w-full sm:w-1/3">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar por nome, email ou telefone..."
+                    className="w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
               </CardHeader>
+
               <CardContent>
                 <div className="grid grid-cols-2 gap-6">
-
                   {/* --- ABANDONADAS --- */}
                   <div className="space-y-3">
                     <div className="text-sm font-semibold text-muted-foreground">
                       Abandonadas ({abandonedUI.length})
                     </div>
 
-                    {abandonedUI.map((transaction, index) => {
+                    {filterBySearch(abandonedUI).map((transaction, index) => {
                       const gateway = gatewayConfigs.find((gc) => gc.id === transaction.gateway_id)
                       return (
                         <div key={`ab-${index}`} className="block border rounded-md p-3">
@@ -1945,7 +2022,7 @@ const makeCustomerKey = (t: any) => {
                       Recusadas ({refusedUI.length})
                     </div>
 
-                    {refusedUI.map((transaction, index) => {
+                    {filterBySearch(refusedUI).map((transaction, index) => {
                       const gateway = gatewayConfigs.find((gc) => gc.id === transaction.gateway_id)
 
                       return (
@@ -2022,21 +2099,35 @@ const makeCustomerKey = (t: any) => {
 
           <TabsContent value="chargebacks" className="space-y-6">
             <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#ff6e00ff" }}>
-              <CardHeader>
-                <CardTitle>Últimos Chargebacks</CardTitle>
-                <CardDescription>Chargebacks mais recentes de todos os gateways</CardDescription>
+              <CardHeader className="p-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 !space-y-0">
+                <div className="min-w-0">
+                  <CardTitle>Chargebacks</CardTitle>
+                  <CardDescription>Transações com contestação</CardDescription>
+                </div>
+
+                <div className="relative w-full sm:w-1/3">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar por nome, email ou telefone..."
+                    className="w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="max-h-[600px] overflow-y-auto">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {getFilteredTransactions({
-                      status: "chargeback",
-                      gateway: selectedGateway === "all" ? undefined : selectedGateway,
-                      period:
-                        dateRange?.from && dateRange?.to
-                          ? { from: dateRange.from, to: dateRange.to }
-                          : undefined,
-                    }).map((transaction, index) => {
+                    {filterBySearch(
+                      getFilteredTransactions({
+                        status: "chargeback",
+                        gateway: selectedGateway === "all" ? undefined : selectedGateway,
+                        period:
+                          dateRange?.from && dateRange?.to
+                            ? { from: dateRange.from, to: dateRange.to }
+                            : undefined,
+                      })
+                    ).map((transaction, index) => {
                       const gateway = gatewayConfigs.find(
                         (gc) => gc.id === transaction.gateway_id
                       )

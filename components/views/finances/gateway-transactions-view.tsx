@@ -919,6 +919,28 @@ const refusedUI = useMemo(
   [refusedRaw]
 )
 
+const chargebacksRaw = useMemo(() => {
+  return transactions
+    .filter((t) => {
+      const st = String(t.status || "").toLowerCase()
+      const ev = String(t.event_type || "").toLowerCase()
+      const isChargeback = st === "chargeback" || ev === "chargeback"
+
+      const createdAt = t.created_at ? new Date(t.created_at) : null
+      const inRange =
+        !!createdAt &&
+        (!dateRange?.from || createdAt >= dateRange.from) &&
+        (!dateRange?.to   || createdAt <= dateRange.to)
+
+      const matchesGateway = selectedGateway === "all" || t.gateway_id === selectedGateway
+      return isChargeback && inRange && matchesGateway
+    })
+    .sort((a, b) =>
+      new Date(b?.created_at ?? 0).getTime() - new Date(a?.created_at ?? 0).getTime()
+    )
+}, [transactions, dateRange, selectedGateway])
+
+
 const abandonedDedupAmount = useMemo(
   () => abandonedUI.reduce((sum, t) => sum + Number(t.net_amount || 0), 0),
   [abandonedUI]
@@ -2118,16 +2140,7 @@ const makeCustomerKey = (t: any) => {
               <CardContent>
                 <div className="max-h-[600px] overflow-y-auto">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filterBySearch(
-                      getFilteredTransactions({
-                        status: "chargeback",
-                        gateway: selectedGateway === "all" ? undefined : selectedGateway,
-                        period:
-                          dateRange?.from && dateRange?.to
-                            ? { from: dateRange.from, to: dateRange.to }
-                            : undefined,
-                      })
-                    ).map((transaction, index) => {
+                    {filterBySearch(chargebacksRaw).map((transaction, index) => {
                       const gateway = gatewayConfigs.find(
                         (gc) => gc.id === transaction.gateway_id
                       )

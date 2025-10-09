@@ -1,8 +1,6 @@
 "use client"
 
-import React from "react"
-
-import { useState, useCallback, useRef, useEffect } from "react"
+import React, { useState, useCallback, useRef, useEffect } from "react"
 import ReactFlow, {
   Background,
   useNodesState,
@@ -13,7 +11,6 @@ import ReactFlow, {
   type Node,
   type NodeTypes,
   ReactFlowProvider,
-  useReactFlow,
   getRectOfNodes,
   type EdgeTypes,
   MarkerType,
@@ -117,20 +114,14 @@ const isBrowser = typeof window !== "undefined"
 // Função segura para acessar localStorage
 const safeLocalStorage = {
   getItem: (key: string): string | null => {
-    if (isBrowser) {
-      return localStorage.getItem(key)
-    }
+    if (isBrowser) return localStorage.getItem(key)
     return null
   },
   setItem: (key: string, value: string): void => {
-    if (isBrowser) {
-      localStorage.setItem(key, value)
-    }
+    if (isBrowser) localStorage.setItem(key, value)
   },
   removeItem: (key: string): void => {
-    if (isBrowser) {
-      localStorage.removeItem(key)
-    }
+    if (isBrowser) localStorage.removeItem(key)
   },
 }
 
@@ -258,7 +249,6 @@ const writingNodeItems = [
 ]
 
 // Verificar se o template B2B está corretamente listado nos templateItems
-// Confirmar que o ícone está corretamente definido
 const templateItems = [
   {
     id: "exact-reference",
@@ -469,55 +459,26 @@ const contentPageItems = [
   ...writingNodeItems,
 ]
 
-// Todas as páginas combinadas
-const pageItems = [...mainPageItems, ...contentPageItems]
-
-// Estilos de linha disponíveis
-const lineStyles = [
-  { id: "solid", label: "Sólida", icon: Minus },
-  { id: "dashed", label: "Pontilhada", icon: Minus },
-  { id: "dotted", label: "Pontilhada (pequena)", icon: Minus },
-]
-
-// Tipos de animação disponíveis
-const animationTypes = [
-  { id: "none", label: "Nenhuma" },
-  { id: "dots", label: "Bolinhas" },
-  { id: "pulse", label: "Pulsar" },
-]
-
 // Função para gerar uma miniatura do fluxo
 function generateFlowPreview(nodes: Node[], edges: Edge[]) {
-  // Se não houver nós, retorne uma imagem padrão
-  if (nodes.length === 0) {
-    return "/marketing-flow.png"
-  }
+  if (nodes.length === 0) return "/marketing-flow.png"
+  if (!isBrowser) return "/marketing-flow.png"
 
-  // Verificar se estamos no navegador
-  if (!isBrowser) {
-    return "/marketing-flow.png"
-  }
-
-  // Criar um canvas temporário
   const canvas = document.createElement("canvas")
   canvas.width = 300
   canvas.height = 200
   const ctx = canvas.getContext("2d")
-
   if (!ctx) return "/marketing-flow.png"
 
-  // Definir fundo
   ctx.fillStyle = "#111"
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-  // Calcular limites dos nós para escalar corretamente
   const nodeRect = getRectOfNodes(nodes)
   const padding = 30
   const xScale = (canvas.width - padding * 2) / (nodeRect.width || 1)
   const yScale = (canvas.height - padding * 2) / (nodeRect.height || 1)
   const scale = Math.min(xScale, yScale, 1)
 
-  // Desenhar conexões
   ctx.strokeStyle = "#555"
   ctx.lineWidth = 2
 
@@ -532,14 +493,11 @@ function generateFlowPreview(nodes: Node[], edges: Edge[]) {
       const targetY = (targetNode.position.y - nodeRect.y) * scale + padding
 
       ctx.beginPath()
-
-      // Aplicar estilo de linha se disponível
       if (edge.style?.strokeDasharray) {
         ctx.setLineDash(edge.style.strokeDasharray.split(" ").map(Number))
       } else {
         ctx.setLineDash([])
       }
-
       ctx.moveTo(sourceX, sourceY)
       ctx.lineTo(targetX, targetY)
       ctx.stroke()
@@ -547,14 +505,12 @@ function generateFlowPreview(nodes: Node[], edges: Edge[]) {
     }
   })
 
-  // Desenhar nós
   nodes.forEach((node) => {
     const x = (node.position.x - nodeRect.x) * scale + padding
     const y = (node.position.y - nodeRect.y) * scale + padding
     const width = 40
     const height = 30
 
-    // Determinar a cor com base no tipo de nó
     let color = "#666"
     if (node.type === "contentCreationNode") color = "#c0392b"
     else if (node.type === "marketingAnalysisNode") color = "#f39c12"
@@ -562,14 +518,12 @@ function generateFlowPreview(nodes: Node[], edges: Edge[]) {
     else if (node.type === "marketingCampaignNode") color = "#34495e"
     else if (node.type === "socialMediaMarketingNode") color = "#9b59b6"
 
-    // Desenhar retângulo para o nó
     ctx.fillStyle = color
     ctx.fillRect(x - width / 2, y - height / 2, width, height)
     ctx.strokeStyle = "#fff"
     ctx.strokeRect(x - width / 2, y - height / 2, width, height)
   })
 
-  // Converter canvas para URL de dados
   return canvas.toDataURL("image/png")
 }
 
@@ -591,9 +545,7 @@ export default function MindMapView() {
     flowName: string
   } | null>("work-in-progress", null)
 
-  // Manipulador para clicar no item de navegação Dashboard
   const handleDashboardClick = () => {
-    // Salvar trabalho em progresso se estiver na aba de editor
     if (activeView === "editor" || activeView === "advanced-funnel") {
       const currentWork = safeLocalStorage.getItem("current-work-state")
       if (currentWork) {
@@ -608,84 +560,51 @@ export default function MindMapView() {
     setActiveView("dashboard")
   }
 
-  // Manipulador para clicar no item de navegação Criação de Funil
-  const handleFunnelClick = () => {
-    setActiveView("editor")
-  }
+  const handleFunnelClick = () => setActiveView("editor")
+  const handleAdvancedFunnelClick = () => setActiveView("advanced-funnel")
+  const handleCreateProject = () => setActiveView("editor")
 
-  // Manipulador para clicar no item de navegação Funil Avançado
-  const handleAdvancedFunnelClick = () => {
-    setActiveView("advanced-funnel")
-  }
-
-  // Manipulador para criar um novo projeto
-  const handleCreateProject = () => {
-    setActiveView("editor")
-  }
-
-  // Manipulador para clicar nos botões de navegação
   const handleNavClick = (navItem: "pages" | "templates" | "icons") => {
-    // Se clicar no mesmo item que já está ativo, fecha o painel
     if (activeNavItem === navItem && showPanel === navItem) {
       setShowPanel(null)
     } else {
-      // Caso contrário, ativa o item e mostra o painel correspondente
       setActiveNavItem(navItem)
       setShowPanel(navItem)
     }
     setSearchTerm("")
   }
 
-  // Manipulador para alternar a visibilidade da barra lateral
-  const toggleSidebar = () => {
-    setShowSidebar(!showSidebar)
-  }
+  const toggleSidebar = () => setShowSidebar(!showSidebar)
 
-  // Manipulador para carregar um template
   const handleLoadTemplate = (templateId: string) => {
-    console.log("handleLoadTemplate chamado com ID:", templateId)
     setSelectedTemplateId(templateId)
     safeLocalStorage.setItem("selected-template-id", templateId)
 
-    // Carregar o template imediatamente para evitar problemas de timing
     const template = getTemplateById(templateId)
     if (template) {
-      // setNodes(template.nodes);
-      // setEdges(template.edges);
-      // setFlowName(template.name);
-      // toast({
-      //   title: "Template carregado",
-      //   description: `O template "${template.name}" foi carregado com sucesso.`,
-      // });
+      // pronto para carregar via FlowBuilder
     }
   }
 
-  // Filtrar itens com base no termo de pesquisa
   const filteredIcons = marketingIcons.filter((icon) => icon.label.toLowerCase().includes(searchTerm.toLowerCase()))
-
   const filteredTemplates = templateItems.filter(
     (template) =>
       template.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
       template.description.toLowerCase().includes(searchTerm.toLowerCase()),
   )
-
   const filteredMainPages = mainPageItems.filter(
     (page) =>
       page.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
       page.description.toLowerCase().includes(searchTerm.toLowerCase()),
   )
-
   const filteredContentPages = contentPageItems.filter(
     (page) =>
       page.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
       page.description.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  // Carregar o template de referência automaticamente ao iniciar
   useEffect(() => {
-    // Verificar se já existe um template selecionado e se estamos na visualização de editor
     if (selectedTemplateId) {
-      // Carregar o template selecionado
       handleLoadTemplate(selectedTemplateId)
     }
   }, [selectedTemplateId])
@@ -1101,15 +1020,11 @@ function DashboardView({ onCreateProject }: { onCreateProject: () => void }) {
 
   const { toast } = useToast()
 
-  // Função para carregar um fluxo
   const loadFlow = (flow: { name: string; nodes: Node[]; edges: Edge[] }) => {
-    // Armazenar o fluxo selecionado para ser carregado
     safeLocalStorage.setItem("selected-flow", JSON.stringify(flow))
-    // Redirecionar para o editor
     onCreateProject()
   }
 
-  // Função para excluir um fluxo
   const deleteFlow = (index: number) => {
     const updatedFlows = [...savedFlows]
     updatedFlows.splice(index, 1)
@@ -1121,13 +1036,8 @@ function DashboardView({ onCreateProject }: { onCreateProject: () => void }) {
     })
   }
 
-  // Função para duplicar um fluxo
   const duplicateFlow = (flow: { name: string; nodes: Node[]; edges: Edge[]; preview?: string }, index: number) => {
-    const newFlow = {
-      ...flow,
-      name: `${flow.name} (cópia)`,
-    }
-
+    const newFlow = { ...flow, name: `${flow.name} (cópia)` }
     const updatedFlows = [...savedFlows]
     updatedFlows.splice(index + 1, 0, newFlow)
     setSavedFlows(updatedFlows)
@@ -1181,7 +1091,9 @@ function DashboardView({ onCreateProject }: { onCreateProject: () => void }) {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <img
-                        src={`/marketing-flow.png?height=160&width=300&query=marketing%20flow%20${encodeURIComponent(flow.name)}`}
+                        src={`/marketing-flow.png?height=160&width=300&query=marketing%20flow%20${encodeURIComponent(
+                          flow.name,
+                        )}`}
                         alt={`Miniatura do fluxo ${flow.name}`}
                         className="w-full h-full object-cover"
                       />
@@ -1253,11 +1165,10 @@ function FlowBuilder({
 }) {
   const { toast } = useToast()
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
-  const [nodes, setNodes, onNodesChange] = useNodesState([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([])
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null)
   const [flowName, setFlowName] = useState("Novo Projeto de Marketing")
-  const { project } = useReactFlow()
 
   // Estado para configurações de linha
   const [selectedEdges, setSelectedEdges] = useState<Edge[]>([])
@@ -1314,9 +1225,7 @@ function FlowBuilder({
 
   // Função para carregar um template pelo ID
   const loadTemplateById = (templateId: string) => {
-    console.log("Tentando carregar template:", templateId)
     const template = getTemplateById(templateId)
-    console.log("Template encontrado:", template ? template.name : "Não encontrado")
 
     if (template) {
       setNodes(template.nodes)
@@ -1347,7 +1256,6 @@ function FlowBuilder({
   // Adicionar conexão entre nós
   const onConnect = useCallback(
     (params: Connection) => {
-      // Aplicar estilo padrão às novas conexões
       const newEdge: Edge = {
         ...params,
         animated: defaultAnimation === "dots",
@@ -1368,13 +1276,11 @@ function FlowBuilder({
     [setEdges, defaultLineStyle, defaultAnimation, defaultLineColor],
   )
 
-  // Manipulador para soltar itens na área de fluxo
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault()
     event.dataTransfer.dropEffect = "move"
   }, [])
 
-  // Manipulador para quando um item é solto na área de fluxo
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault()
@@ -1392,7 +1298,6 @@ function FlowBuilder({
           y: event.clientY - reactFlowBounds.top,
         })
 
-        // Criar um novo nó com base nos dados arrastados
         const newNode: Node = {
           id: `${nodeData.id}-${Date.now()}`,
           type: nodeData.type,
@@ -1425,7 +1330,6 @@ function FlowBuilder({
     [reactFlowInstance, setNodes, toast],
   )
 
-  // Atualizar estilo das linhas selecionadas
   const updateSelectedEdgesStyle = useCallback(
     (style: string) => {
       setEdges((eds) =>
@@ -1446,17 +1350,12 @@ function FlowBuilder({
     [selectedEdges, setEdges],
   )
 
-  // Atualizar animação das linhas selecionadas
   const updateSelectedEdgesAnimation = useCallback(
     (animation: string) => {
       setEdges((eds) =>
         eds.map((edge) => {
           if (selectedEdges.some((selectedEdge) => selectedEdge.id === edge.id)) {
-            return {
-              ...edge,
-              animated: animation === "dots",
-              // Adicionar outras propriedades de animação conforme necessário
-            }
+            return { ...edge, animated: animation === "dots" }
           }
           return edge
         }),
@@ -1465,7 +1364,6 @@ function FlowBuilder({
     [selectedEdges, setEdges],
   )
 
-  // Atualizar cor das linhas selecionadas
   const updateSelectedEdgesColor = useCallback(
     (color: string) => {
       setEdges((eds) =>
@@ -1473,14 +1371,8 @@ function FlowBuilder({
           if (selectedEdges.some((selectedEdge) => selectedEdge.id === edge.id)) {
             return {
               ...edge,
-              style: {
-                ...edge.style,
-                stroke: color,
-              },
-              markerEnd: {
-                ...edge.markerEnd,
-                color: color,
-              },
+              style: { ...edge.style, stroke: color },
+              markerEnd: { ...edge.markerEnd, color },
             }
           }
           return edge
@@ -1490,7 +1382,6 @@ function FlowBuilder({
     [selectedEdges, setEdges],
   )
 
-  // Salvar fluxo atual
   const saveFlow = useCallback(() => {
     if (nodes.length === 0) {
       toast({
@@ -1501,94 +1392,53 @@ function FlowBuilder({
       return
     }
 
-    // Gerar uma miniatura do fluxo
     const preview = generateFlowPreview(nodes, edges)
+    const newFlow = { name: flowName, nodes, edges, preview }
 
-    const newFlow = {
-      name: flowName,
-      nodes,
-      edges,
-      preview,
-    }
-
-    // Verificar se já existe um fluxo com o mesmo nome
     const existingFlowIndex = savedFlows.findIndex((flow) => flow.name === flowName)
-
     if (existingFlowIndex >= 0) {
-      // Atualizar fluxo existente
       const updatedFlows = [...savedFlows]
       updatedFlows[existingFlowIndex] = newFlow
       setSavedFlows(updatedFlows)
     } else {
-      // Adicionar novo fluxo
       setSavedFlows([...savedFlows, newFlow])
     }
 
-    // Limpar trabalho em progresso após salvar
     safeLocalStorage.removeItem("current-work-state")
     safeLocalStorage.removeItem("work-in-progress")
 
-    toast({
-      title: "Fluxo salvo",
-      description: `O fluxo "${flowName}" foi salvo com sucesso.`,
-    })
+    toast({ title: "Fluxo salvo", description: `O fluxo "${flowName}" foi salvo com sucesso.` })
 
-    // Redirecionar para o dashboard após salvar
     onSaveComplete()
   }, [flowName, nodes, edges, savedFlows, setSavedFlows, toast, onSaveComplete])
 
-  // Carregar fluxo salvo
   const loadFlow = useCallback(() => {
     if (savedFlows.length === 0) {
-      toast({
-        title: "Nenhum fluxo salvo",
-        description: "Não há fluxos salvos para carregar.",
-      })
+      toast({ title: "Nenhum fluxo salvo", description: "Não há fluxos salvos para carregar." })
       return
     }
-
-    // Aqui você poderia mostrar um modal para escolher qual fluxo carregar
-    // Por simplicidade, vamos carregar o último fluxo salvo
     const flow = savedFlows[savedFlows.length - 1]
-
     setNodes(flow.nodes)
     setEdges(flow.edges)
     setFlowName(flow.name)
-
-    toast({
-      title: "Fluxo carregado",
-      description: `O fluxo "${flow.name}" foi carregado com sucesso.`,
-    })
+    toast({ title: "Fluxo carregado", description: `O fluxo "${flow.name}" foi carregado com sucesso.` })
   }, [savedFlows, setNodes, setEdges, toast])
 
-  // Limpar fluxo atual
   const clearFlow = useCallback(() => {
     if (nodes.length === 0) return
-
     setNodes([])
     setEdges([])
     setFlowName("Novo Projeto de Marketing")
-
-    toast({
-      title: "Fluxo limpo",
-      description: "Todos os elementos foram removidos do fluxo.",
-    })
+    toast({ title: "Fluxo limpo", description: "Todos os elementos foram removidos do fluxo." })
   }, [nodes.length, setNodes, setEdges, toast])
 
-  // Adicionar no FlowBuilder, após os outros useEffects
   useEffect(() => {
-    // Auto-salvar o estado atual a cada mudança
     if (isBrowser) {
-      const currentWorkState = {
-        nodes,
-        edges,
-        flowName,
-      }
+      const currentWorkState = { nodes, edges, flowName }
       safeLocalStorage.setItem("current-work-state", JSON.stringify(currentWorkState))
     }
   }, [nodes, edges, flowName])
 
-  // Adicionar também um useEffect para restaurar o trabalho em progresso
   useEffect(() => {
     if (isBrowser) {
       const workInProgress = safeLocalStorage.getItem("work-in-progress")
@@ -1600,13 +1450,9 @@ function FlowBuilder({
             setEdges(workData.edges || [])
             setFlowName(workData.flowName || "Trabalho em Progresso")
 
-            // Limpar o trabalho em progresso após restaurar
             safeLocalStorage.removeItem("work-in-progress")
 
-            toast({
-              title: "Trabalho restaurado",
-              description: "Seu trabalho anterior foi restaurado automaticamente.",
-            })
+            toast({ title: "Trabalho restaurado", description: "Seu trabalho anterior foi restaurado automaticamente." })
           }
         } catch (error) {
           console.error("Erro ao restaurar trabalho em progresso:", error)
@@ -1744,15 +1590,13 @@ function FlowBuilder({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onInit={(instance) => {
-            setReactFlowInstance(instance)
-          }}
+          onInit={(instance) => setReactFlowInstance(instance)}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
-          minZoom={0.2} // Adicionando zoom mínimo para permitir visualizar fluxos grandes
-          maxZoom={2} // Limitando o zoom máximo
-          fitViewOptions={{ padding: 100 }} // Adicionando padding para melhor visualização
+          minZoom={0.2}
+          maxZoom={2}
+          fitViewOptions={{ padding: 100 }}
           nodesDraggable={true}
           elementsSelectable={true}
           selectNodesOnDrag={false}
@@ -1878,30 +1722,12 @@ function FlowBuilder({
                 <div className="space-y-2">
                   <Label className="text-xs">Cor</Label>
                   <div className="flex gap-2">
-                    <button
-                      className="w-8 h-8 rounded-full bg-white"
-                      onClick={() => updateSelectedEdgesColor("#ffffff")}
-                    />
-                    <button
-                      className="w-8 h-8 rounded-full bg-blue-500"
-                      onClick={() => updateSelectedEdgesColor("#3498db")}
-                    />
-                    <button
-                      className="w-8 h-8 rounded-full bg-green-500"
-                      onClick={() => updateSelectedEdgesColor("#2ecc71")}
-                    />
-                    <button
-                      className="w-8 h-8 rounded-full bg-red-500"
-                      onClick={() => updateSelectedEdgesColor("#e74c3c")}
-                    />
-                    <button
-                      className="w-8 h-8 rounded-full bg-yellow-500"
-                      onClick={() => updateSelectedEdgesColor("#f39c12")}
-                    />
-                    <button
-                      className="w-8 h-8 rounded-full bg-purple-500"
-                      onClick={() => updateSelectedEdgesColor("#9b59b6")}
-                    />
+                    <button className="w-8 h-8 rounded-full bg-white" onClick={() => updateSelectedEdgesColor("#ffffff")} />
+                    <button className="w-8 h-8 rounded-full bg-blue-500" onClick={() => updateSelectedEdgesColor("#3498db")} />
+                    <button className="w-8 h-8 rounded-full bg-green-500" onClick={() => updateSelectedEdgesColor("#2ecc71")} />
+                    <button className="w-8 h-8 rounded-full bg-red-500" onClick={() => updateSelectedEdgesColor("#e74c3c")} />
+                    <button className="w-8 h-8 rounded-full bg-yellow-500" onClick={() => updateSelectedEdgesColor("#f39c12")} />
+                    <button className="w-8 h-8 rounded-full bg-purple-500" onClick={() => updateSelectedEdgesColor("#9b59b6")} />
                   </div>
                 </div>
               </div>
@@ -1958,28 +1784,7 @@ function NavButton({
   )
 }
 
-// Ícones adicionais
-function Share(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-      <polyline points="16 6 12 2 8 6" />
-      <line x1="12" y1="2" x2="12" y2="15" />
-    </svg>
-  )
-}
-
+// Ícone Rocket (usado em templateItems)
 function Rocket(props: any) {
   return (
     <svg

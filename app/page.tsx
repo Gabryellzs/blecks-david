@@ -13,21 +13,27 @@ import { TestimonialsSection } from "@/components/testimonials-section"
 import { FAQSection } from "@/components/faq-section"
 import { Footer } from "@/components/footer"
 
-// Carregamos as versões com animação somente no cliente
+/** helper: usa export nomeado se existir, senão usa default */
+const pick = <T, K extends keyof T>(mod: T, key: K) =>
+  (mod && (mod as any)[key]) ? (mod as any)[key] : (mod as any).default
+
+// ⚠️ Carregar os “animados” sem SSR e com fallback de export
 const HeroSection = dynamic(
-  () => import("@/components/hero-section").then((m) => m.HeroSection),
-  { ssr: false }
-)
-const CleanSectionFour = dynamic(
-  () => import("@/components/clean-section-four").then((m) => m.CleanSectionFour),
-  { ssr: false }
-)
-const CleanSectionFive = dynamic(
-  () => import("@/components/clean-section-five").then((m) => m.CleanSectionFive),
-  { ssr: false }
+  () => import("@/components/hero-section").then((m) => pick(m, "HeroSection")),
+  { ssr: false, loading: () => null }
 )
 
-/** Fallback estático (SSR) do hero: mesma hierarquia básica, sem framer-motion */
+const CleanSectionFour = dynamic(
+  () => import("@/components/clean-section-four").then((m) => pick(m, "CleanSectionFour")),
+  { ssr: false, loading: () => null }
+)
+
+const CleanSectionFive = dynamic(
+  () => import("@/components/clean-section-five").then((m) => pick(m, "CleanSectionFive")),
+  { ssr: false, loading: () => null }
+)
+
+/** Fallback estático para o Hero durante o SSR/primeiro paint */
 function FallbackHero() {
   return (
     <section className="w-full bg-gradient-to-b from-black/40 to-transparent">
@@ -59,12 +65,11 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-
       <main>
-        {/* Hero: SSR com fallback estático, troca para a versão animada após mount */}
+        {/* Hero visível no SSR; troca para versão animada após mount */}
         {!mounted ? <FallbackHero /> : <HeroSection />}
 
-        {/* Blocos “seguros” (SSR ok) */}
+        {/* Blocos “seguros” (sem framer-motion/Window no render) */}
         <CleanSection />
         <FeaturesSection />
         <CleanSectionThree />
@@ -72,7 +77,7 @@ export default function HomePage() {
         <TestimonialsSection />
         <FAQSection />
 
-        {/* Blocos animados só no cliente (sem cortar a página) */}
+        {/* Blocos animados só no cliente */}
         {mounted && (
           <>
             <CleanSectionFour />
@@ -80,7 +85,6 @@ export default function HomePage() {
           </>
         )}
       </main>
-
       <Footer />
     </div>
   )

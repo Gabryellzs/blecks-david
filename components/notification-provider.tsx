@@ -1,3 +1,4 @@
+// components/notification-provider.tsx
 "use client"
 
 import type React from "react"
@@ -34,49 +35,81 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [lastPopupViewed, setLastPopupViewed] = useState<number>(0)
 
-  // Verificar usuário autenticado
+  // Util: checar se erro é "session missing"
+  const isSessionMissing = (err: unknown) =>
+    typeof err === "object" &&
+    err !== null &&
+    /auth.*session.*missing/i.test(String((err as any).message ?? err))
+
+  // Verificar usuário autenticado (tolerante a ausência de sessão)
   useEffect(() => {
+    let cancelled = false
+
     const checkUser = async () => {
       try {
-        console.log("🔔 [POPUP] 🔍 Verificando autenticação...")
+        console.log("🔔 [POPUP] 🔍 Verificando sessão...")
 
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser()
-
-        if (error) {
-          console.error("🔔 [POPUP] ❌ Erro na autenticação:", error)
-          setCurrentUser(null)
+        // Primeiro: checar sessão
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+        if (sessionError) {
+          if (isSessionMissing(sessionError)) {
+            console.log("🔔 [POPUP] Sem sessão (ok para páginas públicas).")
+            if (!cancelled) setCurrentUser(null)
+            return
+          }
+          console.error("🔔 [POPUP] getSession error:", sessionError)
+          if (!cancelled) setCurrentUser(null)
           return
         }
 
-        console.log("🔔 [POPUP] 👤 Usuário encontrado:", user?.id || "Nenhum usuário")
-        setCurrentUser(user)
+        const session = sessionData?.session
+        if (!session) {
+          console.log("🔔 [POPUP] Nenhuma sessão ativa.")
+          if (!cancelled) setCurrentUser(null)
+          return
+        }
+
+        // Se há sessão, opcionalmente confirmar usuário
+        const { data: userData, error: userError } = await supabase.auth.getUser()
+        if (userError) {
+          if (!isSessionMissing(userError)) {
+            console.error("🔔 [POPUP] getUser error:", userError)
+          }
+          if (!cancelled) setCurrentUser(null)
+          return
+        }
+
+        console.log("🔔 [POPUP] 👤 Usuário encontrado:", userData.user?.id ?? "(desconhecido)")
+        if (!cancelled) setCurrentUser(userData.user ?? session.user ?? null)
       } catch (error) {
-        console.error("🔔 [POPUP] ❌ Erro inesperado na verificação:", error)
-        setCurrentUser(null)
+        if (!isSessionMissing(error)) {
+          console.error("🔔 [POPUP] ❌ Erro inesperado na verificação:", error)
+        } else {
+          console.log("🔔 [POPUP] Sessão ausente (página pública).")
+        }
+        if (!cancelled) setCurrentUser(null)
       }
     }
 
     checkUser()
 
     // Listener para mudanças de autenticação
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("🔔 [POPUP] 🔄 Mudança na autenticação:", event)
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("🔔 [POPUP] 🔄 Mudança na autenticação:", _event)
       setCurrentUser(session?.user || null)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      cancelled = true
+      data.subscription.unsubscribe()
+    }
   }, [])
 
   // Carregar timestamp da última visualização de popup
   useEffect(() => {
+    let cancelled = false
     const loadLastPopupViewed = async () => {
       if (!currentUser?.id) return
-
       try {
         console.log("🔔 [POPUP] Carregando última visualização de popup do Supabase...")
 
@@ -86,15 +119,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           .eq("user_id", currentUser.id)
           .single()
 
+        // PGRST116 = no rows
         if (error && error.code !== "PGRST116") {
           console.error("🔔 [POPUP] Erro ao buscar última visualização:", error)
           return
         }
 
         if (data?.last_popup_viewed) {
-          const timestamp = new Date(data.last_popup_viewed).getTime()
-          console.log("🔔 [POPUP] Última visualização encontrada no Supabase:", new Date(timestamp))
-          setLastPopupViewed(timestamp)
+          const ts = new Date(data.last_popup_viewed).getTime()
+          console.log("🔔 [POPUP] Última visualização encontrada:", new Date(ts))
+          if (!cancelled) setLastPopupViewed(ts)
         } else {
           console.log("🔔 [POPUP] Nenhum timestamp de popup encontrado no Supabase")
         }
@@ -104,6 +138,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
 
     loadLastPopupViewed()
+    return () => {
+      cancelled = true
+    }
   }, [currentUser])
 
   // Função para salvar timestamp no Supabase
@@ -112,13 +149,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       console.log("🔔 [POPUP] ⚠️ Usuário não autenticado, não salvando no Supabase")
       return false
     }
-
     try {
-      console.log("🔔 [POPUP] 🔍 Salvando visualização de popup no Supabase...")
-      console.log("🔔 [POPUP] ⏰ Timestamp:", new Date(timestamp))
-      console.log("🔔 [POPUP] 👤 Usuário ID:", currentUser.id)
-
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("user_notification_settings")
         .upsert(
           {
@@ -126,18 +158,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             last_popup_viewed: new Date(timestamp).toISOString(),
             updated_at: new Date().toISOString(),
           },
-          {
-            onConflict: "user_id",
-          },
+          { onConflict: "user_id" },
         )
-        .select()
-
       if (error) {
         console.error("🔔 [POPUP] ❌ Erro ao salvar no Supabase:", error)
         return false
       }
-
-      console.log("🔔 [POPUP] ✅ Salvo no Supabase com sucesso!")
       return true
     } catch (error) {
       console.error("🔔 [POPUP] ❌ Erro inesperado ao salvar no Supabase:", error)
@@ -148,16 +174,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const addNotification = useCallback((notification: Omit<Notification, "id" | "timestamp">) => {
     const newNotification: Notification = {
       ...notification,
-      id: Math.random().toString(36).substr(2, 9),
+      id: Math.random().toString(36).slice(2, 11),
       timestamp: Date.now(),
       read: false,
     }
 
-    console.log("🔔 [POPUP] 📢 Nova notificação adicionada:", newNotification.title)
-
     setNotifications((prev) => [newNotification, ...prev])
 
-    // Mostrar toast
     const toastOptions = {
       duration: 5000,
       action: notification.icon ? undefined : { label: "Fechar", onClick: () => {} },
@@ -165,101 +188,60 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     switch (notification.type) {
       case "success":
-        toast.success(notification.title, {
-          description: notification.message,
-          ...toastOptions,
-        })
+        toast.success(notification.title, { description: notification.message, ...toastOptions })
         break
       case "error":
-        toast.error(notification.title, {
-          description: notification.message,
-          ...toastOptions,
-        })
+        toast.error(notification.title, { description: notification.message, ...toastOptions })
         break
       case "warning":
-        toast.warning(notification.title, {
-          description: notification.message,
-          ...toastOptions,
-        })
+        toast.warning(notification.title, { description: notification.message, ...toastOptions })
         break
       case "sales":
-        toast.success(notification.title, {
-          description: notification.message,
-          icon: notification.icon,
-          ...toastOptions,
-        })
+        toast.success(notification.title, { description: notification.message, icon: notification.icon, ...toastOptions })
         break
       default:
-        toast(notification.title, {
-          description: notification.message,
-          ...toastOptions,
-        })
+        toast(notification.title, { description: notification.message, ...toastOptions })
     }
 
-    // Tocar som se solicitado
     if (notification.playSound) {
       try {
         const audio = new Audio("/notification-sound.mp3")
         audio.volume = 0.3
-        audio.play().catch(() => {
+        void audio.play().catch(() => {
           console.log("🔔 [POPUP] Som de notificação não pôde ser reproduzido")
         })
-      } catch (error) {
-        console.log("🔔 [POPUP] Erro ao reproduzir som:", error)
+      } catch {
+        // silencioso
       }
     }
   }, [])
 
   const removeNotification = useCallback((id: string) => {
-    console.log("🔔 [POPUP] 🗑️ Removendo notificação:", id)
     setNotifications((prev) => prev.filter((n) => n.id !== id))
   }, [])
 
   const clearNotifications = useCallback(() => {
-    console.log("🔔 [POPUP] 🧹 Limpando todas as notificações")
     setNotifications([])
   }, [])
 
   const markAsRead = useCallback((id: string) => {
-    console.log("🔔 [POPUP] ✅ Marcando notificação como lida:", id)
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
   }, [])
 
   const markAllAsRead = useCallback(async () => {
-    console.log("🔔 [POPUP] ✅ Marcando todas as notificações popup como lidas")
-
     const now = Date.now()
     setLastPopupViewed(now)
-
-    // Marcar todas as notificações como lidas localmente
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-
-    // Salvar no Supabase se autenticado
     if (currentUser?.id) {
-      console.log("🔔 [POPUP] 🚀 Iniciando sincronização de popup com Supabase...")
-      const success = await savePopupViewedToSupabase(now)
-      if (success) {
-        console.log("🔔 [POPUP] ✅ SYNC de notificações popup marcadas como lidas com sucesso!")
-      } else {
-        console.log("🔔 [POPUP] ⚠️ Falha ao sincronizar popup com Supabase")
-      }
-    } else {
-      console.log("🔔 [POPUP] ⚠️ Usuário não autenticado - pulando sincronização de popup")
+      const ok = await savePopupViewedToSupabase(now)
+      if (!ok) console.log("🔔 [POPUP] ⚠️ Falha ao sincronizar popup com Supabase")
     }
   }, [currentUser])
 
-  // Calcular notificações não lidas baseado no timestamp
-  const unreadNotifications = notifications.filter((n) => {
-    if (lastPopupViewed === 0) return !n.read // Se nunca visualizou, usar flag local
-    return n.timestamp > lastPopupViewed // Se já visualizou antes, usar timestamp
-  })
-
+  const unreadNotifications = notifications.filter((n) =>
+    lastPopupViewed === 0 ? !n.read : n.timestamp > lastPopupViewed,
+  )
   const unreadCount = unreadNotifications.length
-
-  console.log("🔔 [POPUP] Renderizando provider...")
-  console.log("🔔 [POPUP] Total de notificações:", notifications.length)
-  console.log("🔔 [POPUP] Não lidas:", unreadCount)
-  console.log("🔔 [POPUP] Última visualização:", new Date(lastPopupViewed))
 
   const value: NotificationContextType = {
     notifications,

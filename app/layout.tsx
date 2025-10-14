@@ -16,14 +16,14 @@ import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata: Metadata = {
-  title: {
-    default: "BLECK's",
-    template: "%s | BLECK's",
+export const metadata = {
+  title: "BLECK's",
+  icons: {
+    icon: "/images/logo-light-mode.png",
+    shortcut: "/images/logo-light-mode.png",
+    apple: "/images/logo-light-mode.png",
   },
-  description: "A productivity application with authentication and user tracking",
-  generator: "v0.dev",
-}
+};
 
 export default function RootLayout({
   children,

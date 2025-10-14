@@ -1,6 +1,10 @@
+// app/layout.tsx
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Suspense } from "react"
+import { GeistSans } from "geist/font/sans"
+import { GeistMono } from "geist/font/mono"
+import { Analytics } from "@vercel/analytics/react" // ✅ <- aqui
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
@@ -8,44 +12,41 @@ import { NotificationProvider } from "@/components/notification-provider"
 import { DataMigrationDialog } from "@/components/data-migration-dialog"
 import { MigrationInitializer } from "@/components/migration-initializer"
 import { SessionKeeper } from "@/components/session-keeper"
-import { AuthGuard } from "@/components/auth-guard"
-import { AuthProvider } from "@/lib/auth" // CORREÇÃO: Importação sem a extensão .tsx
-import { SessionSyncProvider } from "@/components/session-sync-provider"
+import { AuthProvider } from "@/lib/auth"
+import { GuardSwitch } from "@/components/guard-switch"
 
 import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"] })
-
-export const metadata = {
+export const metadata: Metadata = {
   title: "BLECK's",
+  description: "Landing page BLECK's - Plataforma SaaS",
   icons: {
     icon: "/images/logo-light-mode.png",
     shortcut: "/images/logo-light-mode.png",
     apple: "/images/logo-light-mode.png",
   },
-};
+  generator: "v0.app",
+}
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${GeistSans.className} ${GeistMono.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
           <SessionKeeper />
           <AuthProvider>
-            <AuthGuard>
+            <GuardSwitch>
               <DataMigrationDialog />
               <MigrationInitializer />
               <NotificationProvider>
-                {children}
+                <Suspense fallback={null}>{children}</Suspense>
                 <Toaster />
               </NotificationProvider>
-            </AuthGuard>
+            </GuardSwitch>
           </AuthProvider>
         </ThemeProvider>
+
+        <Analytics /> {/* ✅ funciona no Next 14 */}
       </body>
     </html>
   )

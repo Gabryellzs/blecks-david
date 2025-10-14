@@ -2,7 +2,8 @@
 
 export type PaymentGatewayType =
   | "kirvano"
-  | "ticto"
+  | "cakto"
+  | "kiwify"
   | "hotmart"
   | "monetizze"
   | "eduzz"
@@ -13,12 +14,17 @@ export type PaymentGatewayType =
   | "perfectpay"
   | "goatpay"
   | "tribopay"
-  | "cakto"
-  | "nuvemshop" // Novo gateway
-  | "woocommerce" // Novo gateway
-  | "loja_integrada" // Novo gateway
-  | "cartpanda" // Novo gateway
-  | "unknown" // Adicionar 'unknown' como um tipo válido
+  | "nuvemshop"
+  | "woocommerce"
+  | "loja_integrada"
+  | "cartpanda"
+  | "soutpay"
+  | "zeroonepay"
+  | "greenn"
+  | "logzz"
+  | "payt"
+  | "vega"
+  | "ticto";
 
 export interface PaymentGatewayConfig {
   id: PaymentGatewayType

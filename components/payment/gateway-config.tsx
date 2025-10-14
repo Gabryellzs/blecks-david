@@ -15,24 +15,34 @@ import { userWebhookService, type UserWebhook } from "@/lib/user-webhook-service
 import { webhookSecretService } from "@/lib/webhook-secret-service" // NOVO: Importar serviço de chaves secretas
 
 const GATEWAY_OPTIONS = [
-  { id: "kirvano", name: "Kirvano" },
-  { id: "cakto", name: "Cakto" },
-  { id: "kiwify", name: "Kiwify" },
-  { id: "hotmart", name: "Hotmart" },
-  { id: "monetizze", name: "Monetizze" },
-  { id: "eduzz", name: "Eduzz" },
-  { id: "pepper", name: "Pepper" },
-  { id: "braip", name: "Braip" },
-  { id: "lastlink", name: "Lastlink" },
-  { id: "disrupty", name: "Disrupty" },
-  { id: "perfectpay", name: "PerfectPay" },
-  { id: "goatpay", name: "Goatpay" },
-  { id: "tribopay", name: "Tribopay" },
-  { id: "nuvemshop", name: "Nuvemshop" },
-  { id: "woocommerce", name: "WooCommerce" },
+  { id: "kirvano",        name: "Kirvano" },
+  { id: "cakto",          name: "Cakto" },
+  { id: "kiwify",         name: "Kiwify" },
+  { id: "hotmart",        name: "Hotmart" },
+  { id: "monetizze",      name: "Monetizze" },
+  { id: "eduzz",          name: "Eduzz" },
+  { id: "pepper",         name: "Pepper" },
+  { id: "braip",          name: "Braip" },
+  { id: "lastlink",       name: "Lastlink" },
+  { id: "disrupty",       name: "Disrupty" },
+  { id: "perfectpay",     name: "PerfectPay" },
+  { id: "goatpay",        name: "Goatpay" },
+  { id: "tribopay",       name: "Tribopay" },
+  { id: "nuvemshop",      name: "Nuvemshop" },
+  { id: "woocommerce",    name: "WooCommerce" },
   { id: "loja_integrada", name: "Loja Integrada" },
-  { id: "cartpanda", name: "Cartpanda" },
+  { id: "cartpanda",      name: "Cartpanda" },
+
+  // ▼ novos
+  { id: "soutpay",        name: "SoutPay" },
+  { id: "zeroonepay",     name: "ZeroOnePay" },
+  { id: "greenn",         name: "Greenn" },
+  { id: "logzz",          name: "Logzz" },
+  { id: "payt",           name: "Payt" },
+  { id: "vega",           name: "Vega" },
+  { id: "ticto",          name: "Ticto" },
 ] as const
+
 
 export function GatewayConfig() {
   const [selectedGatewayId, setSelectedGatewayId] = useState<PaymentGatewayType | null>(null)

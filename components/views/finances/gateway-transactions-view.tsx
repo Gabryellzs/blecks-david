@@ -66,7 +66,6 @@ export function GatewayTransactionsView({ userName }: GatewayTransactionsViewPro
     testRealtimeConnection,
   } = useGatewayTransactions()
 
-  // Configurações de gateway fixas para teste
 const gatewayConfigs = [
   { id: "kirvano",       name: "Kirvano",       color: "#6B7280",   logo: "/images/gateway-logos/kirvano.png" },
   { id: "cakto",         name: "Cakto",         color: "#10B985",   logo: "/images/gateway-logos/cakto.png" },
@@ -85,6 +84,15 @@ const gatewayConfigs = [
   { id: "woocommerce",   name: "WooCommerce",   color: "#96588A",   logo: "/images/gateway-logos/woocommerce.png" },
   { id: "loja_integrada",name: "Loja Integrada",color: "#32c0cdff", logo: "/images/gateway-logos/loja_integrada.png" },
   { id: "cartpanda",     name: "Cartpanda",     color: "#1e00ffff", logo: "/images/gateway-logos/cartpanda.png" },
+
+  // 👇 novos (só adicionar)
+  { id: "soutpay",    name: "SoutPay",    color: "#0b2253", logo: "/images/gateway-logos/SOUTPAY.png" },
+  { id: "zeroonepay", name: "ZeroOnePay", color: "#f7b500", logo: "/images/gateway-logos/Zeroonepay.png" },
+  { id: "greenn",     name: "Greenn",     color: "#00c389", logo: "/images/gateway-logos/GREENN.png" },
+  { id: "logzz",      name: "Logzz",      color: "#99f073", logo: "/images/gateway-logos/LOGZZ.png" },
+  { id: "payt",       name: "Payt",       color: "#b86800", logo: "/images/gateway-logos/PAYT.jpeg" },
+  { id: "vega",       name: "Vega",       color: "#f3b333", logo: "/images/gateway-logos/VEGA.png" },
+  { id: "ticto",      name: "Ticto",      color: "#000000", logo: "/images/gateway-logos/TICTO.png" },
 ]
 
 const isSingleDay = useMemo(() => {
@@ -542,19 +550,9 @@ const filterBySearch = (rows: any[]) => {
       const date = transactionDate.toISOString().split("T")[0]
 
       if (!dateMap.has(date)) {
-        dateMap.set(date, {
-          date,
-          total: 0,
-          kirvano: 0,
-          cakto: 0,
-          kiwify: 0,
-          pepper: 0,
-          nuvemshop: 0,
-          woocommerce: 0,
-          loja_integrada: 0,
-          cartpanda: 0,
-        })
-      }
+  dateMap.set(date, { date, total: 0 })
+}
+
 
       const entry = dateMap.get(date)
       entry.total += transaction.net_amount || 0

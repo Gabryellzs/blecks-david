@@ -1,8 +1,8 @@
-// app/page.tsx
 "use client"
 
 import dynamic from "next/dynamic"
 import { Suspense } from "react"
+import { ErrorCatcher } from "@/components/dev/ErrorCatcher"
 
 import { Header } from "@/components/header"
 import { CleanSection } from "@/components/clean-section"
@@ -13,17 +13,14 @@ import { TestimonialsSection } from "@/components/testimonials-section"
 import { FAQSection } from "@/components/faq-section"
 import { Footer } from "@/components/footer"
 
-// 🔥 dynamic apontando para **exports nomeados**
 const HeroSection = dynamic(
   () => import("@/components/hero-section").then((m) => m.HeroSection),
   { ssr: false, loading: () => null }
 )
-
 const CleanSectionFour = dynamic(
   () => import("@/components/clean-section-four").then((m) => m.CleanSectionFour),
   { ssr: false, loading: () => null }
 )
-
 const CleanSectionFive = dynamic(
   () => import("@/components/clean-section-five").then((m) => m.CleanSectionFive),
   { ssr: false, loading: () => null }
@@ -34,22 +31,31 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       <Header />
       <main>
-        <Suspense fallback={null}>
-          <HeroSection />
-        </Suspense>
+        <ErrorCatcher name="HeroSection">
+          <Suspense fallback={null}>
+            <HeroSection />
+          </Suspense>
+        </ErrorCatcher>
 
-        <CleanSection />
-        <FeaturesSection />
-        <CleanSectionThree />
-        <CleanSectionTwo />
+        <ErrorCatcher name="CleanSection"><CleanSection /></ErrorCatcher>
+        <ErrorCatcher name="FeaturesSection"><FeaturesSection /></ErrorCatcher>
+        <ErrorCatcher name="CleanSectionThree"><CleanSectionThree /></ErrorCatcher>
+        <ErrorCatcher name="CleanSectionTwo"><CleanSectionTwo /></ErrorCatcher>
 
-        <Suspense fallback={null}>
-          <CleanSectionFour />
-          <CleanSectionFive />
-        </Suspense>
+        <ErrorCatcher name="CleanSectionFour">
+          <Suspense fallback={null}>
+            <CleanSectionFour />
+          </Suspense>
+        </ErrorCatcher>
 
-        <TestimonialsSection />
-        <FAQSection />
+        <ErrorCatcher name="CleanSectionFive">
+          <Suspense fallback={null}>
+            <CleanSectionFive />
+          </Suspense>
+        </ErrorCatcher>
+
+        <ErrorCatcher name="TestimonialsSection"><TestimonialsSection /></ErrorCatcher>
+        <ErrorCatcher name="FAQSection"><FAQSection /></ErrorCatcher>
       </main>
       <Footer />
     </div>

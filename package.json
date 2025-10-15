@@ -2,10 +2,6 @@
   "name": "my-v0-project",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "npm@10",
-  "engines": {
-    "node": ">=18 <=22"
-  },
   "scripts": {
     "build": "next build",
     "dev": "next dev",
@@ -43,11 +39,10 @@
     "@radix-ui/react-toast": "latest",
     "@radix-ui/react-toggle": "latest",
     "@radix-ui/react-toggle-group": "latest",
-    "@radix-ui/react-tooltip": "^1.2.8",
+    "@radix-ui/react-tooltip": "latest",
     "@supabase/auth-helpers-nextjs": "latest",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
-    "@vercel/analytics": "^1.5.0",
     "@vercel/blob": "latest",
     "ai": "latest",
     "autoprefixer": "^10.4.20",
@@ -58,8 +53,6 @@
     "cmdk": "latest",
     "date-fns": "latest",
     "embla-carousel-react": "latest",
-    "framer-motion": "^12.23.24",
-    "geist": "^1.5.1",
     "groq-sdk": "latest",
     "input-otp": "latest",
     "jszip": "latest",

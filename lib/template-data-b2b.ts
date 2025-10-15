@@ -1,4 +1,3 @@
-// lib/template-data-b2b.ts
 import type { CopywritingTemplate } from "./template-data"
 
 // Templates específicos para B2B
@@ -417,69 +416,6 @@ P.S.: [CALL TO ACTION SUTIL]`,
   },
 ]
 
-/* ================================
-   NOVO: Export pedido pelo build
-   ================================ */
-export const b2bSalesFunnelTemplateEnhanced: CopywritingTemplate = {
-  id: "b2b-sales-funnel-enhanced",
-  name: "B2B Sales Funnel (Enhanced)",
-  category: "framework",
-  description: "Mapa de funil B2B com etapas, mensagens e métricas — pronto para usar no mind map.",
-  template: `FUNIL B2B — DO LEAD AO CLIENTE
-
-1) TOP OF FUNNEL (TOFU)
-• Canais: [CANAIS TOFU]
-• Mensagem-chave: [MENSAGEM TOFU]
-• CTA: [CTA TOFU]
-• Métricas: [MÉTRICAS TOFU]
-
-2) MIDDLE OF FUNNEL (MOFU)
-• Conteúdos: [CONTEÚDOS MOFU]
-• Provas sociais: [PROVAS SOCIAIS]
-• CTA: [CTA MOFU]
-• Métricas: [MÉTRICAS MOFU]
-
-3) BOTTOM OF FUNNEL (BOFU)
-• Oferta: [OFERTA BOFU]
-• Garantia/Condições: [GARANTIA]
-• CTA: [CTA BOFU]
-• Métricas: [MÉTRICAS BOFU]
-
-4) PÓS-VENDA / EXPANSÃO
-• Onboarding: [ONBOARDING]
-• Sucesso do cliente: [PLAYBOOK CS]
-• Upsell/Cross: [OPORTUNIDADES]
-• Métricas: [MÉTRICAS PÓS-VENDA]`,
-  variables: [
-    "CANAIS TOFU",
-    "MENSAGEM TOFU",
-    "CTA TOFU",
-    "MÉTRICAS TOFU",
-    "CONTEÚDOS MOFU",
-    "PROVAS SOCIAIS",
-    "CTA MOFU",
-    "MÉTRICAS MOFU",
-    "OFERTA BOFU",
-    "GARANTIA",
-    "CTA BOFU",
-    "MÉTRICAS BOFU",
-    "ONBOARDING",
-    "PLAYBOOK CS",
-    "OPORTUNIDADES",
-    "MÉTRICAS PÓS-VENDA",
-  ],
-  tips: [
-    "Defina 1-2 métricas por etapa para foco.",
-    "Crie mensagens diferentes por persona e segmento.",
-    "Use cases e ROI para acelerar BOFU.",
-    "Mapeie gatilhos de passagem entre etapas (SLA de marketing→vendas).",
-  ],
-}
-
-/* ================================
-   Helpers
-   ================================ */
-
 // Função para buscar todos os templates B2B
 export function getAllB2BTemplates(): CopywritingTemplate[] {
   return [
@@ -488,7 +424,6 @@ export function getAllB2BTemplates(): CopywritingTemplate[] {
     ...b2bCaseStudyTemplates,
     ...b2bWebinarTemplates,
     ...b2bNewsletterTemplates,
-    b2bSalesFunnelTemplateEnhanced, // incluído no agregado
   ]
 }
 
@@ -503,8 +438,6 @@ export function getB2BTemplatesByCategory(category: string): CopywritingTemplate
       return b2bWebinarTemplates
     case "social-media":
       return b2bEmailTemplates.filter((t) => t.id === "b2b-linkedin-outreach")
-    case "framework":
-      return [b2bSalesFunnelTemplateEnhanced]
     default:
       return []
   }

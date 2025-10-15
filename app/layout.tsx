@@ -1,11 +1,16 @@
-// app/layout.tsx
 import type React from "react"
+import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
-import { NotificationProvider } from "@/components/notification-provider" // usado só nas rotas públicas, se quiser toasts
-import { GuardSwitch } from "@/components/guard-switch"
+import { NotificationProvider } from "@/components/notification-provider"
+import { DataMigrationDialog } from "@/components/data-migration-dialog"
+import { MigrationInitializer } from "@/components/migration-initializer"
+import { SessionKeeper } from "@/components/session-keeper"
+import { AuthGuard } from "@/components/auth-guard"
+import { AuthProvider } from "@/lib/auth" // CORREÇÃO: Importação sem a extensão .tsx
+import { SessionSyncProvider } from "@/components/session-sync-provider"
 
 import "./globals.css"
 
@@ -18,22 +23,28 @@ export const metadata = {
     shortcut: "/images/logo-light-mode.png",
     apple: "/images/logo-light-mode.png",
   },
-}
+};
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
-          {/* GuardSwitch decide se aplica Auth ou não */}
-          <GuardSwitch>
-            {/* Se quiser toasts também na Home pública, deixe esse Provider aqui fora.
-               Se não precisar, pode remover e usar só dentro do GuardSwitch. */}
-            <NotificationProvider>
-              {children}
-              <Toaster />
-            </NotificationProvider>
-          </GuardSwitch>
+          <SessionKeeper />
+          <AuthProvider>
+            <AuthGuard>
+              <DataMigrationDialog />
+              <MigrationInitializer />
+              <NotificationProvider>
+                {children}
+                <Toaster />
+              </NotificationProvider>
+            </AuthGuard>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

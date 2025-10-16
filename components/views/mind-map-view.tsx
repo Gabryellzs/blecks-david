@@ -21,10 +21,10 @@ import ReactFlow, {
 import "reactflow/dist/style.css"
 
 import {
-  Save, Download, Trash2, LayoutGrid, FileText, Palette, ZoomIn, ZoomOut, Maximize,
-  Moon, Sun, ArrowRight, PlusCircle, Search, Facebook, Instagram, Youtube, Linkedin, Mail,
+  Save, Download, Trash2, FileText, Palette, ZoomIn, ZoomOut, Maximize,
+  ArrowRight, PlusCircle, Search, Facebook, Instagram, Youtube, Linkedin, Mail,
   Video, DollarSign, MessageCircle, ShoppingCart, MessageSquare, FileBarChart, Target, BarChart,
-  Users, Clock, HelpCircle, Layers, FileCode, LayoutTemplate, PanelLeftClose, PanelLeft,
+  Users, Clock, HelpCircle, FileCode, LayoutTemplate,
   CreditCard, ThumbsUp, FileQuestion, Info, Lock, BarChart2, Plus, Edit, Copy, Circle, Minus, X,
   Settings, Lightbulb, ListChecks, FileCheck, CheckCircle, Upload, Calendar,
 } from "lucide-react"
@@ -33,7 +33,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
 import { useLocalStorage } from "@/hooks/use-local-storage"
-import { useTheme } from "@/hooks/use-theme"
 import { cn } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -59,9 +58,6 @@ import {
   SocialMediaMarketingNode,
 } from "@/components/mind-map/marketing-nodes"
 import WritingNode from "@/components/mind-map/writing-node"
-
-// advanced view
-import FunilAvancadoView from "@/components/views/advanced-funnel-view"
 
 const isBrowser = typeof window !== "undefined"
 
@@ -190,18 +186,6 @@ const contentPageItems = [
 
 const pageItems = [...mainPageItems, ...contentPageItems]
 
-const lineStyles = [
-  { id: "solid", label: "Sólida", icon: Minus },
-  { id: "dashed", label: "Tracejada", icon: Minus },
-  { id: "dotted", label: "Pontilhada", icon: Minus },
-]
-
-const animationTypes = [
-  { id: "none", label: "Nenhuma" },
-  { id: "dots", label: "Bolinhas" },
-  { id: "pulse", label: "Pulsar" },
-]
-
 // preview
 function generateFlowPreview(nodes: Node[], edges: Edge[]) {
   if (nodes.length === 0 || !isBrowser) return "/marketing-flow.png"
@@ -261,18 +245,19 @@ function generateFlowPreview(nodes: Node[], edges: Edge[]) {
 
 // ========= PAGE =========
 export default function MindMapView() {
-  const { theme, toggleTheme } = useTheme()
-  const isDarkMode = theme === "dark"
+  // somente "dashboard" e "editor"
+  const [activeView, setActiveView] = useState<"dashboard" | "editor">("dashboard")
 
-  const [activeView, setActiveView] = useState<"dashboard" | "editor" | "advanced-funnel">("dashboard")
-  const [activeNavItem, setActiveNavItem] = useState<"pages" | "templates" | "icons">("templates")
-  const [showPanel, setShowPanel] = useState<"pages" | "templates" | "icons" | null>(null)
+  // painel lateral do editor
+  const [activePanelTab, setActivePanelTab] = useState<"pages" | "templates" | "icons">("templates")
+  const [showPanel, setShowPanel] = useState<true | false>(true)
+
   const [searchTerm, setSearchTerm] = useState("")
-  const [showSidebar, setShowSidebar] = useState(true)
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
 
-  const [workInProgress, setWorkInProgress] = useLocalStorage<{ nodes: Node[]; edges: Edge[]; flowName: string } | null>("work-in-progress", null)
+  useLocalStorage<{ nodes: Node[]; edges: Edge[]; flowName: string } | null>("work-in-progress", null)
 
+  // filtros
   const filteredIcons = useMemo(
     () => marketingIcons.filter((i) => i.label.toLowerCase().includes(searchTerm.toLowerCase())),
     [searchTerm],
@@ -296,177 +281,200 @@ export default function MindMapView() {
     ), [searchTerm],
   )
 
-  const handleDashboardClick = () => {
-    if (activeView !== "dashboard") {
-      const currentWork = safeLocalStorage.getItem("current-work-state")
-      if (currentWork) {
-        try {
-          setWorkInProgress(JSON.parse(currentWork))
-        } catch {}
-      }
-    }
+  const goDashboard = () => {
     setActiveView("dashboard")
+    setShowPanel(false)
   }
-  const handleFunnelClick = () => setActiveView("editor")
-  const handleAdvancedFunnelClick = () => setActiveView("advanced-funnel")
-  const handleCreateProject = () => setActiveView("editor")
-
-  const handleNavClick = (nav: "pages" | "templates" | "icons") => {
-    setShowPanel((prev) => (prev === nav ? null : nav))
-    setActiveNavItem(nav)
-    setSearchTerm("")
+  const goEditor = () => {
+    setActiveView("editor")
+    setShowPanel(true)
+    setActivePanelTab("templates")
   }
-  const toggleSidebar = () => setShowSidebar((v) => !v)
 
   const handleLoadTemplate = (id: string) => {
     setSelectedTemplateId(id)
     safeLocalStorage.setItem("selected-template-id", id)
   }
 
+  // guardar último template escolhido
   useEffect(() => {
-    if (selectedTemplateId) handleLoadTemplate(selectedTemplateId)
+    if (selectedTemplateId) {
+      safeLocalStorage.setItem("selected-template-id", selectedTemplateId)
+    }
   }, [selectedTemplateId])
 
   return (
     <div className="flex h-[calc(100vh-0px)] bg-background text-foreground">
-      {showSidebar && (
-        <div className="w-[230px] border-r border-border flex flex-col bg-card/40 backdrop-blur-sm">
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <h1 className="text-lg font-bold">BLACK&apos;s FANNEL</h1>
-            <button onClick={toggleSidebar} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground" aria-label="Esconder menu">
-              <PanelLeftClose size={18} />
-            </button>
-          </div>
+      {/* Conteúdo em largura total (sem sidebar do app) */}
+      <div className="flex-1 flex flex-col min-h-0">
+        {/* BARRA SUPERIOR: chips Dashboard / Criação de Funil */}
+        <div className="w-full flex items-center gap-2 px-6 py-4 border-b border-border">
+          <Button
+            variant={activeView === "dashboard" ? "default" : "outline"}
+            onClick={goDashboard}
+            className={cn("h-8 px-3 rounded-full", activeView === "dashboard" ? "" : "bg-transparent")}
+          >
+            Painel
+          </Button>
+          <Button
+            variant={activeView === "editor" ? "default" : "outline"}
+            onClick={goEditor}
+            className={cn("h-8 px-3 rounded-full", activeView === "editor" ? "" : "bg-transparent")}
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            Criação de Funil
+          </Button>
 
-          <div className="flex-1 py-4">
-            <NavItem icon={<LayoutGrid size={18} />} label="Dashboard" active={activeView === "dashboard"} onClick={handleDashboardClick} />
-            <NavItem icon={<FileText size={18} />} label="Criação de Funil" active={activeView === "editor"} onClick={handleFunnelClick} />
-            <NavItem icon={<Layers size={18} />} label="Funil Avançado" active={activeView === "advanced-funnel"} onClick={handleAdvancedFunnelClick} />
-          </div>
-
-          <div className="p-4 border-t border-border flex items-center">
-            <div className="flex items-center gap-2">
-              <Sun size={16} className={cn("text-muted-foreground", !isDarkMode && "text-yellow-500")} />
-              <button onClick={toggleTheme} className={cn("relative inline-flex h-5 w-10 items-center rounded-full transition-colors",
-                isDarkMode ? "bg-primary" : "bg-muted")}>
-                <span className={cn("inline-block h-4 w-4 transform rounded-full bg-background shadow transition",
-                  isDarkMode ? "translate-x-6" : "translate-x-1")} />
-              </button>
-              <Moon size={16} className={cn("text-muted-foreground", isDarkMode && "text-blue-400")} />
+          {/* Quando estiver no editor, mostrar à direita os “tabs” horizontais para o painel */}
+          {activeView === "editor" && (
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant={activePanelTab === "pages" ? "default" : "outline"}
+                className="h-8 px-3 rounded-full"
+                onClick={() => { setActivePanelTab("pages"); setShowPanel(true) }}
+              >
+                Páginas
+              </Button>
+              <Button
+                variant={activePanelTab === "templates" ? "default" : "outline"}
+                className="h-8 px-3 rounded-full"
+                onClick={() => { setActivePanelTab("templates"); setShowPanel(true) }}
+              >
+                Templates
+              </Button>
+              <Button
+                variant={activePanelTab === "icons" ? "default" : "outline"}
+                className="h-8 px-3 rounded-full"
+                onClick={() => { setActivePanelTab("icons"); setShowPanel(true) }}
+              >
+                Ícones
+              </Button>
+              <Button variant="ghost" className="h-8 px-3" onClick={() => setShowPanel((v) => !v)}>
+                {showPanel ? "Ocultar Painel" : "Mostrar Painel"}
+              </Button>
             </div>
-          </div>
+          )}
         </div>
-      )}
 
-      <div className="flex-1 flex">
-        {!showSidebar && (
-          <button onClick={toggleSidebar}
-            className="absolute top-4 left-4 z-10 p-2 rounded-md bg-card border border-border text-foreground hover:bg-muted"
-            aria-label="Mostrar menu">
-            <PanelLeft size={18} />
-          </button>
-        )}
-
+        {/* ÁREA PRINCIPAL */}
         {activeView === "dashboard" ? (
-          <DashboardView onCreateProject={handleCreateProject} />
-        ) : activeView === "advanced-funnel" ? (
-          <FunilAvancadoView />
+          <DashboardView onCreateProject={goEditor} />
         ) : (
-          <>
-            <div className="w-[60px] bg-card/40 border-r border-border">
-              <NavButton icon={<FileText size={20} />} label="Páginas" active={activeNavItem === "pages"} onClick={() => handleNavClick("pages")} />
-              <NavButton icon={<Layers size={20} />} label="Templates" active={activeNavItem === "templates"} onClick={() => handleNavClick("templates")} />
-              <NavButton icon={<Palette size={20} />} label="Ícones" active={activeNavItem === "icons"} onClick={() => handleNavClick("icons")} />
-            </div>
-
-            <div className="flex-1 flex min-h-0">
-              {showPanel && (
-                <div className="w-[300px] bg-card/40 border-r border-border flex flex-col min-h-0">
-                  <div className="p-4 border-b border-border">
-                    <div className="flex items-center gap-2 mb-4">
-                      {showPanel === "pages" && <FileText size={20} />}
-                      {showPanel === "templates" && <Layers size={20} />}
-                      {showPanel === "icons" && <Palette size={20} />}
-                      <h2 className="text-lg font-semibold">
-                        {showPanel === "pages" ? "Páginas" : showPanel === "templates" ? "Templates" : "Ícones"}
-                      </h2>
-                    </div>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                      <Input
-                        placeholder={`Buscar ${showPanel === "pages" ? "páginas" : showPanel === "templates" ? "templates" : "ícones"}...`}
-                        className="pl-9 bg-background border-border"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </div>
+          <div className="flex-1 flex min-h-0">
+            {/* Painel lateral do editor */}
+            {showPanel && (
+              <div className="w-[300px] bg-card/40 border-r border-border flex flex-col">
+                <div className="p-4 border-b border-border">
+                  <div className="flex items-center gap-2 mb-4">
+                    {activePanelTab === "pages" && <FileText size={20} />}
+                    {activePanelTab === "templates" && <LayoutTemplate size={20} />}
+                    {activePanelTab === "icons" && <Palette size={20} />}
+                    <h2 className="text-lg font-semibold">
+                      {activePanelTab === "pages" && "Páginas"}
+                      {activePanelTab === "templates" && "Templates"}
+                      {activePanelTab === "icons" && "Ícones"}
+                    </h2>
                   </div>
-
-                  <div className="flex-1 overflow-y-auto p-2">
-                    {showPanel === "pages" && (
-                      <div className="space-y-3">
-                        <div className="mb-4 p-3 bg-muted rounded-lg">
-                          <p className="text-sm text-muted-foreground">Componentes de páginas para funis de marketing.</p>
-                        </div>
-
-                        {filteredMainPages.length > 0 && (
-                          <div className="space-y-2">
-                            {filteredMainPages.map((page) => (
-                              <DraggablePageItemNew key={page.id} id={page.id} icon={page.icon}
-                                label={page.label} description={page.description} pageType={page.pageType} />
-                            ))}
-                          </div>
-                        )}
-
-                        {filteredContentPages.length > 0 && (
-                          <>
-                            <div className="mt-6 mb-2">
-                              <h3 className="text-sm font-medium text-muted-foreground">Páginas de Conteúdo</h3>
-                            </div>
-                            <div className="space-y-2">
-                              {filteredContentPages.map((page) => (
-                                <DraggablePageItemNew key={page.id} id={page.id} icon={page.icon}
-                                  label={page.label} description={page.description} pageType={page.pageType} />
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    {showPanel === "templates" && (
-                      <div className="space-y-4 p-2">
-                        {filteredTemplates.map((tpl) => (
-                          <TemplateCard key={tpl.id} id={tpl.id} label={tpl.label}
-                            description={tpl.description} onUseTemplate={handleLoadTemplate} />
-                        ))}
-                      </div>
-                    )}
-
-                    {showPanel === "icons" && (
-                      <div className="grid grid-cols-3 gap-2">
-                        {filteredIcons.map((icon) => (
-                          <DraggableIconButton key={icon.id} id={icon.id} icon={icon.icon}
-                            label={icon.label} color={icon.color}
-                            customIcon={typeof icon.icon === "string" ? icon.icon : undefined} />
-                        ))}
-                      </div>
-                    )}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                    <Input
+                      placeholder={`Buscar ${activePanelTab === "pages" ? "páginas" : activePanelTab === "templates" ? "templates" : "ícones"}...`}
+                      className="pl-9 bg-background border-border"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                   </div>
                 </div>
-              )}
 
-              <div className="flex-1 flex flex-col min-h-0">
-                <ReactFlowProvider>
-                  <FlowBuilder
-                    onSaveComplete={() => setActiveView("dashboard")}
-                    selectedTemplateId={selectedTemplateId}
-                    setSelectedTemplateId={setSelectedTemplateId}
-                  />
-                </ReactFlowProvider>
+                <div className="flex-1 overflow-y-auto p-2">
+                  {activePanelTab === "pages" && (
+                    <div className="space-y-3">
+                      <div className="mb-4 p-3 bg-card rounded-lg border border-border">
+                        <p className="text-sm text-muted-foreground">
+                          Componentes para montar todas as páginas do seu funil.
+                        </p>
+                      </div>
+
+                      {filteredMainPages.length > 0 && (
+                        <div className="space-y-2">
+                          {filteredMainPages.map((page) => (
+                            <DraggablePageItemNew
+                              key={page.id}
+                              id={page.id}
+                              icon={page.icon}
+                              label={page.label}
+                              description={page.description}
+                              pageType={page.pageType}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      {filteredContentPages.length > 0 && (
+                        <>
+                          <div className="mt-6 mb-2">
+                            <h3 className="text-sm font-medium text-muted-foreground">Páginas de Conteúdo</h3>
+                          </div>
+                          <div className="space-y-2">
+                            {filteredContentPages.map((page) => (
+                              <DraggablePageItemNew
+                                key={page.id}
+                                id={page.id}
+                                icon={page.icon}
+                                label={page.label}
+                                description={page.description}
+                                pageType={page.pageType}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {activePanelTab === "templates" && (
+                    <div className="space-y-4 p-2">
+                      {filteredTemplates.map((template) => (
+                        <TemplateCard
+                          key={template.id}
+                          id={template.id}
+                          label={template.label}
+                          description={template.description}
+                          onUseTemplate={handleLoadTemplate}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {activePanelTab === "icons" && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {filteredIcons.map((icon) => (
+                        <DraggableIconButton
+                          key={icon.id}
+                          id={icon.id}
+                          icon={icon.icon}
+                          label={icon.label}
+                          color={icon.color}
+                          customIcon={typeof icon.icon === "string" ? icon.icon : undefined}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
+            )}
+
+            {/* Editor */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <ReactFlowProvider>
+                <FlowBuilder
+                  onSaveComplete={goDashboard}
+                  selectedTemplateId={selectedTemplateId}
+                  setSelectedTemplateId={setSelectedTemplateId}
+                />
+              </ReactFlowProvider>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -886,6 +894,7 @@ function FlowBuilder({
 
   return (
     <>
+      {/* Toolbar do editor */}
       <div className="h-16 border-b border-border flex items-center justify-between px-4 bg-card/40">
         <Input value={flowName} onChange={(e) => setFlowName(e.target.value)} className="max-w-xs bg-background border-border" />
         <div className="flex items-center gap-1">
@@ -906,46 +915,14 @@ function FlowBuilder({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80 bg-card border-border text-foreground p-4">
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium">Configurações de Linha Padrão</h3>
-
-                <div className="space-y-2">
-                  <Label htmlFor="line-style">Estilo de Linha</Label>
-                  <Select value={defaultLineStyle} onValueChange={setDefaultLineStyle}>
-                    <SelectTrigger id="line-style" className="bg-background border-border">
-                      <SelectValue placeholder="Selecione um estilo" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      <SelectItem value="solid">Sólida</SelectItem>
-                      <SelectItem value="dashed">Tracejada</SelectItem>
-                      <SelectItem value="dotted">Pontilhada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="animation-type">Animação</Label>
-                  <Select value={defaultAnimation} onValueChange={setDefaultAnimation}>
-                    <SelectTrigger id="animation-type" className="bg-background border-border">
-                      <SelectValue placeholder="Selecione uma animação" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      <SelectItem value="none">Nenhuma</SelectItem>
-                      <SelectItem value="dots">Bolinhas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="line-color">Cor da Linha</Label>
-                  <div className="flex gap-2">
-                    {["#ffffff", "#3498db", "#2ecc71", "#e74c3c", "#f39c12", "#9b59b6"].map((c) => (
-                      <button key={c} className={cn("w-8 h-8 rounded-full border", defaultLineColor === c && "ring-2 ring-primary")}
-                        style={{ backgroundColor: c }} onClick={() => setDefaultLineColor(c)} />
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <EdgeDefaults
+                defaultLineStyle={defaultLineStyle}
+                setDefaultLineStyle={setDefaultLineStyle}
+                defaultAnimation={defaultAnimation}
+                setDefaultAnimation={setDefaultAnimation}
+                defaultLineColor={defaultLineColor}
+                setDefaultLineColor={setDefaultLineColor}
+              />
             </PopoverContent>
           </Popover>
         </div>
@@ -981,59 +958,29 @@ function FlowBuilder({
           proOptions={{ hideAttribution: true }}
           className="bg-background"
         >
-          <Background color={isBrowser && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "#333" : "#ddd"} variant="dots" gap={12} size={1} />
+          <Background
+            color={isBrowser && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "#333" : "#ddd"}
+            variant="dots"
+            gap={12}
+            size={1}
+          />
 
+          {/* controles simples no canto */}
           <div className="absolute bottom-4 right-4 flex flex-col bg-card border border-border rounded">
             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground"><ZoomIn size={16} /></Button>
             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground"><ZoomOut size={16} /></Button>
             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground"><Maximize size={16} /></Button>
           </div>
 
+          {/* painel de configuração das arestas selecionadas */}
           {showEdgeSettings && (
             <Panel position="top-right" className="bg-card border border-border rounded p-3 mr-4 mt-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium">Configurar Linhas</h3>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowEdgeSettings(false)}><X size={14} /></Button>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs">Estilo de Linha</Label>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateSelectedEdgesStyle("solid")}>
-                      <Minus size={14} className="mr-1" />Sólida
-                    </Button>
-                    <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateSelectedEdgesStyle("dashed")}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" className="mr-1"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="5,5" d="M3 12h18"/></svg>
-                      Tracejada
-                    </Button>
-                    <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateSelectedEdgesStyle("dotted")}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" className="mr-1"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="2,2" d="M3 12h18"/></svg>
-                      Pontilhada
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs">Animação</Label>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateSelectedEdgesAnimation("none")}>Nenhuma</Button>
-                    <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateSelectedEdgesAnimation("dots")}>
-                      <Circle size={14} className="mr-1" />Bolinhas
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs">Cor</Label>
-                  <div className="flex gap-2">
-                    {["#ffffff", "#3498db", "#2ecc71", "#e74c3c", "#f39c12", "#9b59b6"].map((c) => (
-                      <button key={c} className="w-8 h-8 rounded-full" style={{ backgroundColor: c }} onClick={() => updateSelectedEdgesColor(c)} />
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <EdgeSelectionPanel
+                onClose={() => setShowEdgeSettings(false)}
+                updateStyle={updateSelectedEdgesStyle}
+                updateAnimation={updateSelectedEdgesAnimation}
+                updateColor={updateSelectedEdgesColor}
+              />
             </Panel>
           )}
         </ReactFlow>
@@ -1042,20 +989,107 @@ function FlowBuilder({
   )
 }
 
-// nav items
-function NavItem({ icon, label, active = false, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }) {
+function EdgeDefaults({
+  defaultLineStyle, setDefaultLineStyle,
+  defaultAnimation, setDefaultAnimation,
+  defaultLineColor, setDefaultLineColor,
+}: any) {
   return (
-    <div className={cn("flex items-center gap-3 px-4 py-2 my-1 mx-2 rounded-md cursor-pointer",
-      active ? "bg-muted" : "hover:bg-muted/60")} onClick={onClick}>
-      {icon}<span className="text-sm">{label}</span>
+    <div className="space-y-4">
+      <h3 className="text-sm font-medium">Configurações de Linha Padrão</h3>
+
+      <div className="space-y-2">
+        <Label htmlFor="line-style">Estilo de Linha</Label>
+        <Select value={defaultLineStyle} onValueChange={setDefaultLineStyle}>
+          <SelectTrigger id="line-style" className="bg-background border-border">
+            <SelectValue placeholder="Selecione um estilo" />
+          </SelectTrigger>
+          <SelectContent className="bg-card border-border">
+            <SelectItem value="solid">Sólida</SelectItem>
+            <SelectItem value="dashed">Tracejada</SelectItem>
+            <SelectItem value="dotted">Pontilhada</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="animation-type">Animação</Label>
+        <Select value={defaultAnimation} onValueChange={setDefaultAnimation}>
+          <SelectTrigger id="animation-type" className="bg-background border-border">
+            <SelectValue placeholder="Selecione uma animação" />
+          </SelectTrigger>
+          <SelectContent className="bg-card border-border">
+            <SelectItem value="none">Nenhuma</SelectItem>
+            <SelectItem value="dots">Bolinhas</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="line-color">Cor da Linha</Label>
+        <div className="flex gap-2">
+          {["#ffffff", "#3498db", "#2ecc71", "#e74c3c", "#f39c12", "#9b59b6"].map((c) => (
+            <button key={c} className={cn("w-8 h-8 rounded-full border", defaultLineColor === c && "ring-2 ring-primary")}
+              style={{ backgroundColor: c }} onClick={() => setDefaultLineColor(c)} />
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
-function NavButton({ icon, label, active = false, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }) {
+
+function EdgeSelectionPanel({
+  onClose, updateStyle, updateAnimation, updateColor,
+}: {
+  onClose: () => void
+  updateStyle: (style: "solid" | "dashed" | "dotted") => void
+  updateAnimation: (anim: "none" | "dots") => void
+  updateColor: (c: string) => void
+}) {
   return (
-    <div className="flex flex-col items-center py-4" onClick={onClick}>
-      <div className={cn("p-2 rounded-md cursor-pointer", active ? "bg-muted" : "hover:bg-muted/60")}>{icon}</div>
-      <span className="text-xs mt-1 text-muted-foreground">{label}</span>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium">Configurar Linhas</h3>
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={onClose}>
+          <X size={14} />
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs">Estilo de Linha</Label>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateStyle("solid")}>
+            <Minus size={14} className="mr-1" />Sólida
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateStyle("dashed")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" className="mr-1"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="5,5" d="M3 12h18"/></svg>
+            Tracejada
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateStyle("dotted")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" className="mr-1"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="2,2" d="M3 12h18"/></svg>
+            Pontilhada
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs">Animação</Label>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateAnimation("none")}>Nenhuma</Button>
+          <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateAnimation("dots")}>
+            <Circle size={14} className="mr-1" />Bolinhas
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs">Cor</Label>
+        <div className="flex gap-2">
+          {["#ffffff", "#3498db", "#2ecc71", "#e74c3c", "#f39c12", "#9b59b6"].map((c) => (
+            <button key={c} className="w-8 h-8 rounded-full" style={{ backgroundColor: c }} onClick={() => updateColor(c)} />
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

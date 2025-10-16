@@ -53,6 +53,7 @@
     "cmdk": "latest",
     "date-fns": "latest",
     "embla-carousel-react": "latest",
+    "framer-motion": "^12.23.24",
     "groq-sdk": "latest",
     "input-otp": "latest",
     "jszip": "latest",

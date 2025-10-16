@@ -1,94 +1,105 @@
+// middleware.ts
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-// Rotas que não precisam de autenticação
-const publicRoutes = ["/login", "/register", "/reset-password", "/update-password", "/", "/debug"]
+// Prefixos públicos (match por prefixo)
+const PUBLIC_PREFIXES = ["/login", "/register", "/reset-password", "/update-password", "/debug"]
+// Rotas públicas que devem casar EXATAMENTE
+const PUBLIC_EXACT = ["/"]
 
-// Rotas que são apenas para administradores
-const adminRoutes = ["/admin"]
+const ADMIN_PREFIXES = ["/admin"]
+
+function isPublicRoute(pathname: string) {
+  // match exato para as rotas exatas (inclui "/")
+  if (PUBLIC_EXACT.includes(pathname)) return true
+
+  // match por prefixo, mas garantindo borda de segmento para evitar colisões tipo "/login-xyz"
+  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))
+}
+
+function isAdminRoute(pathname: string) {
+  return ADMIN_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-
   console.log(`DEBUG: [MIDDLEWARE] Checking route: ${pathname}`)
 
-  // Verificar se é uma rota pública
-  if (publicRoutes.some((route) => pathname.startsWith(route))) {
+  // Rotas de assets e _next
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|json|woff2?|ttf|eot)$/)
+  ) {
+    return NextResponse.next()
+  }
+
+  // Rotas públicas liberadas (home incluída por EXATO "/")
+  if (isPublicRoute(pathname)) {
     console.log(`DEBUG: [MIDDLEWARE] Public route, allowing access: ${pathname}`)
     return NextResponse.next()
   }
 
-  // Verificar se é uma rota de API
+  // Rotas de API liberadas
   if (pathname.startsWith("/api")) {
     console.log(`DEBUG: [MIDDLEWARE] API route, allowing access: ${pathname}`)
     return NextResponse.next()
   }
 
-  // Verificar se é uma rota de assets
-  if (pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|json)$/)) {
-    return NextResponse.next()
-  }
-
-  // Obter credenciais do Supabase
+  // Variáveis do Supabase
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 
   if (!supabaseUrl || !supabaseKey) {
-    console.error("[MIDDLEWARE] Variáveis de ambiente do Supabase não configuradas")
-    // Em vez de redirecionar, permitir acesso e deixar o cliente lidar com isso
+    console.error("[MIDDLEWARE] Supabase env not set. Allowing access and letting client handle.")
     return NextResponse.next()
   }
 
   try {
-    // Criar um cliente Supabase para o middleware
     const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
+      auth: { persistSession: false, autoRefreshToken: false },
     })
 
-    // Tentar obter a sessão
     const {
       data: { session },
       error,
     } = await supabase.auth.getSession()
 
-    console.warn(`[MIDDLEWARE] Session: ${session?.user.email}`)
-
-    // Se houver erro, PERMITIR acesso e deixar o cliente lidar
     if (error) {
-      console.warn(`[MIDDLEWARE] Session error, but allowing access: ${error.message}`)
+      console.warn(`[MIDDLEWARE] Session error, allowing: ${error.message}`)
       return NextResponse.next()
     }
 
-    // Se não houver sessão, AINDA ASSIM permitir acesso
-    // O cliente que vai lidar com redirecionamento se necessário
+    // Sem sessão: permitir (cliente decide redirecionar se quiser),
+    // mas **NUNCA** vamos redirecionar a home aqui.
     if (!session) {
-      console.log(`[MIDDLEWARE] No session found, but allowing access to: ${pathname}`)
+      console.log(`[MIDDLEWARE] No session. Allowing access to: ${pathname}`)
       return NextResponse.next()
     }
 
     console.log(`DEBUG: [MIDDLEWARE] Session found for user: ${session.user.email}`)
 
-    // Verificar se é uma rota de admin
-    if (adminRoutes.some((route) => pathname.startsWith(route))) {
+    // Check admin somente se rota de admin
+    if (isAdminRoute(pathname)) {
       try {
-        const { data: userData } = await supabase.from("profiles").select("role").eq("id", session.user.id).single()
+        const { data: userData } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single()
 
         if (!userData || userData.role !== "admin") {
-          console.log(`[MIDDLEWARE] Non-admin user trying to access admin route, redirecting to dashboard`)
+          console.log(`[MIDDLEWARE] Non-admin to admin route -> redirect /dashboard`)
           return NextResponse.redirect(new URL("/dashboard", request.url))
         }
       } catch (adminError) {
-        console.warn(`[MIDDLEWARE] Error checking admin status, allowing access: ${adminError}`)
+        console.warn(`[MIDDLEWARE] Admin check error, allowing access: ${adminError}`)
       }
     }
 
     return NextResponse.next()
-  } catch (middlewareError) {
-    console.error(`[MIDDLEWARE] Unexpected error, allowing access: ${middlewareError}`)
+  } catch (err) {
+    console.error(`[MIDDLEWARE] Unexpected error, allowing access: ${err}`)
     return NextResponse.next()
   }
 }

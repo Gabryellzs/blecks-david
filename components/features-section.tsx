@@ -1,8 +1,7 @@
 "use client"
 
+import { memo, useCallback, useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import CalendarIcon from "@/components/calendar-icon"
-import { useEffect, useRef, useState, memo, useCallback } from "react"
 import Image from "next/image"
 
 const courseModules = [
@@ -21,7 +20,7 @@ const courseModules = [
       "Mantenha consistência, disciplina e crescimento constante. Organize seus pensamentos, acompanhe sua evolução e mantenha o foco no que realmente importa para seus resultados.",
   },
   {
-    icon: CalendarIcon,
+    icon: "calendar",
     title: "CALENDÁRIO",
     subtitle: "Chega de ter a sua agenda desorganizada",
     description:
@@ -34,7 +33,7 @@ const courseModules = [
     description:
       "Acesse as inteligências artificiais mais usadas pelos maiores players do mercado em um único lugar, prontas para acelerar seus resultados e otimizar seu trabalho.",
   },
-]
+] as const
 
 export const FeaturesSection = memo(function FeaturesSection() {
   const [isVisible, setIsVisible] = useState(false)
@@ -52,22 +51,17 @@ export const FeaturesSection = memo(function FeaturesSection() {
       { threshold: 0.3 },
     )
 
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current)
-    }
-
+    if (sectionRef.current) observer.observe(sectionRef.current)
     return () => observer.disconnect()
   }, [isVisible])
 
   const handleMouseMove = useCallback((ev: MouseEvent) => {
     const cards = document.querySelectorAll(".card")
-
     cards.forEach((e) => {
-      const blob = e.querySelector(".blob") as HTMLElement
-      const fblob = e.querySelector(".fakeblob") as HTMLElement
+      const blob = e.querySelector(".blob") as HTMLElement | null
+      const fblob = e.querySelector(".fakeblob") as HTMLElement | null
       if (blob && fblob) {
         const rec = fblob.getBoundingClientRect()
-
         requestAnimationFrame(() => {
           blob.style.transform = `translate(${ev.clientX - rec.left - rec.width / 2}px, ${ev.clientY - rec.top - rec.height / 2}px)`
           blob.style.opacity = "1"
@@ -79,21 +73,19 @@ export const FeaturesSection = memo(function FeaturesSection() {
   useEffect(() => {
     if (hasInitialized.current) return
     hasInitialized.current = true
-
     window.addEventListener("mousemove", handleMouseMove, { passive: true })
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove)
-    }
+    return () => window.removeEventListener("mousemove", handleMouseMove)
   }, [handleMouseMove])
 
   return (
     <section ref={sectionRef} id="features" className="py-12 md:py-16 lg:py-20 bg-background relative">
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-black/50 pointer-events-none z-10"></div>
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-black/50 pointer-events-none z-10" />
 
       <div className="container mx-auto px-4">
         <div className="text-center mb-12 md:mb-16">
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-balance mb-4 text-white">OUTRAS ABAS</h2>
+          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-balance mb-4 text-white">
+            OUTRAS ABAS
+          </h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -101,36 +93,32 @@ export const FeaturesSection = memo(function FeaturesSection() {
             <Card
               key={index}
               className={`card bg-card border-border hover:border-primary/70 transition-all duration-1000 group shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:shadow-xl neon-glow relative overflow-hidden transform ${
-                isVisible ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+                isVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
               }`}
               style={{
-                transitionDelay: isVisible ? `${index * 150}ms` : "0ms",
-                willChange: isVisible ? "auto" : "transform, opacity",
+                transitionDelay: isVisible ? `${index * 120}ms` : "0ms",
               }}
             >
-              <div className="blob"></div>
-              <div className="fakeblob"></div>
+              <div className="blob" />
+              <div className="fakeblob" />
 
               <CardHeader className="relative z-10 pb-3">
                 <div className="w-12 h-12 md:w-14 md:h-14 bg-primary/20 rounded-lg flex items-center justify-center mb-3 md:mb-4 group-hover:bg-primary/30 transition-colors shadow-md shadow-primary/20 group-hover:shadow-primary/40">
-                  {typeof module.icon === "string" ? (
-                    <Image
-                      src={`/icons/${module.icon}.png`}
-                      alt={module.title}
-                      width={36}
-                      height={36}
-                      className="h-8 w-8 md:h-9 md:w-9 object-contain drop-shadow-sm"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <module.icon className="h-8 w-8 md:h-9 md:w-9 text-white drop-shadow-sm" />
-                  )}
+                  <Image
+                    src={`/icons/${module.icon}.png`}
+                    alt={module.title}
+                    width={36}
+                    height={36}
+                    className="h-8 w-8 md:h-9 md:w-9 object-contain opacity-90"
+                    loading="lazy"
+                  />
                 </div>
                 <CardTitle className="text-base md:text-lg font-bold text-white leading-tight">
                   {module.title}
                 </CardTitle>
                 <div className="text-xs md:text-sm text-white font-semibold">{module.subtitle}</div>
               </CardHeader>
+
               <CardContent className="relative z-10 pt-0">
                 <CardDescription className="text-sm md:text-base text-white leading-relaxed mb-3 md:mb-4">
                   {module.description}

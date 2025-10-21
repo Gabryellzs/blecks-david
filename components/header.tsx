@@ -59,20 +59,32 @@ export function Header() {
           </button>
         </nav>
 
+        {/* Botões Desktop estilizados */}
         <div className="hidden md:flex items-center space-x-4">
-          <button className="hover-only-button">
-            <span>Entrar</span>
+          <button
+            onClick={() => router.push("/login")}
+            className="px-6 py-2 rounded-full border border-gray-400 text-white hover:bg-gray-800 transition-all"
+          >
+            Entrar
           </button>
-          <button className="glass-button-neon">
-            <span>Teste 7 Dias</span>
+          <button
+            onClick={() => router.push("/register")}
+            className="px-6 py-2 rounded-full border border-gray-400 bg-gradient-to-b from-[#3a3a3a] to-[#0f0f0f] text-white font-medium shadow-inner hover:opacity-90 transition-all"
+          >
+            Teste 7 Dias
           </button>
         </div>
 
-        <button className="md:hidden p-2 text-gray-400 hover:text-gray-300" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+        {/* Botão Mobile Menu */}
+        <button
+          className="md:hidden p-2 text-gray-400 hover:text-gray-300"
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+        >
           {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
 
+      {/* Menu Mobile */}
       {isMenuOpen && (
         <div className="md:hidden bg-background/95 backdrop-blur border-t border-gray-800">
           <nav className="container mx-auto px-4 py-4 space-y-4">
@@ -103,12 +115,25 @@ export function Header() {
             >
               Integrações
             </button>
+
             <div className="pt-4 space-y-2">
-              <button className="hover-only-button w-full">
-                <span>Entrar</span>
+              <button
+                onClick={() => {
+                  router.push("/login")
+                  setIsMenuOpen(false)
+                }}
+                className="px-6 py-2 rounded-full border border-gray-400 text-white w-full hover:bg-gray-800 transition-all"
+              >
+                Entrar
               </button>
-              <button className="glass-button-neon w-full">
-                <span>Começar Grátis</span>
+              <button
+                onClick={() => {
+                  router.push("/register")
+                  setIsMenuOpen(false)
+                }}
+                className="px-6 py-2 rounded-full border border-gray-400 bg-gradient-to-b from-[#3a3a3a] to-[#0f0f0f] text-white font-medium shadow-inner w-full hover:opacity-90 transition-all"
+              >
+                Teste 7 Dias
               </button>
             </div>
           </nav>

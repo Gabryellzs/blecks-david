@@ -2,97 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
-/* =========================
-   TOKENS (OKLCH) + THEME
-   ========================= */
 @layer base {
   :root {
-    /* ====== Palette da Landing (OKLCH) ====== */
-    /* Fundo principal */
-    --background: 0.05 0 0;              /* oklch(0.05 0 0) ~ #0d0d0d */
-    --foreground: 0.92 0 0;              /* texto claro ~ #ebebeb */
-
-    /* Cards e elementos */
-    --card: 0.12 0 0;                    /* ~ #1f1f1f */
-    --card-foreground: 0.92 0 0;
-
-    --popover: 0.12 0 0;
-    --popover-foreground: 0.92 0 0;
-
-    /* Primário e borda (cinza médio) */
-    --primary: 0.55 0 0;                 /* ~ #8c8c8c */
-    --primary-foreground: 0.98 0 0;
-
-    /* Secundário / Acento (cinza claro) */
-    --secondary: 0.65 0 0;               /* ~ #a6a6a6 */
-    --secondary-foreground: 0.1 0 0;
-
-    --accent: 0.65 0 0;
-    --accent-foreground: 0.1 0 0;
-
-    /* Muted / input / sidebar (cinza escuro) */
-    --muted: 0.12 0 0;
-    --muted-foreground: 0.62 0 0;        /* ~ #9ca3af equivalente claro */
-
-    --input: 0.12 0 0;
-    --sidebar: 0.12 0 0;
-
-    /* Borda / anel */
-    --border: 0.55 0 0;
-    --ring: 0.55 0 0;
-
-    /* Raio padrão */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
     --radius: 0.5rem;
-
-    /* ====== Específicos em HEX (úteis p/ utilitários) ====== */
-    --shiny-cta-bg: #374151;
-    --shiny-cta-bg-subtle: #4b5563;
-
-    /* Efeitos (glass / neon / blob) */
-    --glass-30: rgba(55, 65, 81, 0.30);  /* #374151 @30% */
-    --glass-40: rgba(55, 65, 81, 0.40);  /* #374151 @40% */
-    --card-neon-5: rgba(255, 255, 255, 0.05);
-    --card-neon-8: rgba(255, 255, 255, 0.08);
-    --blob: 0.34 0 0;                    /* oklch(0.34 0 0) ~ #575757 */
-
-    /* Fundo do body */
-    --body-bg-hex: #0f0d0d;
   }
 
-  /* Tema escuro mantendo a mesma paleta */
   .dark {
-    --background: 0.05 0 0;
-    --foreground: 0.92 0 0;
-
-    --card: 0.12 0 0;
-    --card-foreground: 0.92 0 0;
-
-    --popover: 0.12 0 0;
-    --popover-foreground: 0.92 0 0;
-
-    --primary: 0.55 0 0;
-    --primary-foreground: 0.98 0 0;
-
-    --secondary: 0.65 0 0;
-    --secondary-foreground: 0.1 0 0;
-
-    --muted: 0.12 0 0;
-    --muted-foreground: 0.62 0 0;
-
-    --accent: 0.65 0 0;
-    --accent-foreground: 0.1 0 0;
-
-    --border: 0.55 0 0;
-    --input: 0.12 0 0;
-    --ring: 0.55 0 0;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
   }
-
-  /* Tipografia base + bg */
-  html { font-size: 16px; }
-  body { background: var(--body-bg-hex); }
 }
-
-/* Aplica cores do tema via Tailwind tokens */
 
 @layer base {
   * { @apply border-border; }

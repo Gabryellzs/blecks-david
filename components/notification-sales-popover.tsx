@@ -37,7 +37,7 @@ const gatewayLogos: Record<PaymentGatewayType, string> = {
   woocommerce: "/images/gateway-logos/woocommerce.png",
   lojaintegrada: "/images/gateway-logos/lojaintegrada.png",
   cartpanda: "/images/gateway-logos/cartpanda.png",
-  soutpay: "/images/gateway-logos/soutpay.png",
+  átomopay: "/images/gateway-logos/átomopay.png",
   zeroonepay: "/images/gateway-logos/zeroonepay.png",
   greenn: "/images/gateway-logos/greenn.png",
   logzz: "/images/gateway-logos/logzz.png",

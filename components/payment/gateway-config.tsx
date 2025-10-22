@@ -34,7 +34,7 @@ const GATEWAY_OPTIONS = [
   { id: "cartpanda",      name: "Cartpanda" },
 
   // ▼ novos
-  { id: "soutpay",        name: "SoutPay" },
+  { id: "átomopay",       name: "ÁtomoPay" },
   { id: "zeroonepay",     name: "ZeroOnePay" },
   { id: "greenn",         name: "Greenn" },
   { id: "logzz",          name: "Logzz" },

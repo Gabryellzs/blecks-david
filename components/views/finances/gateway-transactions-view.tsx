@@ -86,7 +86,7 @@ const gatewayConfigs = [
   { id: "cartpanda",     name: "Cartpanda",     color: "#1e00ffff", logo: "/images/gateway-logos/cartpanda.png" },
 
   // 👇 novos (só adicionar)
-  { id: "soutpay",    name: "SoutPay",    color: "#0b2253", logo: "/images/gateway-logos/SOUTPAY.png" },
+  { id: "átomopay",    name: "ÁtomoPay",    color: "#7517a8ff", logo: "/images/gateway-logos/átomopay.png" },
   { id: "zeroonepay", name: "ZeroOnePay", color: "#f7b500", logo: "/images/gateway-logos/Zeroonepay.png" },
   { id: "greenn",     name: "Greenn",     color: "#00c389", logo: "/images/gateway-logos/GREENN.png" },
   { id: "logzz",      name: "Logzz",      color: "#99f073", logo: "/images/gateway-logos/LOGZZ.png" },

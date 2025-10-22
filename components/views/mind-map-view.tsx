@@ -11,10 +11,8 @@ import ReactFlow, {
   type Node,
   type NodeTypes,
   ReactFlowProvider,
-  useReactFlow,
   getRectOfNodes,
   type EdgeTypes,
-  MarkerType,
   useOnSelectionChange,
   Panel,
 } from "reactflow"
@@ -208,21 +206,31 @@ function generateFlowPreview(nodes: Node[], edges: Edge[]) {
   ctx.lineWidth = 2
 
   edges.forEach((e) => {
-    const s = nodes.find((n) => n.id === e.source)
-    const t = nodes.find((n) => n.id === e.target)
-    if (!s || !t) return
-    const sx = (s.position.x - rect.x) * scale + pad
-    const sy = (s.position.y - rect.y) * scale + pad
-    const tx = (t.position.x - rect.x) * scale + pad
-    const ty = (t.position.y - rect.y) * scale + pad
-    ctx.beginPath()
-    if (e.style?.strokeDasharray) ctx.setLineDash(e.style.strokeDasharray.split(" ").map(Number))
-    else ctx.setLineDash([])
-    ctx.moveTo(sx, sy)
-    ctx.lineTo(tx, ty)
-    ctx.stroke()
-    ctx.setLineDash([])
-  })
+  const s = nodes.find((n) => n.id === e.source)
+  const t = nodes.find((n) => n.id === e.target)
+  if (!s || !t) return
+
+  const sx = (s.position.x - rect.x) * scale + pad
+  const sy = (s.position.y - rect.y) * scale + pad
+  const tx = (t.position.x - rect.x) * scale + pad
+  const ty = (t.position.y - rect.y) * scale + pad
+
+  // prepara o dash de forma segura
+  const dashArray = (() => {
+    const sd = e.style?.strokeDasharray
+    if (typeof sd === "string") return sd.split(/[,\s]+/).map((n) => Number(n) || 0)
+    if (typeof sd === "number") return [sd]
+    return []
+  })()
+
+  ctx.beginPath()
+  ctx.setLineDash(dashArray)
+  ctx.moveTo(sx, sy)
+  ctx.lineTo(tx, ty)
+  ctx.stroke()
+  ctx.setLineDash([])
+})
+
 
   nodes.forEach((n) => {
     const x = (n.position.x - rect.x) * scale + pad
@@ -702,8 +710,6 @@ function FlowBuilder({
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null)
   const [flowName, setFlowName] = useState("Novo Projeto de Marketing")
-  const { project } = useReactFlow()
-
   const [selectedEdges, setSelectedEdges] = useState<Edge[]>([])
   const [showEdgeSettings, setShowEdgeSettings] = useState(false)
   const [defaultLineStyle, setDefaultLineStyle] = useState<string>("solid")
@@ -760,24 +766,25 @@ function FlowBuilder({
   })
 
   const onConnect = useCallback((params: Connection) => {
-    const newEdge: Edge = {
-      ...params,
-      animated: defaultAnimation === "dots",
-      style: {
-        stroke: defaultLineColor,
-        strokeWidth: 2,
-        ...(defaultLineStyle === "dashed" && { strokeDasharray: "5 5" }),
-        ...(defaultLineStyle === "dotted" && { strokeDasharray: "2 2" }),
-      },
-      markerEnd: { type: MarkerType.ArrowClosed, color: defaultLineColor },
-    }
-    setEdges((eds) => addEdge(newEdge, eds))
-  }, [setEdges, defaultLineStyle, defaultAnimation, defaultLineColor])
+  const newEdge: Edge = {
+    ...params,
+    animated: defaultAnimation === "dots",
+    style: {
+      stroke: defaultLineColor,
+      strokeWidth: 2,
+      ...(defaultLineStyle === "dashed" && { strokeDasharray: "5 5" }),
+      ...(defaultLineStyle === "dotted" && { strokeDasharray: "2 2" }),
+    } as React.CSSProperties, // <- deixa o TS feliz (pode remover se não precisar)
+    markerEnd: undefined, // SEM SETA
+  };
+  setEdges((eds) => addEdge(newEdge, eds));
+}, [setEdges, defaultLineStyle, defaultAnimation, defaultLineColor]);
 
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = "move"
-  }, [])
+const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+}, []);
+
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -823,14 +830,18 @@ function FlowBuilder({
   }, [selectedEdges, setEdges])
 
   const updateSelectedEdgesColor = useCallback((color: string) => {
-    setEdges((eds) =>
-      eds.map((edge) =>
-        selectedEdges.some((s) => s.id === edge.id)
-          ? { ...edge, style: { ...edge.style, stroke: color }, markerEnd: { ...edge.markerEnd, color } }
-          : edge
-      ),
-    )
-  }, [selectedEdges, setEdges])
+  setEdges((eds) =>
+    eds.map((edge) =>
+      selectedEdges.some((s) => s.id === edge.id)
+        ? {
+            ...edge,
+            style: { ...edge.style, stroke: color },
+            markerEnd: undefined, // mantém SEM seta
+          }
+        : edge
+    ),
+  )
+}, [selectedEdges, setEdges])
 
   const saveFlow = useCallback(() => {
     if (nodes.length === 0) {
@@ -946,15 +957,15 @@ function FlowBuilder({
           elementsSelectable
           selectNodesOnDrag={false}
           defaultEdgeOptions={{
-            animated: defaultAnimation === "dots",
-            style: {
-              stroke: defaultLineColor,
-              strokeWidth: 2,
-              ...(defaultLineStyle === "dashed" && { strokeDasharray: "5 5" }),
-              ...(defaultLineStyle === "dotted" && { strokeDasharray: "2 2" }),
-            },
-            markerEnd: { type: MarkerType.ArrowClosed, color: defaultLineColor },
-          }}
+  animated: defaultAnimation === "dots",
+  style: {
+    stroke: defaultLineColor,
+    strokeWidth: 2,
+    ...(defaultLineStyle === "dashed" && { strokeDasharray: "5 5" }),
+    ...(defaultLineStyle === "dotted" && { strokeDasharray: "2 2" }),
+  },
+  markerEnd: undefined, // SEM SETA
+}}
           proOptions={{ hideAttribution: true }}
           className="bg-background"
         >

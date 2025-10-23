@@ -6,13 +6,6 @@ import {
   BookOpen,
   CalendarClock,
   PenTool,
-<<<<<<< HEAD
-=======
-  BarChart3,
-  Edit,
-  LineChart,
-  TrendingUp,
->>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
   type LucideIcon,
 } from "lucide-react"
 import { useTheme } from "@/hooks/use-theme"
@@ -21,7 +14,7 @@ import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import { useState, createContext, useContext } from "react"
 
-// Contexto da sidebar
+// Context para controlar o estado da sidebar
 const SidebarContext = createContext<{
   isExpanded: boolean
   toggleSidebar: () => void
@@ -38,20 +31,13 @@ interface AppSidebarProps {
   children: React.ReactNode
 }
 
-<<<<<<< HEAD
-=======
-// Novo tipo para aceitar PNG (iconPath) OU Lucide (icon)
->>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
+// Aceita PNG/SVG (iconPath) OU Lucide (icon)
 type MenuItem = {
   id: string
   title: string
   href: string
   icon?: LucideIcon
-<<<<<<< HEAD
   iconPath?: string
-=======
-  iconPath?: string // caminho relativo dentro de /public
->>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
 }
 
 export function AppSidebar({ activeView, onViewChange, children }: AppSidebarProps) {
@@ -60,10 +46,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
   const router = useRouter()
   const pathname = usePathname()
 
-<<<<<<< HEAD
-  // menu atualizado com nomes válidos
-=======
->>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
+  // ATENÇÃO: verifique os nomes dos arquivos na pasta /public/icons-siderbar
   const menuItems: MenuItem[] = [
     {
       id: "results-dashboard",
@@ -73,18 +56,14 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     },
     {
       id: "billing-analysis",
-      title: "Análise de Faturamento",
-      iconPath: "/icons-siderbar/análise-faturamento.png",
+      title: "Análise De Faturamento",
+      iconPath: "/icons-siderbar/análise-faturamento.png", // sem acento
       href: "/dashboard/billing-analysis",
     },
     {
       id: "ads-dashboard",
       title: "Dashboard ADS",
-<<<<<<< HEAD
-      iconPath: "/icons-siderbar/dashboard-ads.png",
-=======
-      iconPath: "/icons-siderbar/dashboard-ads.svg",
->>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
+      iconPath: "/icons-siderbar/dashboard-ads.png", // use .svg se for svg
       href: "/dashboard/ads",
     },
     {
@@ -108,11 +87,10 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "calendar",
       title: "Calendário",
-      iconPath: "/icons-siderbar/calendario.png",
+      iconPath: "/icons-siderbar/calendario.png", // evite "calendar-icon.png" se não existir
       href: "/dashboard/calendar",
     },
     {
-<<<<<<< HEAD
       id: "mindmap",
       title: "Mapa Mental",
       iconPath: "/icons-siderbar/mapa-mental.png",
@@ -120,19 +98,8 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     },
     {
       id: "ai",
-      title: "ia's",
-      iconPath: "/icons-siderbar/ia's.png",
-=======
-    id: "mindmap",
-    title: "Mapa Mental",
-    iconPath: "/icons-siderbar/mapa-mental.png",
-    href: "/dashboard/mindmap",
-    },
-    {
-      id: "ai",
       title: "IA's",
-      iconPath: "/icons-siderbar/ias.png",
->>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
+      iconPath: "/icons-siderbar/ia's.png", // sem apóstrofo
       href: "/dashboard/ai",
     },
     {
@@ -198,6 +165,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                 />
               </div>
 
+              {/* Título: ao lado quando expandida; oculto quando colapsada */}
               <span
                 className={`
                   absolute top-1/2 -translate-y-1/2 left-[69px]
@@ -221,7 +189,8 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                     variant="ghost"
                     onClick={() => handleNavigation(item.href)}
                     className={`
-                      w-full h-11 pl-2.5 pr-3 text-sm justify-start
+                      w-full h-11 pl-2.5 pr-3 text-sm
+                      justify-start
                       ${
                         pathname === item.href
                           ? "bg-accent text-accent-foreground"
@@ -229,8 +198,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                       }
                     `}
                   >
-<<<<<<< HEAD
-                    {/* Ícones padronizados (24px) */}
+                    {/* Ícone (24px): PNG/SVG padronizado OU Lucide padronizado */}
                     {item.iconPath ? (
                       <span
                         className={`
@@ -238,28 +206,13 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                           transition-[filter] duration-300
                           ${theme === "dark" ? "invert brightness-0" : "invert-0 brightness-0"}
                         `}
+                        aria-hidden
                       >
-                        <Image src={item.iconPath} alt={item.title} fill className="object-contain" />
+                        <Image src={item.iconPath} alt="" fill className="object-contain" />
                       </span>
                     ) : item.icon ? (
                       <item.icon className="w-6 h-6 shrink-0" />
                     ) : null}
-=======
-                    {/* Ícone: prioriza PNG se tiver iconPath, senão usa Lucide */}
-                    {item.iconPath ? (
-  <span
-    className={`
-      relative inline-block size-7 shrink-0
-      transition-[filter] duration-300
-      ${theme === "dark" ? "invert brightness-0" : "invert-0 brightness-0"}
-    `}
-  >
-    <Image src={item.iconPath} alt="" fill className="object-contain" />
-  </span>
-) : item.icon ? (
-  <item.icon className="size-7 shrink-0" />
-) : null}
->>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
 
                     <span
                       className={`
@@ -283,7 +236,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
           </div>
         </div>
 
-        {/* Conteúdo Principal */}
+        {/* Conteúdo Principal com margem para a sidebar */}
         <div
           className={`
             flex-1 flex flex-col overflow-hidden bg-background transition-all duration-300

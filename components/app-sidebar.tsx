@@ -56,7 +56,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "billing-analysis",
       title: "Análise De Faturamento",
-      iconPath: "/icons-siderbar/análise-faturamento.png",
+      iconPath: "/icons-siderbar/analise-faturamento.png",
       href: "/dashboard/billing-analysis",
     },
     {
@@ -98,7 +98,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "ai",
       title: "IA's",
-      iconPath: "/icons-siderbar/ia's.png", 
+      iconPath: "/icons-siderbar/ias.png", 
       href: "/dashboard/ai",
     },
     {

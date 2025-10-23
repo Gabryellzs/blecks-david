@@ -46,7 +46,6 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
   const router = useRouter()
   const pathname = usePathname()
 
-  // ATENÇÃO: verifique os nomes dos arquivos na pasta /public/icons-siderbar
   const menuItems: MenuItem[] = [
     {
       id: "results-dashboard",

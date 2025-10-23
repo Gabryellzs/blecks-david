@@ -6,6 +6,13 @@ import {
   BookOpen,
   CalendarClock,
   PenTool,
+<<<<<<< HEAD
+=======
+  BarChart3,
+  Edit,
+  LineChart,
+  TrendingUp,
+>>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
   type LucideIcon,
 } from "lucide-react"
 import { useTheme } from "@/hooks/use-theme"
@@ -31,12 +38,20 @@ interface AppSidebarProps {
   children: React.ReactNode
 }
 
+<<<<<<< HEAD
+=======
+// Novo tipo para aceitar PNG (iconPath) OU Lucide (icon)
+>>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
 type MenuItem = {
   id: string
   title: string
   href: string
   icon?: LucideIcon
+<<<<<<< HEAD
   iconPath?: string
+=======
+  iconPath?: string // caminho relativo dentro de /public
+>>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
 }
 
 export function AppSidebar({ activeView, onViewChange, children }: AppSidebarProps) {
@@ -45,7 +60,10 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
   const router = useRouter()
   const pathname = usePathname()
 
+<<<<<<< HEAD
   // menu atualizado com nomes válidos
+=======
+>>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
   const menuItems: MenuItem[] = [
     {
       id: "results-dashboard",
@@ -62,7 +80,11 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "ads-dashboard",
       title: "Dashboard ADS",
+<<<<<<< HEAD
       iconPath: "/icons-siderbar/dashboard-ads.png",
+=======
+      iconPath: "/icons-siderbar/dashboard-ads.svg",
+>>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
       href: "/dashboard/ads",
     },
     {
@@ -90,6 +112,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
       href: "/dashboard/calendar",
     },
     {
+<<<<<<< HEAD
       id: "mindmap",
       title: "Mapa Mental",
       iconPath: "/icons-siderbar/mapa-mental.png",
@@ -99,6 +122,17 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
       id: "ai",
       title: "ia's",
       iconPath: "/icons-siderbar/ia's.png",
+=======
+    id: "mindmap",
+    title: "Mapa Mental",
+    iconPath: "/icons-siderbar/mapa-mental.png",
+    href: "/dashboard/mindmap",
+    },
+    {
+      id: "ai",
+      title: "IA's",
+      iconPath: "/icons-siderbar/ias.png",
+>>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
       href: "/dashboard/ai",
     },
     {
@@ -195,6 +229,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                       }
                     `}
                   >
+<<<<<<< HEAD
                     {/* Ícones padronizados (24px) */}
                     {item.iconPath ? (
                       <span
@@ -209,6 +244,22 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                     ) : item.icon ? (
                       <item.icon className="w-6 h-6 shrink-0" />
                     ) : null}
+=======
+                    {/* Ícone: prioriza PNG se tiver iconPath, senão usa Lucide */}
+                    {item.iconPath ? (
+  <span
+    className={`
+      relative inline-block size-7 shrink-0
+      transition-[filter] duration-300
+      ${theme === "dark" ? "invert brightness-0" : "invert-0 brightness-0"}
+    `}
+  >
+    <Image src={item.iconPath} alt="" fill className="object-contain" />
+  </span>
+) : item.icon ? (
+  <item.icon className="size-7 shrink-0" />
+) : null}
+>>>>>>> aa9b6abe90ce1c42dc83bdba17184d33160fbba5
 
                     <span
                       className={`

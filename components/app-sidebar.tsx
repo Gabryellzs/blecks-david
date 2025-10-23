@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import {
   Calendar,
   CreditCard,
@@ -15,6 +14,7 @@ import {
   Edit,
   LineChart,
   TrendingUp,
+  type LucideIcon,
 } from "lucide-react"
 import { useTheme } from "@/hooks/use-theme"
 import { Button } from "@/components/ui/button"
@@ -39,17 +39,26 @@ interface AppSidebarProps {
   children: React.ReactNode
 }
 
+// Novo tipo para aceitar PNG (iconPath) OU Lucide (icon)
+type MenuItem = {
+  id: string
+  title: string
+  href: string
+  icon?: LucideIcon
+  iconPath?: string // caminho relativo dentro de /public
+}
+
 export function AppSidebar({ activeView, onViewChange, children }: AppSidebarProps) {
   const { theme } = useTheme()
   const [isExpanded, setIsExpanded] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     {
       id: "results-dashboard",
       title: "Dashboard De Gateways",
-      icon: BarChart3,
+      iconPath: "/icons-siderbar/dashboard-gateways.png",
       href: "/dashboard/gateways",
     },
     {
@@ -85,7 +94,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "calendar",
       title: "Calendário",
-      icon: Calendar,
+      iconPath: "/icons-siderbar/calendario.png",
       href: "/dashboard/calendar",
     },
     {
@@ -97,7 +106,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "ai",
       title: "IA's",
-      icon: Bot,
+      iconPath: "/icons-siderbar/ias.png",
       href: "/dashboard/ai",
     },
     {
@@ -115,13 +124,13 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "finances",
       title: "Financeiro",
-      icon: CreditCard,
+      iconPath: "/icons-siderbar/financeiro.png",
       href: "/dashboard/finances",
     },
     {
       id: "editor-paginas",
       title: "Suporte",
-      icon: Edit,
+      iconPath: "/icons-siderbar/suporte.png",
       href: "/dashboard/support",
     },
   ]
@@ -197,15 +206,29 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                       }
                     `}
                   >
-                    <item.icon className="!h-5 !w-5 shrink-0" />
+                    {/* Ícone: prioriza PNG se tiver iconPath, senão usa Lucide */}
+                    {item.iconPath ? (
+  <span
+    className={`
+      relative inline-block size-7 shrink-0
+      transition-[filter] duration-300
+      ${theme === "dark" ? "invert brightness-0" : "invert-0 brightness-0"}
+    `}
+  >
+    <Image src={item.iconPath} alt="" fill className="object-contain" />
+  </span>
+) : item.icon ? (
+  <item.icon className="size-7 shrink-0" />
+) : null}
+
                     <span
                       className={`
                         ml- overflow-hidden transition-all duration-200
                         ${isExpanded ? "opacity-100 max-w-[220px]" : "opacity-0 max-w-0"}
                       `}
-                     >
+                    >
                       {item.title}
-                     </span>
+                    </span>
                   </Button>
 
                   {/* Tooltip quando colapsado */}

@@ -1,20 +1,12 @@
 "use client"
 
 import type React from "react"
-
 import {
-  Calendar,
-  CreditCard,
   LayoutDashboard,
-  Network,
-  Bot,
   BookOpen,
   CalendarClock,
   PenTool,
-  BarChart3,
-  Edit,
-  LineChart,
-  TrendingUp,
+  type LucideIcon,
 } from "lucide-react"
 import { useTheme } from "@/hooks/use-theme"
 import { Button } from "@/components/ui/button"
@@ -22,7 +14,7 @@ import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import { useState, createContext, useContext } from "react"
 
-// Context para controlar o estado da sidebar
+// Contexto da sidebar
 const SidebarContext = createContext<{
   isExpanded: boolean
   toggleSidebar: () => void
@@ -39,29 +31,38 @@ interface AppSidebarProps {
   children: React.ReactNode
 }
 
+type MenuItem = {
+  id: string
+  title: string
+  href: string
+  icon?: LucideIcon
+  iconPath?: string
+}
+
 export function AppSidebar({ activeView, onViewChange, children }: AppSidebarProps) {
   const { theme } = useTheme()
   const [isExpanded, setIsExpanded] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
-  const menuItems = [
+  // menu atualizado com nomes válidos
+  const menuItems: MenuItem[] = [
     {
       id: "results-dashboard",
       title: "Dashboard De Gateways",
-      icon: BarChart3,
+      iconPath: "/icons-siderbar/dashboard-gateways.png",
       href: "/dashboard/gateways",
     },
     {
       id: "billing-analysis",
-      title: "Análise De Faturamento",
-      icon: TrendingUp,
+      title: "Análise de Faturamento",
+      iconPath: "/icons-siderbar/análise-faturamento.png",
       href: "/dashboard/billing-analysis",
     },
     {
       id: "ads-dashboard",
       title: "Dashboard ADS",
-      icon: LineChart,
+      iconPath: "/icons-siderbar/dashboard-ads.png",
       href: "/dashboard/ads",
     },
     {
@@ -73,7 +74,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "diary",
       title: "Diário Semanal",
-      icon: BookOpen,
+      iconPath: "/icons-siderbar/diario-semanal.png",
       href: "/dashboard/diary",
     },
     {
@@ -85,19 +86,19 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "calendar",
       title: "Calendário",
-      icon: Calendar,
+      iconPath: "/icons-siderbar/calendario.png",
       href: "/dashboard/calendar",
     },
     {
       id: "mindmap",
       title: "Mapa Mental",
-      icon: Network,
+      iconPath: "/icons-siderbar/mapa-mental.png",
       href: "/dashboard/mindmap",
     },
     {
       id: "ai",
-      title: "IA's",
-      icon: Bot,
+      title: "ia's",
+      iconPath: "/icons-siderbar/ia's.png",
       href: "/dashboard/ai",
     },
     {
@@ -109,19 +110,19 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "oferta-escalada",
       title: "Oferta Escalada",
-      icon: TrendingUp,
+      iconPath: "/icons-siderbar/ofertas-escaladas.png",
       href: "/dashboard/oferta-escalada",
     },
     {
       id: "finances",
       title: "Financeiro",
-      icon: CreditCard,
+      iconPath: "/icons-siderbar/financeiro.png",
       href: "/dashboard/finances",
     },
     {
       id: "editor-paginas",
       title: "Suporte",
-      icon: Edit,
+      iconPath: "/icons-siderbar/suporte.png",
       href: "/dashboard/support",
     },
   ]
@@ -146,8 +147,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
         <div
           className={`
           fixed left-0 top-0 h-full z-40 transition-all duration-300 ease-in-out
-          ${theme === "dark" ? "bg-background border-border" : "bg-background border-border"}
-          border-r
+          bg-background border-border border-r
           ${isExpanded ? "w-64" : "w-16"}
         `}
         >
@@ -164,7 +164,6 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                 />
               </div>
 
-              {/* Título: ao lado quando expandida; oculto quando colapsada */}
               <span
                 className={`
                   absolute top-1/2 -translate-y-1/2 left-[69px]
@@ -188,8 +187,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                     variant="ghost"
                     onClick={() => handleNavigation(item.href)}
                     className={`
-                      w-full h-11 pl-2.5 pr-3 text-sm
-                      justify-start
+                      w-full h-11 pl-2.5 pr-3 text-sm justify-start
                       ${
                         pathname === item.href
                           ? "bg-accent text-accent-foreground"
@@ -197,15 +195,29 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                       }
                     `}
                   >
-                    <item.icon className="!h-5 !w-5 shrink-0" />
+                    {/* Ícones padronizados (24px) */}
+                    {item.iconPath ? (
+                      <span
+                        className={`
+                          relative inline-flex items-center justify-center w-6 h-6 shrink-0
+                          transition-[filter] duration-300
+                          ${theme === "dark" ? "invert brightness-0" : "invert-0 brightness-0"}
+                        `}
+                      >
+                        <Image src={item.iconPath} alt={item.title} fill className="object-contain" />
+                      </span>
+                    ) : item.icon ? (
+                      <item.icon className="w-6 h-6 shrink-0" />
+                    ) : null}
+
                     <span
                       className={`
-                        ml- overflow-hidden transition-all duration-200
+                        ml-3 overflow-hidden transition-all duration-200
                         ${isExpanded ? "opacity-100 max-w-[220px]" : "opacity-0 max-w-0"}
                       `}
-                     >
+                    >
                       {item.title}
-                     </span>
+                    </span>
                   </Button>
 
                   {/* Tooltip quando colapsado */}
@@ -220,7 +232,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
           </div>
         </div>
 
-        {/* Conteúdo Principal com margem para a sidebar */}
+        {/* Conteúdo Principal */}
         <div
           className={`
             flex-1 flex flex-col overflow-hidden bg-background transition-all duration-300
@@ -239,11 +251,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
             fixed top-24 z-50 transition-all duration-300
             h-8 w-8 rounded-full p-0
             ${isExpanded ? "left-60" : "left-12"}
-            ${
-              theme === "dark"
-                ? "bg-background hover:bg-accent border-2 border-border hover:border-accent text-foreground hover:text-accent-foreground"
-                : "bg-background hover:bg-accent border-2 border-border hover:border-accent text-foreground hover:text-accent-foreground"
-            }
+            bg-background hover:bg-accent border-2 border-border hover:border-accent text-foreground hover:text-accent-foreground
             shadow-lg hover:shadow-xl
             flex items-center justify-center
           `}

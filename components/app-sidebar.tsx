@@ -98,10 +98,10 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
       href: "/dashboard/calendar",
     },
     {
-      id: "mindmap",
-      title: "Mapa Mental",
-      icon: Network,
-      href: "/dashboard/mindmap",
+    id: "mindmap",
+    title: "Mapa Mental",
+    iconPath: "/icons-siderbar/mapa-mental.png",
+    href: "/dashboard/mindmap",
     },
     {
       id: "ai",

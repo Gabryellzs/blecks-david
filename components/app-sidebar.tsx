@@ -57,13 +57,13 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "billing-analysis",
       title: "Análise De Faturamento",
-      iconPath: "/icons-siderbar/análise-faturamento.png", // sem acento
+      iconPath: "/icons-siderbar/análise-faturamento.png",
       href: "/dashboard/billing-analysis",
     },
     {
       id: "ads-dashboard",
       title: "Dashboard ADS",
-      iconPath: "/icons-siderbar/dashboard-ads.png", // use .svg se for svg
+      iconPath: "/icons-siderbar/dashboard-ads.png",
       href: "/dashboard/ads",
     },
     {
@@ -87,7 +87,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "calendar",
       title: "Calendário",
-      iconPath: "/icons-siderbar/calendario.png", // evite "calendar-icon.png" se não existir
+      iconPath: "/icons-siderbar/calendar-icon.png", 
       href: "/dashboard/calendar",
     },
     {
@@ -99,7 +99,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "ai",
       title: "IA's",
-      iconPath: "/icons-siderbar/ia's.png", // sem apóstrofo
+      iconPath: "/icons-siderbar/ia's.png", 
       href: "/dashboard/ai",
     },
     {

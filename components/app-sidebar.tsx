@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+
 import {
   Calendar,
   CreditCard,
@@ -14,7 +15,6 @@ import {
   Edit,
   LineChart,
   TrendingUp,
-  type LucideIcon,
 } from "lucide-react"
 import { useTheme } from "@/hooks/use-theme"
 import { Button } from "@/components/ui/button"
@@ -39,101 +39,92 @@ interface AppSidebarProps {
   children: React.ReactNode
 }
 
-// Novo tipo para aceitar PNG (iconPath) OU Lucide (icon)
-type MenuItem = {
-  id: string
-  title: string
-  href: string
-  icon?: LucideIcon
-  iconPath?: string // caminho relativo dentro de /public
-}
-
 export function AppSidebar({ activeView, onViewChange, children }: AppSidebarProps) {
   const { theme } = useTheme()
   const [isExpanded, setIsExpanded] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
-  const menuItems: MenuItem[] = [
-  {
-    id: "results-dashboard",
-    title: "Dashboard De Gateways",
-    iconPath: "/icons-siderbar/dashboard-gateways.png",
-    href: "/dashboard/gateways",
-  },
-  {
-    id: "billing-analysis",
-    title: "Análise De Faturamento",
-    icon: TrendingUp,
-    href: "/dashboard/billing-analysis",
-  },
-  {
-    id: "ads-dashboard",
-    title: "Dashboard ADS",
-    icon: LineChart,
-    href: "/dashboard/ads",
-  },
-  {
-    id: "dashboard",
-    title: "Dashboard",
-    icon: LayoutDashboard,
-    href: "/dashboard",
-  },
-  {
-    id: "diary",
-    title: "Diário Semanal",
-    icon: BookOpen,
-    href: "/dashboard/diary",
-  },
-  {
-    id: "productivity",
-    title: "Produtividade",
-    icon: CalendarClock,
-    href: "/dashboard/productivity",
-  },
-  {
-    id: "calendar",
-    title: "Calendário",
-    iconPath: "/icons-siderbar/calendario.png",
-    href: "/dashboard/calendar",
-  },
-  {
-    id: "mindmap",
-    title: "Mapa Mental",
-    iconPath: "/icons-siderbar/mapa-mental.png",
-    href: "/dashboard/mindmap",
-  },
-  {
-    id: "ai",
-    title: "IA's",
-    iconPath: "/icons-siderbar/ias.png",
-    href: "/dashboard/ai",
-  },
-  {
-    id: "copywriting",
-    title: "Copywriting",
-    icon: PenTool,
-    href: "/dashboard/copywriting",
-  },
-  {
-    id: "oferta-escalada",
-    title: "Oferta Escalada",
-    icon: TrendingUp,
-    href: "/dashboard/oferta-escalada",
-  },
-  {
-    id: "finances",
-    title: "Financeiro",
-    iconPath: "/icons-siderbar/financeiro.png",
-    href: "/dashboard/finances",
-  },
-  {
-    id: "editor-paginas",
-    title: "Suporte",
-    iconPath: "/icons-siderbar/suporte.png",
-    href: "/dashboard/support",
-  },
-]
+  const menuItems = [
+    {
+      id: "results-dashboard",
+      title: "Dashboard De Gateways",
+      icon: BarChart3,
+      href: "/dashboard/gateways",
+    },
+    {
+      id: "billing-analysis",
+      title: "Análise De Faturamento",
+      icon: TrendingUp,
+      href: "/dashboard/billing-analysis",
+    },
+    {
+      id: "ads-dashboard",
+      title: "Dashboard ADS",
+      icon: LineChart,
+      href: "/dashboard/ads",
+    },
+    {
+      id: "dashboard",
+      title: "Dashboard",
+      icon: LayoutDashboard,
+      href: "/dashboard",
+    },
+    {
+      id: "diary",
+      title: "Diário Semanal",
+      icon: BookOpen,
+      href: "/dashboard/diary",
+    },
+    {
+      id: "productivity",
+      title: "Produtividade",
+      icon: CalendarClock,
+      href: "/dashboard/productivity",
+    },
+    {
+      id: "calendar",
+      title: "Calendário",
+      icon: Calendar,
+      href: "/dashboard/calendar",
+    },
+    {
+      id: "mindmap",
+      title: "Mapa Mental",
+      icon: Network,
+      href: "/dashboard/mindmap",
+    },
+    {
+      id: "ai",
+      title: "IA's",
+      icon: Bot,
+      href: "/dashboard/ai",
+    },
+    {
+      id: "copywriting",
+      title: "Copywriting",
+      icon: PenTool,
+      href: "/dashboard/copywriting",
+    },
+    {
+      id: "oferta-escalada",
+      title: "Oferta Escalada",
+      icon: TrendingUp,
+      href: "/dashboard/oferta-escalada",
+    },
+    {
+      id: "finances",
+      title: "Financeiro",
+      icon: CreditCard,
+      href: "/dashboard/finances",
+    },
+    {
+      id: "editor-paginas",
+      title: "Suporte",
+      icon: Edit,
+      href: "/dashboard/support",
+    },
+  ]
 
   const handleNavigation = (href: string) => router.push(href)
   const toggleSidebar = () => setIsExpanded((v) => !v)
@@ -206,23 +197,15 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                       }
                     `}
                   >
-                    {/* Ícone: prioriza PNG se tiver iconPath, senão usa Lucide */}
-                    {item.iconPath ? (
-  <span className="relative inline-block size-6 shrink-0">
-    <Image src={item.iconPath} alt="" fill className="object-contain" />
-  </span>
-) : item.icon ? (
-  <item.icon className="size-6 shrink-0" />
-) : null}
-
+                    <item.icon className="!h-5 !w-5 shrink-0" />
                     <span
                       className={`
                         ml- overflow-hidden transition-all duration-200
                         ${isExpanded ? "opacity-100 max-w-[220px]" : "opacity-0 max-w-0"}
                       `}
-                    >
+                     >
                       {item.title}
-                    </span>
+                     </span>
                   </Button>
 
                   {/* Tooltip quando colapsado */}

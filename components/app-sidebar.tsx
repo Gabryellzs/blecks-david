@@ -70,7 +70,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
     {
       id: "ads-dashboard",
       title: "Dashboard ADS",
-      icon: LineChart,
+      iconPath: "/icons-siderbar/dashboard-ads.svg",
       href: "/dashboard/ads",
     },
     {

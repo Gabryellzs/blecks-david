@@ -1,20 +1,14 @@
 "use client"
 
 import type React from "react"
-import {
-  LayoutDashboard,
-  BookOpen,
-  CalendarClock,
-  PenTool,
-  type LucideIcon,
-} from "lucide-react"
+import { PenTool, type LucideIcon } from "lucide-react"
 import { useTheme } from "@/hooks/use-theme"
 import { Button } from "@/components/ui/button"
 import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import { useState, createContext, useContext } from "react"
 
-// Context para controlar o estado da sidebar
+// ---------------- Sidebar Context ----------------
 const SidebarContext = createContext<{
   isExpanded: boolean
   toggleSidebar: () => void
@@ -25,98 +19,100 @@ const SidebarContext = createContext<{
 
 export const useSidebarContext = () => useContext(SidebarContext)
 
+// ---------------- Types ----------------
 interface AppSidebarProps {
   activeView?: string
   onViewChange?: (view: string) => void
   children: React.ReactNode
 }
 
-// Agora aceita também "size" (tamanho) e "offsetX/offsetY" (posição) por ícone
 type MenuItem = {
   id: string
   title: string
   href: string
-  icon?: LucideIcon
-  iconPath?: string
-  size?: number         // pixels (largura/altura do ícone)
-  offsetX?: number      // pixels (desloca na horizontal: + direita, - esquerda)
-  offsetY?: number      // pixels (desloca na vertical: + para baixo, - para cima)
+  icon?: LucideIcon            // Lucide fallback se quiser
+  iconPath?: string            // PNG/SVG em /public
+  size?: number                // px (largura/altura do ícone)
+  offsetX?: number             // px (direita/esquerda) — só quando expandido
+  offsetY?: number             // px (cima/baixo) — só quando expandido
 }
 
-export function AppSidebar({ activeView, onViewChange, children }: AppSidebarProps) {
+// ---------------- Component ----------------
+export function AppSidebar({ children }: AppSidebarProps) {
   const { theme } = useTheme()
   const [isExpanded, setIsExpanded] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
+  const ICON_BASE = "/icons-siderbar"
+
   const menuItems: MenuItem[] = [
     {
       id: "results-dashboard",
       title: "Dashboard De Gateways",
-      iconPath: "/icons-siderbar/dashboard-gateways.png",
+      iconPath: `${ICON_BASE}/dashboard-gateways.png`,
       href: "/dashboard/gateways",
-      size: 26,
-      offsetX: 0, // exemplo: move 2px para a direita
+      size: 31,
+      offsetX: 2,
     },
     {
       id: "billing-analysis",
       title: "Análise De Faturamento",
-      iconPath: "/icons-siderbar/analise-faturamento.png",
+      iconPath: `${ICON_BASE}/analise-faturamento.png`,
       href: "/dashboard/billing-analysis",
-      size: 26,
+      size: 31,
     },
     {
       id: "ads-dashboard",
       title: "Dashboard ADS",
-      iconPath: "/icons-siderbar/dashboard-ads.png",
+      iconPath: `${ICON_BASE}/dashboard-ads.png`,
       href: "/dashboard/ads",
-      size: 25,
-      offsetX: -1,
+      size: 31,
+      offsetX: 1,
     },
     {
       id: "dashboard",
       title: "Dashboard",
-      iconPath: "/icons-siderbar/dashboard.png",
+      iconPath: `${ICON_BASE}/dashboard.png`,
       href: "/dashboard",
-      size: 26,
+      size: 31,
     },
     {
       id: "diary",
       title: "Diário Semanal",
-      iconPath: "/icons-siderbar/diario-semanal.png",
+      iconPath: `${ICON_BASE}/diario-semanal.png`,
       href: "/dashboard/diary",
-      size: 31,
-      offsetX: -4
+      size: 37,
+      offsetX: -1,
     },
     {
       id: "productivity",
       title: "Produtividade",
-      iconPath: "/icons-siderbar/productivity.png",
+      iconPath: `${ICON_BASE}/productivity.png`,
       href: "/dashboard/productivity",
-      size: 34,
-      offsetX: -3,
+      size: 37,
     },
     {
       id: "calendar",
       title: "Calendário",
-      iconPath: "/icons-siderbar/calendar-icon.png",
+      iconPath: `${ICON_BASE}/calendario.png`,
       href: "/dashboard/calendar",
-      size: 26,
+      size: 41,
     },
     {
       id: "mindmap",
       title: "Mapa Mental",
-      iconPath: "/icons-siderbar/mapa-mental.png",
+      iconPath: `${ICON_BASE}/mapa-mental.png`,
       href: "/dashboard/mindmap",
-      size: 30,
+      size: 35,
       offsetY: -1,
     },
     {
       id: "ai",
       title: "IA's",
-      iconPath: "/icons-siderbar/ias.png",
+      iconPath: `${ICON_BASE}/ias.png`,
       href: "/dashboard/ai",
-      size: 29,
+      size: 35,
       offsetX: 1,
     },
     {
@@ -124,29 +120,29 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
       title: "Copywriting",
       icon: PenTool,
       href: "/dashboard/copywriting",
-      size: 20,
+      size: 24,
       offsetX: 2,
     },
     {
       id: "oferta-escalada",
       title: "Oferta Escalada",
-      iconPath: "/icons-siderbar/ofertas-escaladas.png",
+      iconPath: `${ICON_BASE}/ofertas-escaladas.png`,
       href: "/dashboard/oferta-escalada",
-      size: 27,
+      size: 30,
     },
     {
       id: "finances",
       title: "Financeiro",
-      iconPath: "/icons-siderbar/financeiro.png",
+      iconPath: `${ICON_BASE}/financeiro.png`,
       href: "/dashboard/finances",
-      size: 28,
+      size: 30,
     },
     {
       id: "editor-paginas",
       title: "Suporte",
-      iconPath: "/icons-siderbar/suporte.png",
+      iconPath: `${ICON_BASE}/suporte.png`,
       href: "/dashboard/support",
-      size: 26,
+      size: 31,
     },
   ]
 
@@ -166,7 +162,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
   return (
     <SidebarContext.Provider value={{ isExpanded, toggleSidebar }}>
       <div className="flex h-screen">
-        {/* Sidebar Fixa */}
+        {/* Sidebar */}
         <div
           className={`
             fixed left-0 top-0 h-full z-40 transition-all duration-300 ease-in-out
@@ -200,74 +196,85 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
             </div>
           </div>
 
-          {/* Menu Items */}
+          {/* Menu */}
           <div className="px-3 mt-8">
             <div className="space-y-1">
-              {menuItems.map((item) => (
-                <div key={item.id} className="relative group">
-                  <Button
-                    variant="ghost"
-                    onClick={() => handleNavigation(item.href)}
-                    className={`
-                      w-full h-11 pl-2.5 pr-3 text-sm
-                      justify-start
-                      ${
-                        pathname === item.href
-                          ? "bg-accent text-accent-foreground"
-                          : "hover:bg-accent hover:text-accent-foreground text-foreground"
-                      }
-                    `}
-                  >
-                    {/* Ícone com tamanho e posição individuais */}
-                    {item.iconPath ? (
-                      <span
-                        className={`
-                          relative inline-flex items-center justify-center shrink-0
-                          transition-[filter,transform] duration-300
-                          ${theme === "dark" ? "invert brightness-0" : "invert-0 brightness-0"}
-                        `}
-                        style={{
-                          width: item.size ?? 24,
-                          height: item.size ?? 24,
-                          transform: `translate(${item.offsetX ?? 0}px, ${item.offsetY ?? 0}px)`,
-                        }}
-                      >
-                        <Image src={item.iconPath} alt={item.title} fill className="object-contain" />
-                      </span>
-                    ) : item.icon ? (
-                      <item.icon
-                        style={{
-                          width: item.size ?? 24,
-                          height: item.size ?? 24,
-                          transform: `translate(${item.offsetX ?? 0}px, ${item.offsetY ?? 0}px)`,
-                        }}
-                        className="shrink-0"
-                      />
-                    ) : null}
+              {menuItems.map((item) => {
+                const active = pathname === item.href
+                const size = item.size ?? 24
+                const x = item.offsetX ?? 0
+                const y = item.offsetY ?? 0
 
-                    <span
+                return (
+                  <div key={item.id} className="relative group">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleNavigation(item.href)}
                       className={`
-                        ml-3 overflow-hidden transition-all duration-200
-                        ${isExpanded ? "opacity-100 max-w-[220px]" : "opacity-0 max-w-0"}
+                        w-full h-11 text-sm flex items-center
+                        ${isExpanded ? "justify-start pl-3 pr-3" : "justify-center px-0"}
+                        ${active ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground text-foreground"}
                       `}
                     >
-                      {item.title}
-                    </span>
-                  </Button>
+                      {/* Ícone: centralização perfeita no highlight */}
+                      {item.iconPath ? (
+                        <span
+                          className={`
+                            relative inline-flex items-center justify-center shrink-0
+                            transition-[filter,transform] duration-300
+                            ${theme === "dark" ? "invert brightness-0" : "invert-0 brightness-0"}
+                          `}
+                          style={{
+                            width: size,
+                            height: size,
+                            // offsets só quando expandido; fechado usa micro ajuste ótico -1px Y
+                            transform: isExpanded ? `translate(${x}px, ${y}px)` : `translate(0px, -1px)`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Image
+                            src={item.iconPath}
+                            alt={item.title}
+                            fill
+                            className="object-contain"
+                            style={{ objectPosition: "center" }}
+                          />
+                        </span>
+                      ) : item.icon ? (
+                        <item.icon
+                          className="shrink-0"
+                          style={{
+                            width: size,
+                            height: size,
+                            transform: isExpanded ? `translate(${x}px, ${y}px)` : `translate(0px, -1px)`,
+                          }}
+                        />
+                      ) : null}
 
-                  {/* Tooltip */}
-                  {!isExpanded && (
-                    <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-popover text-popover-foreground text-sm rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-border">
-                      {item.title}
-                    </div>
-                  )}
-                </div>
-              ))}
+                      {/* Label: só renderiza quando expandido para não deslocar o centro no fechado */}
+                      {isExpanded && (
+                        <span className="ml-3 overflow-hidden transition-all duration-200 max-w-[220px]">
+                          {item.title}
+                        </span>
+                      )}
+                    </Button>
+
+                    {/* Tooltip quando colapsado */}
+                    {!isExpanded && (
+                      <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-popover text-popover-foreground text-sm rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-border">
+                        {item.title}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
 
-        {/* Conteúdo Principal */}
+        {/* Content */}
         <div
           className={`
             flex-1 flex flex-col overflow-hidden bg-background transition-all duration-300
@@ -277,7 +284,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
           {children}
         </div>
 
-        {/* Botão de Toggle */}
+        {/* Toggle */}
         <Button
           variant="ghost"
           size="sm"

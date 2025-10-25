@@ -58,7 +58,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
     {
       id: "billing-analysis",
       title: "Análise De Faturamento",
-      iconPath: `${ICON_BASE}/análise-faturamento.png`,
+      iconPath: `${ICON_BASE}/Análise De Faturamento.png`,
       href: "/dashboard/billing-analysis",
       size: 31,
     },
@@ -126,7 +126,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
     {
       id: "oferta-escalada",
       title: "Oferta Escalada",
-      iconPath: `${ICON_BASE}/ofertas-escaladas.png`,
+      iconPath: `${ICON_BASE}/Oferta Escalada.png`,
       href: "/dashboard/oferta-escalada",
       size: 30,
     },

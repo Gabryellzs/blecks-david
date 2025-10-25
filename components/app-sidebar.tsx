@@ -58,14 +58,14 @@ export function AppSidebar({ children }: AppSidebarProps) {
     {
       id: "billing-analysis",
       title: "Análise De Faturamento",
-      iconPath: `${ICON_BASE}/analise-faturamento.png`,
+      iconPath: `${ICON_BASE}/análise-faturamento.png`,
       href: "/dashboard/billing-analysis",
       size: 31,
     },
     {
       id: "ads-dashboard",
       title: "Dashboard ADS",
-      iconPath: `${ICON_BASE}/dashboard-ads.png`,
+      iconPath: `${ICON_BASE}/Dashboard ADS.png`,
       href: "/dashboard/ads",
       size: 31,
       offsetX: 1,
@@ -80,7 +80,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
     {
       id: "diary",
       title: "Diário Semanal",
-      iconPath: `${ICON_BASE}/diario-semanal.png`,
+      iconPath: `${ICON_BASE}/diário-semanal.png`,
       href: "/dashboard/diary",
       size: 37,
       offsetX: -1,

@@ -16,16 +16,13 @@ import { useGoogleAnalyticsAuth } from "@/hooks/use-google-analytics-auth"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { useSearchParams } from "next/navigation"
 
-
 interface ConnectAccountsPageProps {
   onBack: () => void
 }
 
 type Platform = "meta" | "google" | "analytics" | "tiktok" | "kwai" | null
 
-// Estado de conexão por plataforma
 interface ConnectedAccountsState {
-  // perfis Meta conectados (nome + id + imagem opcional)
   meta: { id: string; name: string; pictureUrl?: string | null }[]
   google: number[]
   analytics: number[]
@@ -37,7 +34,6 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
   const { user } = useAuth()
   const { toast } = useToast()
   const searchParams = useSearchParams()
-
 
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(null)
 
@@ -52,7 +48,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
   const [connectingAccount, setConnectingAccount] = useState<{ platform: Platform; id: number } | null>(null)
 
   // Ad accounts (Meta)
-  const [facebookAdAccounts, setFacebookAdAccounts] = useState<FacebookAdAccount[]>([])
+  const [facebookAdAccounts, setFacebookAdAccounts] = useState<FacebookAdAccount[] | any>([])
   const [adAccountStatuses, setAdAccountStatuses] = useState<Record<string, boolean>>({})
   const [loadingFacebookAdAccounts, setLoadingFacebookAdAccounts] = useState(false)
   const [facebookAdAccountsError, setFacebookAdAccountsError] = useState<string | null>(null)
@@ -66,7 +62,6 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
     isConnecting: isGoogleAdSenseConnecting,
     error: googleAdSenseError,
     connectGoogleAdSense,
-    disconnectGoogleAdSense,
   } = useGoogleAdSenseAuth()
 
   // Google Analytics
@@ -80,24 +75,50 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
   } = useGoogleAnalyticsAuth()
 
   // ----------------------------
-  // LocalStorage – restaurar/salvar
+  // LocalStorage – hidratar com normalização
   // ----------------------------
   useEffect(() => {
     if (typeof window === "undefined") return
-    const storedConnectedAccounts = localStorage.getItem("connectedAccounts")
-    if (storedConnectedAccounts) {
+
+    const stored = localStorage.getItem("connectedAccounts")
+    const parsed = stored
+      ? (() => {
+          try {
+            return JSON.parse(stored)
+          } catch {
+            return null
+          }
+        })()
+      : null
+
+    const ensureArray = (v: any) => (Array.isArray(v) ? v : [])
+
+    const metaNorm = ensureArray(parsed?.meta).map((p: any) => ({
+      id: String(p?.id ?? ""),
+      name: String(p?.name ?? "Sem nome"),
+      pictureUrl: p?.pictureUrl ?? null,
+    }))
+
+    setConnectedAccounts({
+      meta: metaNorm,
+      google: ensureArray(parsed?.google),
+      analytics: ensureArray(parsed?.analytics),
+      tiktok: ensureArray(parsed?.tiktok),
+      kwai: ensureArray(parsed?.kwai),
+    })
+
+    const sStatuses = localStorage.getItem("adAccountStatuses")
+    if (sStatuses) {
       try {
-        setConnectedAccounts(JSON.parse(storedConnectedAccounts))
-      } catch {}
-    }
-    const storedAdAccountStatuses = localStorage.getItem("adAccountStatuses")
-    if (storedAdAccountStatuses) {
-      try {
-        setAdAccountStatuses(JSON.parse(storedAdAccountStatuses))
-      } catch {}
+        const parsedStatuses = JSON.parse(sStatuses)
+        setAdAccountStatuses(typeof parsedStatuses === "object" && parsedStatuses ? parsedStatuses : {})
+      } catch {
+        setAdAccountStatuses({})
+      }
     }
   }, [])
 
+  // salvar no localStorage
   useEffect(() => {
     if (typeof window === "undefined") return
     localStorage.setItem("connectedAccounts", JSON.stringify(connectedAccounts))
@@ -109,7 +130,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
   }, [adAccountStatuses])
 
   // ----------------------------
-  // Helpers
+  // Helpers (tiktok/kwai + google/analytics)
   // ----------------------------
   const handleConnect = useCallback(
     async (platform: Platform, accountId: number) => {
@@ -187,87 +208,84 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
   const metaCooldownUntilRef = useRef<number | null>(null)
 
   useEffect(() => {
-  if (selectedPlatform !== "meta") return
+    if (selectedPlatform !== "meta") return
 
-  // se voltou do OAuth com sucesso, limpe cooldown e flags para recarregar agora
-  const fbParam = searchParams?.get("fb")
-  if (fbParam === "ok") {
-    metaProfilesLoadedRef.current = false
-    metaCooldownUntilRef.current = null
-    // garante que o botão volte ao normal após o retorno
-    if (isFacebookConnecting) {
-      setIsFacebookConnecting(false)
+    // se voltou do OAuth com sucesso, forçar reload
+    const fbParam = searchParams?.get("fb")
+    if (fbParam === "ok") {
+      metaProfilesLoadedRef.current = false
+      metaCooldownUntilRef.current = null
+      if (isFacebookConnecting) setIsFacebookConnecting(false)
     }
-  }
 
-  const now = Date.now()
-  if (metaCooldownUntilRef.current && now < metaCooldownUntilRef.current) return
-  if (metaProfilesLoadedRef.current) return
+    const now = Date.now()
+    if (metaCooldownUntilRef.current && now < metaCooldownUntilRef.current) return
+    if (metaProfilesLoadedRef.current) return
 
-  const loadMetaProfiles = async () => {
-    try {
-      const res = await fetch("/api/facebook-ads/accounts", { credentials: "include" })
+    const loadMetaProfiles = async () => {
+      try {
+        const res = await fetch("/api/facebook-ads/accounts", { credentials: "include" })
 
-      // respeita rate limit (429)
-      if (res.status === 429) {
-        let cooldownSeconds = 60
-        try {
-          const body = await res.json()
-          if (typeof body?.cooldownSeconds === "number" && body.cooldownSeconds > 0) {
-            cooldownSeconds = body.cooldownSeconds
-          }
-        } catch {}
-        metaCooldownUntilRef.current = Date.now() + cooldownSeconds * 1000
-        setTimeout(() => {
-          metaProfilesLoadedRef.current = false
-          metaCooldownUntilRef.current = null
-        }, cooldownSeconds * 1000)
+        // respeita rate limit (429)
+        if (res.status === 429) {
+          let cooldownSeconds = 60
+          try {
+            const body = await res.json()
+            if (typeof body?.cooldownSeconds === "number" && body.cooldownSeconds > 0) {
+              cooldownSeconds = body.cooldownSeconds
+            }
+          } catch {}
+          metaCooldownUntilRef.current = Date.now() + cooldownSeconds * 1000
+          setTimeout(() => {
+            metaProfilesLoadedRef.current = false
+            metaCooldownUntilRef.current = null
+          }, cooldownSeconds * 1000)
+          toast({
+            title: "Aguarde um pouco",
+            description: `Muitas chamadas ao Meta agora. Tentaremos novamente em ~${cooldownSeconds}s.`,
+          })
+          return
+        }
+
+        if (!res.ok) {
+          const text = await res.text()
+          throw new Error(text || `Falha ao buscar contas do Meta (${res.status})`)
+        }
+
+        const data = await res.json()
+        const raw = Array.isArray(data?.accounts)
+          ? data.accounts
+          : Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data)
+          ? data
+          : []
+
+        const profiles = raw.map((acc: any) => ({
+          // Graph geralmente: { id: "act_123", account_id: "123", name: "..." }
+          id: acc.id ?? (acc.account_id ? `act_${acc.account_id}` : String(acc.accountId ?? acc.account_id)),
+          name: acc.name ?? acc.account_name ?? "Sem nome",
+          pictureUrl: acc.pictureUrl ?? acc.picture_url ?? null,
+        }))
+
+        setConnectedAccounts((prev) => ({ ...prev, meta: profiles }))
+        if (profiles.length && !selectedMetaProfileId) setSelectedMetaProfileId(profiles[0].id)
+        metaProfilesLoadedRef.current = true
+      } catch (err: any) {
+        console.error(err)
         toast({
-          title: "Aguarde um pouco",
-          description: `Muitas chamadas ao Meta agora. Tentaremos novamente em ~${cooldownSeconds}s.`,
+          title: "Erro",
+          description: err?.message || "Não foi possível carregar seus perfis do Meta.",
+          variant: "destructive",
         })
-        return
+        setConnectedAccounts((prev) => ({ ...prev, meta: [] }))
       }
-
-      if (!res.ok) {
-        const text = await res.text()
-        throw new Error(text || `Falha ao buscar contas do Meta (${res.status})`)
-      }
-
-      const data = await res.json()
-      const raw = Array.isArray(data?.accounts)
-        ? data.accounts
-        : Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data)
-        ? data
-        : []
-
-      const profiles = raw.map((acc: any) => ({
-        id: acc.id ?? (acc.account_id ? `act_${acc.account_id}` : String(acc.accountId ?? acc.account_id)),
-        name: acc.name ?? acc.account_name ?? "Sem nome",
-        pictureUrl: acc.pictureUrl ?? acc.picture_url ?? null,
-      }))
-
-      setConnectedAccounts((prev) => ({ ...prev, meta: profiles }))
-      if (profiles.length && !selectedMetaProfileId) setSelectedMetaProfileId(profiles[0].id)
-      metaProfilesLoadedRef.current = true
-    } catch (err: any) {
-      console.error(err)
-      toast({
-        title: "Erro",
-        description: err?.message || "Não foi possível carregar seus perfis do Meta.",
-        variant: "destructive",
-      })
-      setConnectedAccounts((prev) => ({ ...prev, meta: [] }))
     }
-  }
 
-  loadMetaProfiles()
-}, [selectedPlatform, toast, selectedMetaProfileId, searchParams, isFacebookConnecting])
+    loadMetaProfiles()
+  }, [selectedPlatform, toast, selectedMetaProfileId, searchParams, isFacebookConnecting])
 
-
-  // reset do guard ao trocar de aba
+  // reset guard ao trocar de aba
   useEffect(() => {
     if (selectedPlatform !== "meta") {
       metaProfilesLoadedRef.current = false
@@ -284,8 +302,17 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
       setLoadingFacebookAdAccounts(true)
       setFacebookAdAccountsError(null)
       try {
-        const accounts = await getFacebookAdAccounts()
+        const accountsResp = await getFacebookAdAccounts()
+
+        // NORMALIZAÇÃO: garantir array
+        const accounts: FacebookAdAccount[] = Array.isArray(accountsResp)
+          ? accountsResp
+          : Array.isArray((accountsResp as any)?.data)
+          ? (accountsResp as any).data
+          : []
+
         setFacebookAdAccounts(accounts)
+
         const initial: Record<string, boolean> = {}
         accounts.forEach((a) => {
           initial[a.id] = adAccountStatuses[a.id] ?? a.account_status === 1
@@ -317,7 +344,6 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
     if (selectedPlatform !== "meta") return
     if (connectedAccounts.meta.length === 0) return
     if (adAccountsLoadedRef.current) return
-    // se ainda estiver em cooldown, aguarde
     if (metaCooldownUntilRef.current && Date.now() < metaCooldownUntilRef.current) return
 
     fetchFacebookAdAccounts()
@@ -325,8 +351,67 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
   }, [selectedPlatform, connectedAccounts.meta, fetchFacebookAdAccounts])
 
   // ----------------------------
+  // Handlers de toggles (ad accounts)
+  // ----------------------------
+  const handleToggleAdAccount = useCallback(
+    async (adAccountId: string, currentStatus: boolean) => {
+      const newStatus = !currentStatus
+      setAdAccountStatuses((prev) => ({ ...prev, [adAccountId]: newStatus }))
+      try {
+        // aqui você chamaria a API real para ativar/pausar a conta
+        toast({
+          title: "Status atualizado",
+          description: `Conta ${adAccountId} ${newStatus ? "ativada" : "pausada"} (simulado).`,
+        })
+      } catch (e: any) {
+        // reverte em caso de erro
+        setAdAccountStatuses((prev) => ({ ...prev, [adAccountId]: currentStatus }))
+        toast({
+          title: "Erro ao atualizar",
+          description: e?.message || "Falha ao atualizar status.",
+          variant: "destructive",
+        })
+      }
+    },
+    [toast],
+  )
+
+  const handleToggleAllAdAccounts = useCallback(
+    async (checked: boolean) => {
+      setAdAccountStatuses((prev) => {
+        const next = { ...prev }
+        adAccountsSafe.forEach((acc) => {
+          next[acc.id] = checked
+        })
+        return next
+      })
+      try {
+        toast({
+          title: "Status atualizado",
+          description: `Todas as contas foram ${checked ? "ativadas" : "pausadas"} (simulado).`,
+        })
+      } catch (e: any) {
+        toast({
+          title: "Erro ao atualizar todas",
+          description: e?.message || "Falha ao atualizar todas as contas.",
+          variant: "destructive",
+        })
+      }
+    },
+    // adAccountsSafe é definido abaixo; em callbacks, tudo bem não pôr na deps aqui
+    [toast],
+  )
+
+  // ----------------------------
   // UI
   // ----------------------------
+  const metaProfiles = Array.isArray(connectedAccounts.meta) ? connectedAccounts.meta : []
+  const adAccountsSafe: FacebookAdAccount[] = Array.isArray(facebookAdAccounts)
+    ? facebookAdAccounts
+    : Array.isArray((facebookAdAccounts as any)?.data)
+    ? (facebookAdAccounts as any).data
+    : []
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8">
       <div className="flex items-center justify-between">
@@ -405,7 +490,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Conectando...
               </>
-            ) : connectedAccounts.meta.length > 0 ? (
+            ) : metaProfiles.length > 0 ? (
               "Adicionar outro perfil"
             ) : (
               "Adicionar perfil"
@@ -413,9 +498,9 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
           </Button>
 
           {/* Lista de perfis conectados */}
-          {connectedAccounts.meta.length > 0 && (
+          {metaProfiles.length > 0 && (
             <div className="mt-4 space-y-3">
-              {connectedAccounts.meta.map((profile) => (
+              {metaProfiles.map((profile) => (
                 <div
                   key={profile.id}
                   className="flex items-center justify-between p-3 border rounded-md bg-card text-card-foreground"
@@ -475,7 +560,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
           )}
 
           {/* Contas de anúncio (Meta) */}
-          {connectedAccounts.meta.length > 0 && (
+          {metaProfiles.length > 0 && (
             <div className="mt-8 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-semibold">Contas de Anúncio (Meta)</h3>
@@ -484,11 +569,13 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
                   <Switch
                     id="toggle-all-ad-accounts"
                     checked={
-                      facebookAdAccounts.every((account) => adAccountStatuses[account.id]) &&
-                      facebookAdAccounts.length > 0
+                      adAccountsSafe.every((account) => adAccountStatuses[account.id]) &&
+                      adAccountsSafe.length > 0
                     }
-                    onCheckedChange={handleToggleAllAdAccounts}
-                    disabled={loadingFacebookAdAccounts || facebookAdAccounts.length === 0}
+                    onCheckedChange={async (checked) => {
+                      await handleToggleAllAdAccounts(checked)
+                    }}
+                    disabled={loadingFacebookAdAccounts || adAccountsSafe.length === 0}
                   />
                 </div>
               </div>
@@ -502,11 +589,11 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
                   <AlertTitle>Erro ao carregar contas de anúncio</AlertTitle>
                   <AlertDescription>{facebookAdAccountsError}</AlertDescription>
                 </Alert>
-              ) : facebookAdAccounts.length === 0 ? (
+              ) : adAccountsSafe.length === 0 ? (
                 <p className="text-muted-foreground">Nenhuma conta de anúncio encontrada para este perfil.</p>
               ) : (
                 <div className="space-y-4">
-                  {facebookAdAccounts.map((account) => (
+                  {adAccountsSafe.map((account) => (
                     <div
                       key={account.id}
                       className="flex items-center justify-between p-4 border rounded-md bg-card text-card-foreground shadow-sm"

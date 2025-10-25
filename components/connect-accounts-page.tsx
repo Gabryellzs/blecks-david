@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, CheckCircle2, Loader2 } from "lucide-react" // Adicionado Loader2 para o estado de carregamento
+import { ArrowLeft, CheckCircle2, Loader2, Trash2 } from "lucide-react" // Adicionado Loader2 para o estado de carregamento
 import Image from "next/image"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal } from "lucide-react"
@@ -228,6 +228,104 @@ const handleConnectFacebook = useCallback(() => {
       setLoadingFacebookAdAccounts(false)
     }
   }, [connectedAccounts.meta, adAccountStatuses, toast])
+
+  useEffect(() => {
+  if (selectedPlatform !== "meta") return
+
+  const loadMetaProfiles = async () => {
+    try {
+      const res = await fetch("/api/meta/profiles", { credentials: "include" })
+      if (!res.ok) throw new Error("Falha ao buscar perfis do Meta")
+      const data = await res.json()
+      // Esperado: data.profiles = [{ id, name, pictureUrl }]
+      setConnectedAccounts((prev: any) => ({
+        ...prev,
+        meta: Array.isArray(data?.profiles) ? data.profiles : [],
+      }))
+    } catch (err) {
+      console.error(err)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar seus perfis do Meta.",
+        variant: "destructive",
+      })
+      setConnectedAccounts((prev: any) => ({ ...prev, meta: [] }))
+    }
+  }
+
+  loadMetaProfiles()
+}, [selectedPlatform, toast])
+useEffect(() => {
+  if (selectedPlatform !== "meta") return
+
+  const loadMetaProfiles = async () => {
+    try {
+      const res = await fetch("/api/meta/profiles", { credentials: "include" })
+      if (!res.ok) throw new Error("Falha ao buscar perfis do Meta")
+      const data = await res.json()
+      // Esperado: data.profiles = [{ id, name, pictureUrl }]
+      setConnectedAccounts((prev: any) => ({
+        ...prev,
+        meta: Array.isArray(data?.profiles) ? data.profiles : [],
+      }))
+    } catch (err) {
+      console.error(err)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar seus perfis do Meta.",
+        variant: "destructive",
+      })
+      setConnectedAccounts((prev: any) => ({ ...prev, meta: [] }))
+    }
+  }
+
+  loadMetaProfiles()
+}, [selectedPlatform, toast])
+
+
+// Carrega os perfis (contas) do Meta quando abrir a aba "meta"
+useEffect(() => {
+  if (selectedPlatform !== "meta") return
+
+  const loadMetaProfiles = async () => {
+    try {
+      const res = await fetch("/api/facebook-ads/accounts", { credentials: "include" })
+      if (!res.ok) throw new Error(`Falha ao buscar contas do Meta (${res.status})`)
+
+      const data = await res.json()
+      // DEBUG opcional para ver o shape:
+      // console.log("FB ACCOUNTS:", data)
+
+      // Normalização defensiva (cobre os shapes mais comuns)
+      const raw =
+        Array.isArray(data?.accounts) ? data.accounts :
+        Array.isArray(data?.data) ? data.data :
+        Array.isArray(data) ? data : []
+
+      const profiles = raw.map((acc: any) => ({
+        id: acc.id ?? acc.account_id ?? String(acc.accountId ?? acc.account_id),
+        name: acc.name ?? acc.account_name ?? "Sem nome",
+        pictureUrl: acc.pictureUrl ?? acc.picture_url ?? null,
+      }))
+
+      setConnectedAccounts((prev: any) => ({
+        ...prev,
+        meta: profiles,
+      }))
+    } catch (err) {
+      console.error(err)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar seus perfis do Meta.",
+        variant: "destructive",
+      })
+      setConnectedAccounts((prev: any) => ({ ...prev, meta: [] }))
+    }
+  }
+
+  loadMetaProfiles()
+}, [selectedPlatform, toast])
+
 
   useEffect(() => {
     if (selectedPlatform === "meta" && connectedAccounts.meta.length > 0) {

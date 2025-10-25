@@ -80,7 +80,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
     {
       id: "diary",
       title: "Diário Semanal",
-      iconPath: `${ICON_BASE}/Diário Semanal.png`,
+      iconPath: `${ICON_BASE}/Diario-Semanal.png`,
       href: "/dashboard/diary",
       size: 37,
       offsetX: -1,

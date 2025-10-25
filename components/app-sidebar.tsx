@@ -5,33 +5,21 @@ import { PenTool, type LucideIcon } from "lucide-react"
 import { useTheme } from "@/hooks/use-theme"
 import { Button } from "@/components/ui/button"
 import { useRouter, usePathname } from "next/navigation"
-import Image, { type StaticImageData } from "next/image"
+import Image from "next/image"
 import { useState, createContext, useContext } from "react"
-
-// ====== IMPORTS ESTÁTICOS (garantem no build) ======
-import IconDashAds from "@/public/icons-siderbar/dashboard-ads.png"
-import IconDiario from "@/public/icons-siderbar/diario-semanal.png"
-import IconOfertaEscalada from "@/public/icons-siderbar/ofertas-escaladas.png"
-
-// Se quiser, importe os outros também:
-import IconDashGateways from "@/public/icons-siderbar/dashboard-gateways.png"
-import IconAnaliseFat from "@/public/icons-siderbar/analise-faturamento.png"
-import IconDashboard from "@/public/icons-siderbar/dashboard.png"
-import IconProductivity from "@/public/icons-siderbar/productivity.png"
-import IconCalendario from "@/public/icons-siderbar/calendario.png"
-import IconMapaMental from "@/public/icons-siderbar/mapa-mental.png"
-import IconIas from "@/public/icons-siderbar/ias.png"
-import IconFinanceiro from "@/public/icons-siderbar/financeiro.png"
-import IconSuporte from "@/public/icons-siderbar/suporte.png"
 
 // ---------------- Sidebar Context ----------------
 const SidebarContext = createContext<{
   isExpanded: boolean
   toggleSidebar: () => void
-}>({ isExpanded: false, toggleSidebar: () => {} })
+}>({
+  isExpanded: false,
+  toggleSidebar: () => {},
+})
 
 export const useSidebarContext = () => useContext(SidebarContext)
 
+// ---------------- Types ----------------
 interface AppSidebarProps {
   activeView?: string
   onViewChange?: (view: string) => void
@@ -42,24 +30,27 @@ type MenuItem = {
   id: string
   title: string
   href: string
-  icon?: LucideIcon
-  iconSrc?: StaticImageData | string // << aceita import estático OU string
-  size?: number
-  offsetX?: number
-  offsetY?: number
+  icon?: LucideIcon            // Lucide fallback se quiser
+  iconPath?: string            // PNG/SVG em /public
+  size?: number                // px (largura/altura do ícone)
+  offsetX?: number             // px (direita/esquerda) — só quando expandido
+  offsetY?: number             // px (cima/baixo) — só quando expandido
 }
 
+// ---------------- Component ----------------
 export function AppSidebar({ children }: AppSidebarProps) {
   const { theme } = useTheme()
   const [isExpanded, setIsExpanded] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
+  const ICON_BASE = "/icons-siderbar"
+
   const menuItems: MenuItem[] = [
     {
       id: "results-dashboard",
       title: "Dashboard De Gateways",
-      iconSrc: IconDashGateways,
+      iconPath: `${ICON_BASE}/dashboard-gateways.png`,
       href: "/dashboard/gateways",
       size: 31,
       offsetX: 2,
@@ -67,14 +58,14 @@ export function AppSidebar({ children }: AppSidebarProps) {
     {
       id: "billing-analysis",
       title: "Análise De Faturamento",
-      iconSrc: IconAnaliseFat,
+      iconPath: `${ICON_BASE}/analise-faturamento.png`,
       href: "/dashboard/billing-analysis",
       size: 31,
     },
     {
       id: "ads-dashboard",
       title: "Dashboard ADS",
-      iconSrc: IconDashAds, // << import estático
+      iconPath: `${ICON_BASE}/dashboard-ads.png`,
       href: "/dashboard/ads",
       size: 31,
       offsetX: 1,
@@ -82,14 +73,14 @@ export function AppSidebar({ children }: AppSidebarProps) {
     {
       id: "dashboard",
       title: "Dashboard",
-      iconSrc: IconDashboard,
+      iconPath: `${ICON_BASE}/dashboard.png`,
       href: "/dashboard",
       size: 31,
     },
     {
       id: "diary",
       title: "Diário Semanal",
-      iconSrc: IconDiario, // << import estático
+      iconPath: `${ICON_BASE}/diario-semanal.png`,
       href: "/dashboard/diary",
       size: 37,
       offsetX: -1,
@@ -97,29 +88,29 @@ export function AppSidebar({ children }: AppSidebarProps) {
     {
       id: "productivity",
       title: "Produtividade",
-      iconSrc: IconProductivity,
+      iconPath: `${ICON_BASE}/productivity.png`,
       href: "/dashboard/productivity",
       size: 37,
     },
     {
       id: "calendar",
       title: "Calendário",
-      iconSrc: IconCalendario,
+      iconPath: `${ICON_BASE}/calendario.png`,
       href: "/dashboard/calendar",
-      size: 37,
+      size: 41,
     },
     {
       id: "mindmap",
       title: "Mapa Mental",
-      iconSrc: IconMapaMental,
+      iconPath: `${ICON_BASE}/mapa-mental.png`,
       href: "/dashboard/mindmap",
-      size: 41,
+      size: 35,
       offsetY: -1,
     },
     {
       id: "ai",
       title: "IA's",
-      iconSrc: IconIas,
+      iconPath: `${ICON_BASE}/ias.png`,
       href: "/dashboard/ai",
       size: 35,
       offsetX: 1,
@@ -135,21 +126,21 @@ export function AppSidebar({ children }: AppSidebarProps) {
     {
       id: "oferta-escalada",
       title: "Oferta Escalada",
-      iconSrc: IconOfertaEscalada, // << import estático
+      iconPath: `${ICON_BASE}/ofertas-escaladas.png`,
       href: "/dashboard/oferta-escalada",
       size: 30,
     },
     {
       id: "finances",
       title: "Financeiro",
-      iconSrc: IconFinanceiro,
+      iconPath: `${ICON_BASE}/financeiro.png`,
       href: "/dashboard/finances",
       size: 30,
     },
     {
       id: "editor-paginas",
       title: "Suporte",
-      iconSrc: IconSuporte,
+      iconPath: `${ICON_BASE}/suporte.png`,
       href: "/dashboard/support",
       size: 31,
     },
@@ -225,8 +216,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
                         ${active ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground text-foreground"}
                       `}
                     >
-                      {/* Ícone (import estático garante no build) */}
-                      {item.iconSrc ? (
+                      {/* Ícone: centralização perfeita no highlight */}
+                      {item.iconPath ? (
                         <span
                           className={`
                             relative inline-flex items-center justify-center shrink-0
@@ -236,6 +227,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
                           style={{
                             width: size,
                             height: size,
+                            // offsets só quando expandido; fechado usa micro ajuste ótico -1px Y
                             transform: isExpanded ? `translate(${x}px, ${y}px)` : `translate(0px, -1px)`,
                             display: "flex",
                             alignItems: "center",
@@ -243,7 +235,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
                           }}
                         >
                           <Image
-                            src={item.iconSrc}
+                            src={item.iconPath}
                             alt={item.title}
                             fill
                             className="object-contain"
@@ -261,7 +253,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
                         />
                       ) : null}
 
-                      {/* Label só quando expandido (não puxa o centro no fechado) */}
+                      {/* Label: só renderiza quando expandido para não deslocar o centro no fechado */}
                       {isExpanded && (
                         <span className="ml-3 overflow-hidden transition-all duration-200 max-w-[220px]">
                           {item.title}

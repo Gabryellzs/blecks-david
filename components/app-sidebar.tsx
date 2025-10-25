@@ -31,13 +31,16 @@ interface AppSidebarProps {
   children: React.ReactNode
 }
 
-// Aceita PNG/SVG (iconPath) OU Lucide (icon)
+// Agora aceita também "size" (tamanho) e "offsetX/offsetY" (posição) por ícone
 type MenuItem = {
   id: string
   title: string
   href: string
   icon?: LucideIcon
   iconPath?: string
+  size?: number         // pixels (largura/altura do ícone)
+  offsetX?: number      // pixels (desloca na horizontal: + direita, - esquerda)
+  offsetY?: number      // pixels (desloca na vertical: + para baixo, - para cima)
 }
 
 export function AppSidebar({ activeView, onViewChange, children }: AppSidebarProps) {
@@ -52,78 +55,98 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
       title: "Dashboard De Gateways",
       iconPath: "/icons-siderbar/dashboard-gateways.png",
       href: "/dashboard/gateways",
+      size: 26,
+      offsetX: 0, // exemplo: move 2px para a direita
     },
     {
       id: "billing-analysis",
       title: "Análise De Faturamento",
       iconPath: "/icons-siderbar/analise-faturamento.png",
       href: "/dashboard/billing-analysis",
+      size: 26,
     },
     {
       id: "ads-dashboard",
       title: "Dashboard ADS",
       iconPath: "/icons-siderbar/dashboard-ads.png",
       href: "/dashboard/ads",
+      size: 25,
+      offsetX: -1,
     },
     {
       id: "dashboard",
       title: "Dashboard",
-      icon: LayoutDashboard,
+      iconPath: "/icons-siderbar/dashboard.png",
       href: "/dashboard",
+      size: 26,
     },
     {
       id: "diary",
       title: "Diário Semanal",
       iconPath: "/icons-siderbar/diario-semanal.png",
       href: "/dashboard/diary",
+      size: 31,
+      offsetX: -4
     },
     {
       id: "productivity",
       title: "Produtividade",
-      icon: CalendarClock,
+      iconPath: "/icons-siderbar/productivity.png",
       href: "/dashboard/productivity",
+      size: 34,
+      offsetX: -3,
     },
     {
       id: "calendar",
       title: "Calendário",
-      iconPath: "/icons-siderbar/calendar-icon.png", 
+      iconPath: "/icons-siderbar/calendar-icon.png",
       href: "/dashboard/calendar",
+      size: 26,
     },
     {
       id: "mindmap",
       title: "Mapa Mental",
       iconPath: "/icons-siderbar/mapa-mental.png",
       href: "/dashboard/mindmap",
+      size: 30,
+      offsetY: -1,
     },
     {
       id: "ai",
       title: "IA's",
-      iconPath: "/icons-siderbar/ias.png", 
+      iconPath: "/icons-siderbar/ias.png",
       href: "/dashboard/ai",
+      size: 29,
+      offsetX: 1,
     },
     {
       id: "copywriting",
       title: "Copywriting",
       icon: PenTool,
       href: "/dashboard/copywriting",
+      size: 20,
+      offsetX: 2,
     },
     {
       id: "oferta-escalada",
       title: "Oferta Escalada",
       iconPath: "/icons-siderbar/ofertas-escaladas.png",
       href: "/dashboard/oferta-escalada",
+      size: 27,
     },
     {
       id: "finances",
       title: "Financeiro",
       iconPath: "/icons-siderbar/financeiro.png",
       href: "/dashboard/finances",
+      size: 28,
     },
     {
       id: "editor-paginas",
       title: "Suporte",
       iconPath: "/icons-siderbar/suporte.png",
       href: "/dashboard/support",
+      size: 26,
     },
   ]
 
@@ -146,10 +169,10 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
         {/* Sidebar Fixa */}
         <div
           className={`
-          fixed left-0 top-0 h-full z-40 transition-all duration-300 ease-in-out
-          bg-background border-border border-r
-          ${isExpanded ? "w-64" : "w-16"}
-        `}
+            fixed left-0 top-0 h-full z-40 transition-all duration-300 ease-in-out
+            bg-background border-border border-r
+            ${isExpanded ? "w-64" : "w-16"}
+          `}
         >
           {/* Header */}
           <div className="p-4">
@@ -163,8 +186,6 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                   priority
                 />
               </div>
-
-              {/* Título: ao lado quando expandida; oculto quando colapsada */}
               <span
                 className={`
                   absolute top-1/2 -translate-y-1/2 left-[69px]
@@ -197,20 +218,31 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                       }
                     `}
                   >
-                    {/* Ícone (24px): PNG/SVG padronizado OU Lucide padronizado */}
+                    {/* Ícone com tamanho e posição individuais */}
                     {item.iconPath ? (
                       <span
                         className={`
-                          relative inline-flex items-center justify-center w-6 h-6 shrink-0
-                          transition-[filter] duration-300
+                          relative inline-flex items-center justify-center shrink-0
+                          transition-[filter,transform] duration-300
                           ${theme === "dark" ? "invert brightness-0" : "invert-0 brightness-0"}
                         `}
-                        aria-hidden
+                        style={{
+                          width: item.size ?? 24,
+                          height: item.size ?? 24,
+                          transform: `translate(${item.offsetX ?? 0}px, ${item.offsetY ?? 0}px)`,
+                        }}
                       >
-                        <Image src={item.iconPath} alt="" fill className="object-contain" />
+                        <Image src={item.iconPath} alt={item.title} fill className="object-contain" />
                       </span>
                     ) : item.icon ? (
-                      <item.icon className="w-6 h-6 shrink-0" />
+                      <item.icon
+                        style={{
+                          width: item.size ?? 24,
+                          height: item.size ?? 24,
+                          transform: `translate(${item.offsetX ?? 0}px, ${item.offsetY ?? 0}px)`,
+                        }}
+                        className="shrink-0"
+                      />
                     ) : null}
 
                     <span
@@ -223,7 +255,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
                     </span>
                   </Button>
 
-                  {/* Tooltip quando colapsado */}
+                  {/* Tooltip */}
                   {!isExpanded && (
                     <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-popover text-popover-foreground text-sm rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-border">
                       {item.title}
@@ -235,7 +267,7 @@ export function AppSidebar({ activeView, onViewChange, children }: AppSidebarPro
           </div>
         </div>
 
-        {/* Conteúdo Principal com margem para a sidebar */}
+        {/* Conteúdo Principal */}
         <div
           className={`
             flex-1 flex flex-col overflow-hidden bg-background transition-all duration-300

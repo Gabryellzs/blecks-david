@@ -15,6 +15,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth"
 import { useGoogleAdSenseAuth } from "@/hooks/use-google-adsense-auth"
 import { useGoogleAnalyticsAuth } from "@/hooks/use-google-analytics-auth"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+
 
 interface ConnectAccountsPageProps {
   onBack: () => void
@@ -49,6 +51,8 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
   const [loadingFacebookAdAccounts, setLoadingFacebookAdAccounts] = useState(false)
   const [facebookAdAccountsError, setFacebookAdAccountsError] = useState<string | null>(null)
   const { toast } = useToast()
+  const [selectedMetaProfileId, setSelectedMetaProfileId] = useState<string | null>(null)
+
 
   // Hook para Google AdSense
   const {
@@ -172,20 +176,24 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
     [connectingAccount, isGoogleAdSenseConnecting, isGoogleAnalyticsConnecting],
   )
 
-  const handleConnectFacebook = useCallback(() => {
-    console.log("=== handleConnectFacebook CHAMADO ===")
-    console.log("user:", user)
-    
-    if (!user?.id) {
-      console.log("Usuário não autenticado")
-      toast({
-        title: "Erro",
-        description: "Usuário não autenticado. Faça login novamente.",
-        variant: "destructive",
-      })
-      return
-    }
-    
+  const [isFacebookConnecting, setIsFacebookConnecting] = useState(false)
+
+const handleConnectFacebook = useCallback(() => {
+  console.log("=== handleConnectFacebook CHAMADO ===")
+  console.log("user:", user)
+
+  if (!user?.id) {
+    console.log("Usuário não autenticado")
+    toast({
+      title: "Erro",
+      description: "Usuário não autenticado. Faça login novamente.",
+      variant: "destructive",
+    })
+    return
+  }
+
+  // ativa o spinner do botão até redirecionar
+  setIsFacebookConnecting(true)
     console.log("Redirecionando para /api/auth/facebook")
     // Redireciona para a rota de autenticação do Facebook
     window.location.href = `/api/auth/facebook`
@@ -351,214 +359,194 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
       </div>
 
       {selectedPlatform === "meta" && (
-        <div className="mt-8 space-y-6">
-          <div className="flex items-center gap-4">
-            <Image src="/icons/meta-new.png" alt="Meta Ads Icon" width={24} height={24} />
-            <h2 className="text-2xl font-semibold">Meta Ads</h2>
-          </div>
-          <p className="text-muted-foreground">Conecte seus perfis por aqui:</p>
+  <div className="mt-8 space-y-2">
+    <div className="flex items-center gap-4" />
+    <p className="text-muted-foreground">Conecte seus perfis por aqui:</p>
 
-          {connectedAccounts.meta.length > 0 ? (
-            <div className="space-y-4">
-              {connectedAccounts.meta.map((profile) => (
-                <div
-                  key={profile.id}
-                  className="flex items-center justify-between p-4 border rounded-md bg-card text-card-foreground shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <Image
-                      src="/placeholder-user.jpg"
-                      alt="Profile Avatar"
-                      width={32}
-                      height={32}
-                      className="rounded-full"
-                    />
-                    <span className="font-medium">{profile.name}</span>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => {
-                          // Lógica para desconectar o perfil
-                          setConnectedAccounts((prev) => ({
-                            ...prev,
-                            meta: prev.meta.filter((p) => p.id !== profile.id),
-                          }))
-                          toast({
-                            title: "Perfil Desconectado",
-                            description: `O perfil ${profile.name} foi desconectado.`,
-                          })
-                        }}
-                      >
-                        Desconectar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ))}
-                             <Button 
-                 className="bg-blue-600 hover:bg-blue-700 text-white" 
-                 onClick={() => {
-                   console.log("=== BOTÃO 'ADICIONAR OUTRO PERFIL' CLICADO ===")
-                   handleConnectFacebook()
-                 }}
-               >
-                 Adicionar outro perfil
-               </Button>
-            </div>
-          ) : (
-                         <Button 
-               className="bg-blue-600 hover:bg-blue-700 text-white" 
-               onClick={() => {
-                 console.log("=== BOTÃO CLICADO ===")
-                 handleConnectFacebook()
-               }}
-             >
-               Adicionar perfil
-             </Button>
-          )}
+    {/* Botão principal (sempre visível) */}
+    <Button
+  className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+  onClick={handleConnectFacebook}
+  disabled={isFacebookConnecting}
+>
+  {isFacebookConnecting ? (
+    <>
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      Conectando...
+    </>
+  ) : (
+    connectedAccounts.meta.length > 0 ? "Adicionar outro perfil" : "Adicionar perfil"
+  )}
+</Button>
 
-          {connectedAccounts.meta.length > 0 && (
-            <div className="mt-8 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold">Contas de Anúncio (Meta)</h3>
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="toggle-all-ad-accounts">Ativar todas:</Label>
-                  <Switch
-                    id="toggle-all-ad-accounts"
-                    checked={
-                      facebookAdAccounts.every((account) => adAccountStatuses[account.id]) &&
-                      facebookAdAccounts.length > 0
-                    }
-                    onCheckedChange={handleToggleAllAdAccounts}
-                    disabled={loadingFacebookAdAccounts || facebookAdAccounts.length === 0}
-                  />
-                </div>
-              </div>
 
-              {loadingFacebookAdAccounts ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="mr-2 h-6 w-6 animate-spin" /> Carregando contas de anúncio...
-                </div>
-              ) : facebookAdAccountsError ? (
-                <Alert variant="destructive">
-                  <AlertTitle>Erro ao carregar contas de anúncio</AlertTitle>
-                  <AlertDescription>{facebookAdAccountsError}</AlertDescription>
-                </Alert>
-              ) : facebookAdAccounts.length === 0 ? (
-                <p className="text-muted-foreground">Nenhuma conta de anúncio encontrada para este perfil.</p>
-              ) : (
-                <div className="space-y-4">
-                  {facebookAdAccounts.map((account) => (
-                    <div
-                      key={account.id}
-                      className="flex items-center justify-between p-4 border rounded-md bg-card text-card-foreground shadow-sm"
-                    >
-                      <div>
-                        <h4 className="font-medium">{account.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          status: {account.account_status === 1 ? "Ativa" : "Inativa"}
-                        </p>
-                      </div>
-                      <Switch
-                        checked={adAccountStatuses[account.id] ?? account.account_status === 1}
-                        onCheckedChange={(checked) =>
-                          handleToggleAdAccount(
-                            account.id,
-                            adAccountStatuses[account.id] ?? account.account_status === 1,
-                          )
-                        }
-                        disabled={loadingFacebookAdAccounts}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {selectedPlatform === "google" && (
-        <div className="mt-8 space-y-6">
-          <div className="flex items-center gap-4">
-            <Image src="/icons/google-ads-icon.png" alt="Google Ads Icon" width={24} height={24} />
-            <h2 className="text-2xl font-semibold">Google AdSense</h2>
-          </div>
-          <p className="text-muted-foreground">Conecte sua conta do Google AdSense:</p>
-
-          {googleAdSenseError && (
-            <Alert variant="destructive">
-              <AlertTitle>Erro na Conexão</AlertTitle>
-              <AlertDescription>{googleAdSenseError}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 border rounded-md bg-card text-card-foreground shadow-sm">
-              <div className="flex items-center gap-3">
-                <Image
-                  src="/icons/google-ads-icon.png"
-                  alt="Google AdSense Icon"
-                  width={32}
-                  height={32}
-                  className="rounded-full"
+    {/* Lista de perfis conectados */}
+    {connectedAccounts.meta.length > 0 && (
+      <div className="mt-4 space-y-3">
+        {connectedAccounts.meta.map((profile) => (
+          <div
+            key={profile.id}
+            className="flex items-center justify-between p-3 border rounded-md bg-card text-card-foreground"
+          >
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage
+                  src={profile.pictureUrl ?? "/placeholder-user.jpg"}
+                  alt={profile.name ?? "Perfil"}
                 />
-                <div>
-                  <span className="font-medium">Google AdSense</span>
-                  <p className="text-sm text-muted-foreground">
-                    {isGoogleAdSenseConnected ? "Conta conectada" : "Conta não conectada"}
-                  </p>
-                </div>
+                <AvatarFallback>
+                  {(profile.name ?? "US")
+                    .split(" ")
+                    .map((s: string) => s[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+
+              <div>
+                <div className="font-medium leading-none">{profile.name ?? "Sem nome"}</div>
+                <div className="text-xs text-muted-foreground mt-1">ID: {profile.id}</div>
               </div>
+            </div>
+
+            <div className="flex items-center gap-2">
               <Button
-                className={`${
-                  isGoogleAdSenseConnected 
-                    ? "bg-green-600 hover:bg-green-700 text-white" 
-                    : "bg-yellow-500 hover:bg-yellow-600 text-black"
-                }`}
-                onClick={() => {
-                  if (isGoogleAdSenseConnected) {
-                    disconnectGoogleAdSense()
-                  } else {
-                    connectGoogleAdSense()
-                  }
-                }}
-                disabled={isGoogleAdSenseLoading || isGoogleAdSenseConnecting}
+                size="sm"
+                variant={selectedMetaProfileId === profile.id ? "default" : "outline"}
+                onClick={() => setSelectedMetaProfileId(profile.id)}
               >
-                {isGoogleAdSenseConnecting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Conectando...
-                  </>
-                ) : isGoogleAdSenseLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando...
-                  </>
-                ) : isGoogleAdSenseConnected ? (
-                  <>
-                    <CheckCircle2 className="mr-2 h-4 w-4" /> Conectado
-                  </>
-                ) : (
-                  "Conectar conta"
-                )}
+                {selectedMetaProfileId === profile.id ? "Selecionado" : "Selecionar"}
+              </Button>
+
+              <Button
+                size="icon"
+                variant="ghost"
+                className="hover:bg-destructive/10"
+                onClick={() => {
+                  // remove da lista local
+                  setConnectedAccounts((prev) => ({
+                    ...prev,
+                    meta: prev.meta.filter((p) => p.id !== profile.id),
+                  }))
+                  // zera seleção se era o selecionado
+                  if (selectedMetaProfileId === profile.id) setSelectedMetaProfileId(null)
+
+                  toast({
+                    title: "Perfil desconectado",
+                    description: `O perfil ${profile.name ?? profile.id} foi desconectado.`,
+                  })
+                }}
+                aria-label="Desconectar perfil"
+                title="Desconectar perfil"
+              >
+                <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           </div>
+        ))}
+      </div>
+    )}
+
+    {/* --- mantém sua seção de contas de anúncio abaixo, sem mexer --- */}
+    {connectedAccounts.meta.length > 0 && (
+      <div className="mt-8 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-semibold">Contas de Anúncio (Meta)</h3>
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="toggle-all-ad-accounts">Ativar todas:</Label>
+            <Switch
+              id="toggle-all-ad-accounts"
+              checked={
+                facebookAdAccounts.every((account) => adAccountStatuses[account.id]) &&
+                facebookAdAccounts.length > 0
+              }
+              onCheckedChange={handleToggleAllAdAccounts}
+              disabled={loadingFacebookAdAccounts || facebookAdAccounts.length === 0}
+            />
+          </div>
         </div>
+
+        {loadingFacebookAdAccounts ? (
+          <div className="flex items-center justify-center h-40">
+            <Loader2 className="mr-2 h-6 w-6 animate-spin" /> Carregando contas de anúncio...
+          </div>
+        ) : facebookAdAccountsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>Erro ao carregar contas de anúncio</AlertTitle>
+            <AlertDescription>{facebookAdAccountsError}</AlertDescription>
+          </Alert>
+        ) : facebookAdAccounts.length === 0 ? (
+          <p className="text-muted-foreground">Nenhuma conta de anúncio encontrada para este perfil.</p>
+        ) : (
+          <div className="space-y-4">
+            {facebookAdAccounts.map((account) => (
+              <div
+                key={account.id}
+                className="flex items-center justify-between p-4 border rounded-md bg-card text-card-foreground shadow-sm"
+              >
+                <div>
+                  <h4 className="font-medium">{account.name}</h4>
+                  <p className="text-sm text-muted-foreground">
+                    status: {account.account_status === 1 ? "Ativa" : "Inativa"}
+                  </p>
+                </div>
+                <Switch
+                  checked={adAccountStatuses[account.id] ?? account.account_status === 1}
+                  onCheckedChange={(checked) =>
+                    handleToggleAdAccount(
+                      account.id,
+                      adAccountStatuses[account.id] ?? account.account_status === 1,
+                    )
+                  }
+                  disabled={loadingFacebookAdAccounts}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+)}
+
+
+      {selectedPlatform === "google" && (
+  <div className="mt-8 space-y-2">
+    <div className="flex items-center gap-2" />
+    <p className="text-muted-foreground">Conecte seus perfis por aqui:</p>
+
+    {googleAdSenseError && (
+      <Alert variant="destructive">
+        <AlertTitle>Erro na Conexão</AlertTitle>
+        <AlertDescription>{googleAdSenseError}</AlertDescription>
+      </Alert>
+    )}
+    <Button
+      onClick={() => connectGoogleAdSense()}
+      disabled={isGoogleAdSenseLoading || isGoogleAdSenseConnecting}
+      className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+    >
+      {isGoogleAdSenseConnecting || isGoogleAdSenseLoading ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Conectando...
+        </>
+      ) : (
+        "Adicionar perfil"
       )}
+    </Button>
+  </div>
+)}
+
+
+
 
       {selectedPlatform === "analytics" && (
-        <div className="mt-8 space-y-6">
-          <div className="flex items-center gap-4">
-            <Image src="/icons/google-analytics-orange.png" alt="Analytics Icon" width={24} height={24} />
-            <h2 className="text-2xl font-semibold">Google Analytics</h2>
+        <div className="mt-8 space-y-2">
+          <div className="flex items-center gap-2">
           </div>
-          <p className="text-muted-foreground">Conecte sua conta do Google Analytics para acessar dados de tráfego e conversões.</p>
+          <p className="text-muted-foreground">Conecte seus perfis por aqui:</p>
 
           {isGoogleAnalyticsLoading ? (
             <div className="flex items-center gap-2">
@@ -590,7 +578,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
             </div>
           ) : (
             <Button
-              className="bg-orange-500 hover:bg-orange-600 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
               onClick={() => handleConnect("analytics", 1)}
               disabled={isGoogleAnalyticsConnecting}
             >
@@ -599,7 +587,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Conectando...
                 </>
               ) : (
-                "Conectar com o Google Analytics"
+                "Adicionar perfil"
               )}
             </Button>
           )}
@@ -614,72 +602,68 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
       )}
 
       {selectedPlatform === "tiktok" && (
-        <div className="mt-8 space-y-6">
-          {[1].map((accountNum) => {
-            const connected = isAccountConnected("tiktok", accountNum)
-            const connecting = isConnecting("tiktok", accountNum)
-            return (
-              <div key={`tiktok-${accountNum}`} className="space-y-2">
-                <div className="flex items-center gap-4">
-                  <Image src="/icons/tiktok-new.png" alt="TikTok Ads Icon" width={24} height={24} />
-                  <h3 className="text-xl font-semibold">{accountNum} TikTok ADS</h3>
-                </div>
-                <Button
-                  className="bg-pink-600 hover:bg-pink-700 text-white"
-                  onClick={() => handleConnect("tiktok", accountNum)}
-                  disabled={connected || connecting}
-                >
-                  {connecting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Conectando...
-                    </>
-                  ) : connected ? (
-                    <>
-                      <CheckCircle2 className="mr-2 h-4 w-4" /> Conectado
-                    </>
-                  ) : (
-                    "Conectar conta"
-                  )}
-                </Button>
-              </div>
-            )
-          })}
-        </div>
-      )}
+  <div className="mt-8 space-y-2">
+    <div className="flex items-center gap-2" />
+    <p className="text-muted-foreground">Conecte seus perfis por aqui:</p>
+
+    {(() => {
+      const connected = isAccountConnected("tiktok", 1)
+      const connecting = isConnecting("tiktok", 1)
+      return (
+        <Button
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+          onClick={() => handleConnect("tiktok", 1)}
+          disabled={connected || connecting}
+        >
+          {connecting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Conectando...
+            </>
+          ) : connected ? (
+            <>
+              <CheckCircle2 className="mr-2 h-4 w-4" /> Conectado
+            </>
+          ) : (
+            "Adicionar perfil"
+          )}
+        </Button>
+      )
+    })()}
+  </div>
+)}
+
 
       {selectedPlatform === "kwai" && (
-        <div className="mt-8 space-y-6">
-          {[1].map((accountNum) => {
-            const connected = isAccountConnected("kwai", accountNum)
-            const connecting = isConnecting("kwai", accountNum)
-            return (
-              <div key={`kwai-${accountNum}`} className="space-y-2">
-                <div className="flex items-center gap-4">
-                  <Image src="/icons/kwai-new.png" alt="Kwai Ads Icon" width={24} height={24} />
-                  <h3 className="text-xl font-semibold">{accountNum} Kwai ADS</h3>
-                </div>
-                <Button
-                  className="bg-orange-500 hover:bg-orange-600 text-white"
-                  onClick={() => handleConnect("kwai", accountNum)}
-                  disabled={connected || connecting}
-                >
-                  {connecting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Conectando...
-                    </>
-                  ) : connected ? (
-                    <>
-                      <CheckCircle2 className="mr-2 h-4 w-4" /> Conectado
-                    </>
-                  ) : (
-                    "Conectar conta"
-                  )}
-                </Button>
-              </div>
-            )
-          })}
-        </div>
-      )}
+  <div className="mt-8 space-y-2">
+    <div className="flex items-center gap-2" />
+    <p className="text-muted-foreground">Conecte seus perfis por aqui:</p>
+
+    {(() => {
+      const connected = isAccountConnected("kwai", 1)
+      const connecting = isConnecting("kwai", 1)
+      return (
+        <Button
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+          onClick={() => handleConnect("kwai", 1)}
+          disabled={connected || connecting}
+        >
+          {connecting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Conectando...
+            </>
+          ) : connected ? (
+            <>
+              <CheckCircle2 className="mr-2 h-4 w-4" /> Conectado
+            </>
+          ) : (
+            "Adicionar perfil"
+          )}
+        </Button>
+      )
+    })()}
+  </div>
+)}
+
 
       {/* Render nothing if no platform is selected or if a platform is selected and its content is handled above */}
       {selectedPlatform === null && <div className="h-[calc(100vh-250px)]" />}

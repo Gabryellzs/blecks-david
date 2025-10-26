@@ -200,17 +200,17 @@ export default function DashboardPage() {
 
           {/* BODY */}
           <div className="flex h-[calc(100%-4rem)] w-full">
-            <div className="w-full md:w-[75%] overflow-auto p-4">
+            <div className="w-full md:w-[89%] overflow-auto p-3">
               <DashboardView onViewChange={() => {}} />
             </div>
 
-            <div className="hidden md:flex md:w-[25%] overflow-auto p-4 flex-col items-center pt-4">
+            <div className="hidden md:flex md:w-[22%] overflow-auto p-4 flex-col items-center pt-4 mt-[57px]">
               <img
                 src={imageSrc || "/placeholder.svg"}
                 alt="Suas Próximas Premiações"
                 className="max-w-full h-auto object-contain"
               />
-              <div className="mt-8 w-full px-4">
+              <div className="mt-8 w-full px-3">
                 <h3 className="text-lg font-semibold text-center mb-2">Progresso de Conquistas</h3>
                 <div className="text-sm text-muted-foreground text-center mb-1">
                   {achievementData.isMaxGoalReached ? (

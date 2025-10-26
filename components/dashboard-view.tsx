@@ -11,8 +11,9 @@ interface DashboardProps {
 const HEADER_H = 80
 
 /* --------- LISTA DE CARDS (edite livremente) ----------
- * Cada card só precisa de w (largura em colunas) e h (altura em linhas).
- * O grid se vira para posicionar automaticamente.
+ * Agora cada card pode receber:
+ *  - effect: "neon" | "neonTop" | "neonGold" | "none"
+ *  - glow: qualquer cor CSS (ex.: "#00f7ff", "rgb(147 51 234)", "hsl(280 100% 70%)")
  */
 type AutoCard = {
   id: string
@@ -20,39 +21,51 @@ type AutoCard = {
   h: number // 1..N  (altura em linhas)
   kind?: "donut" | "empty"
   className?: string
+  effect?: "neon" | "neonTop" | "neonGold" | "none"
+  glow?: string
 }
 
 const CARDS: AutoCard[] = [
   // topo (4 cards largos)
-  { id: "top-1", w: 3, h: 2 },
-  { id: "top-2", w: 3, h: 2 },
-  { id: "top-3", w: 3, h: 2 },
-  { id: "top-4", w: 3, h: 2 },
+  { id: "top-1", w: 3, h: 2, effect: "neonTop",    glow: "#00f7ff" },
+  { id: "top-2", w: 3, h: 2, effect: "neonTop", glow: "rgb(147 51 234)" }, // roxo
+  { id: "top-3", w: 3, h: 2, effect: "neonTop", glow: "#c81331ff" },
+  { id: "top-4", w: 3, h: 2, effect: "neonTop",    glow: "#f472b6" }, // rosa
 
-  // bloco grande com donut
-  { id: "big-donut", w: 5, h: 6, kind: "donut" },
+  // bloco grande com donut (neon dourado)
+  { id: "big-donut", w: 5, h: 6, kind: "donut", effect: "neonTop", glow: "#0d2de3ff"},
 
   // coluna direita (3x2 menores)
-  { id: "r1", w: 3, h: 2 },
-  { id: "r2", w: 2, h: 2 },
-  { id: "r3", w: 3, h: 2 },
-  { id: "r4", w: 2, h: 2 },
-  { id: "r5", w: 2, h: 2 },
-  { id: "r6", w: 2, h: 2 },
+  { id: "r1", w: 3, h: 2, effect: "neonTop", glow: "#22d3ee" },
+  { id: "r2", w: 2, h: 2, effect: "neonTop", glow: "#c81331ff" },
+  { id: "r3", w: 3, h: 2, effect: "neonTop", glow: "#a3e635" },
+  { id: "r4", w: 2, h: 2, effect: "neonTop", glow: "#60a5fa" },
+  { id: "r5", w: 2, h: 2, effect: "neonTop", glow: "#c81331ff" },
+  { id: "r6", w: 2, h: 2, effect: "neonTop", glow: "#fb7185" },
 
   // linhas inferiores (8 cards largos)
-  { id: "b1", w: 3, h: 2 },
-  { id: "b2", w: 2, h: 2 },
-  { id: "b3", w: 2, h: 2 },
-  { id: "b4", w: 3, h: 2 },
-  { id: "b5", w: 3, h: 2 },
-  { id: "b6", w: 3, h: 2 },
-  { id: "b7", w: 3, h: 2 },
-  { id: "b8", w: 3, h: 2 },
-  { id: "b9", w: 3, h: 2 },
-  { id: "b10", w: 3, h: 2 },
-  { id: "b11", w: 3, h: 2 },
+  { id: "b1",  w: 3, h: 2, effect: "neonTop", glow: "#34d399" },
+  { id: "b2",  w: 2, h: 2, effect: "neonTop", glow: "#34d399"},
+  { id: "b3",  w: 2, h: 2, effect: "neonTop", glow: "#f59e0b" },
+  { id: "b4",  w: 3, h: 2, effect: "neonTop", glow: "#34d399"},
+  { id: "b5",  w: 3, h: 2, effect: "neonTop", glow: "#a06a0eff" },
+  { id: "b6",  w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },
+  { id: "b7",  w: 3, h: 2, effect: "neonTop", glow: "#a855f7" } ,
+  { id: "b8",  w: 3, h: 2, effect: "neonTop", glow: "#c81331ff" },
+  { id: "b9",  w: 3, h: 2, effect: "neonTop", glow: "#c81331ff" },
+  { id: "b10", w: 3, h: 2, effect: "neonTop", glow: "#10b981" },
+  { id: "b11", w: 3, h: 2, effect: "neonTop", glow: "#c81331ff" },
 ]
+
+/* ---------- helpers ---------- */
+function neonClass(effect?: AutoCard["effect"]) {
+  switch (effect) {
+    case "neon":     return "neon-card"
+    case "neonTop":  return "neon-card neon-top"
+    case "neonGold": return "neon-card neon-top neon-gold"
+    default:         return ""
+  }
+}
 
 /* ---------- Blocos visuais ---------- */
 function Block({
@@ -64,8 +77,8 @@ function Block({
     <div
       className={[
         "rounded-[14px]",
-        "border border-white/25 bg-transparent",
-        "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]",
+        // borda discreta para não brigar com o glow
+        "border border-white/15 bg-transparent",
         "outline-none focus:outline-none focus:ring-0",
         className,
       ].join(" ")}
@@ -143,11 +156,10 @@ export default function DashboardView({
     Cakto: 0, Kirvano: 0, Pepper: 0, Kiwify: 0, Hotmart: 0, Monetizze: 0, Eduzz: 0, Braip: 0, Lastlink: 0,
   },
 }: DashboardProps) {
-  // calculo de linhas necessárias: soma das áreas / 12 colunas
+  // linhas calculadas p/ caber sem scroll
   const rowsNeeded = useMemo(() => {
     const units = CARDS.reduce((sum, c) => sum + c.w * c.h, 0)
-    // margem de segurança de 1 linha para encaixe "dense"
-    return Math.max(1, Math.ceil(units / 12) + 1)
+    return Math.max(6, Math.ceil(units / 12) + 1)
   }, [])
 
   const hasAnySale = useMemo(
@@ -168,17 +180,20 @@ export default function DashboardView({
           gap: 12,
           gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
           gridTemplateRows: `repeat(${rowsNeeded}, 1fr)`,
-          gridAutoFlow: "dense",        // ► reencaixa automaticamente
+          gridAutoFlow: "dense",
         }}
       >
-        {CARDS.map((card) => (
+        {CARDS.map((card, idx) => (
           <Block
-            key={card.id}
+            key={`${card.id}-${idx}`}
+            className={neonClass(card.effect)}
             style={{
-              gridColumn: `auto / span ${card.w}`,
-              gridRow: `auto / span ${card.h}`,
+              // passa a cor do glow para o CSS: .neon-card usa var(--gw)
+              // (se não definir glow, usa a padrão do CSS)
+              ...(card.glow ? ({ ["--gw" as any]: card.glow } as React.CSSProperties) : {}),
+              gridColumn: `auto / span ${Math.max(1, Math.min(12, card.w))}`,
+              gridRow: `auto / span ${Math.max(1, card.h)}`,
             }}
-            className={card.className}
           >
             {card.kind === "donut" ? <DonutChart salesByPlatform={salesByPlatform} /> : null}
           </Block>

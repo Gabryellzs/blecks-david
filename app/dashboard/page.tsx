@@ -206,7 +206,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Coluna lateral */}
-            <div className="hidden md:flex md:w-[22%] overflow-auto p-4 flex-col items-center pt-4 mt-[57px]">
+            <div className="hidden md:flex md:w-[22%] overflow-auto p-4 flex-col items-center pt-4 mt-[62px]">
               <img
                 src={imageSrc || "/placeholder.svg"}
                 alt="Suas Próximas Premiações"

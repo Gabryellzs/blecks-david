@@ -8,17 +8,18 @@ interface DashboardProps {
   salesByPlatform?: SalesByPlatform
 }
 
+/** ===== Layout ===== */
 const HEADER_H = 80
+const CARD_RADIUS_PX = 6// 👈 ajuste aqui o arredondamento (ex.: 4, 6, 8, 12)
 
-/* --------- LISTA DE CARDS (edite livremente) ----------
- * Agora cada card pode receber:
- *  - effect: "neon" | "neonTop" | "neonGold" | "none"
- *  - glow: qualquer cor CSS (ex.: "#00f7ff", "rgb(147 51 234)", "hsl(280 100% 70%)")
+/** ===== Cards (com neon do globals.css) =====
+ * effect: "neon" | "neonTop" | "neonGold" | "none"
+ * glow: qualquer cor CSS (ex.: "#00f7ff", "rgb(147 51 234)")
  */
 type AutoCard = {
   id: string
-  w: number // 1..12 (largura em colunas)
-  h: number // 1..N  (altura em linhas)
+  w: number // 1..12
+  h: number // 1..N
   kind?: "donut" | "empty"
   className?: string
   effect?: "neon" | "neonTop" | "neonGold" | "none"
@@ -27,47 +28,47 @@ type AutoCard = {
 
 const CARDS: AutoCard[] = [
   // topo (4 cards largos)
-  { id: "top-1", w: 3, h: 2, effect: "neonTop",    glow: "#00f7ff" },
-  { id: "top-2", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff"}, 
+  { id: "top-1", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" },
+  { id: "top-2", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" },
   { id: "top-3", w: 3, h: 2, effect: "neonTop", glow: "rgba(3, 144, 245, 1)" },
-  { id: "top-4", w: 3, h: 2, effect: "neonTop",    glow: "#008ffcff" }, 
+  { id: "top-4", w: 3, h: 2, effect: "neonTop", glow: "#008ffcff" },
 
-  // bloco grande com donut (neon dourado)
-  { id: "big-donut", w: 5, h: 6, kind: "donut", effect: "neonTop", glow: "#0d2de3ff"},
+  // bloco grande com donut
+  { id: "big-donut", w: 5, h: 6, kind: "donut", effect: "neonTop", glow: "#0d2de3ff" },
 
   // coluna direita (3x2 menores)
   { id: "r1", w: 3, h: 2, effect: "neonTop", glow: "#22d3ee" },
-  { id: "r2", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff"},
+  { id: "r2", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" },
   { id: "r3", w: 3, h: 2, effect: "neonTop", glow: "#a3e635" },
   { id: "r4", w: 2, h: 2, effect: "neonTop", glow: "#60a5fa" },
   { id: "r5", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" },
-  { id: "r6", w: 2, h: 2, effect: "neonTop", glow: "#9500ffff" },
+  { id: "r6", w: 2, h: 2, effect: "neonTop", glow: "#fb7185" },
 
-  // linhas inferiores (8 cards largos)
-  { id: "b1",  w: 3, h: 2, effect: "neonTop", glow: "#34d399"},
-  { id: "b2",  w: 2, h: 2, effect: "neonTop", glow: "#34d399"},
-  { id: "b3",  w: 2, h: 2, effect: "neonTop", glow: "#69f50bff" },
-  { id: "b4",  w: 3, h: 2, effect: "neonTop", glow: "#34d399"},
-  { id: "b5",  w: 3, h: 2, effect: "neonTop", glow: "#a06a0eff"},
+  // linhas inferiores (largos)
+  { id: "b1",  w: 3, h: 2, effect: "neonTop", glow: "#34d399" },
+  { id: "b2",  w: 2, h: 2, effect: "neonTop", glow: "#34d399" },
+  { id: "b3",  w: 2, h: 2, effect: "neonTop", glow: "#f59e0b" },
+  { id: "b4",  w: 3, h: 2, effect: "neonTop", glow: "#34d399" },
+  { id: "b5",  w: 3, h: 2, effect: "neonTop", glow: "#a06a0eff" },
   { id: "b6",  w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },
-  { id: "b7",  w: 3, h: 2, effect: "neonTop", glow: "#a855f7" } ,
+  { id: "b7",  w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },
   { id: "b8",  w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },
   { id: "b9",  w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },
   { id: "b10", w: 3, h: 2, effect: "neonTop", glow: "#10b981" },
   { id: "b11", w: 3, h: 2, effect: "neonTop", glow: "#c81331ff" },
 ]
 
-/* ---------- helpers ---------- */
+/** ===== Helpers ===== */
 function neonClass(effect?: AutoCard["effect"]) {
   switch (effect) {
     case "neon":     return "neon-card"
     case "neonTop":  return "neon-card neon-top"
     case "neonGold": return "neon-card neon-top neon-gold"
-    default:         return ""
+    default:         return "neon-card" // força neon mesmo se "none"/undefined
   }
 }
 
-/* ---------- Blocos visuais ---------- */
+/** ===== UI blocks ===== */
 function Block({
   className = "",
   style,
@@ -76,8 +77,7 @@ function Block({
   return (
     <div
       className={[
-        "rounded-[14px]",
-        // borda discreta para não brigar com o glow
+        `rounded-[${CARD_RADIUS_PX}px]`,
         "border border-white/15 bg-transparent",
         "outline-none focus:outline-none focus:ring-0",
         className,
@@ -149,16 +149,16 @@ function DonutChart({ salesByPlatform = {} as SalesByPlatform }) {
   )
 }
 
-/* ---------- Página (auto-placement + sem scroll) ---------- */
+/** ===== Página ===== */
 export default function DashboardView({
   userName = "",
   salesByPlatform = {
     Cakto: 0, Kirvano: 0, Pepper: 0, Kiwify: 0, Hotmart: 0, Monetizze: 0, Eduzz: 0, Braip: 0, Lastlink: 0,
   },
 }: DashboardProps) {
-  // linhas calculadas p/ caber sem scroll
+  // calcula as "linhas-fr" necessárias para caber tudo sem scroll
   const rowsNeeded = useMemo(() => {
-    const units = CARDS.reduce((sum, c) => sum + c.w * c.h, 0)
+    const units = CARDS.reduce((sum, c) => sum + Math.max(1, Math.min(12, c.w)) * Math.max(1, c.h), 0)
     return Math.max(6, Math.ceil(units / 12) + 1)
   }, [])
 
@@ -183,21 +183,19 @@ export default function DashboardView({
           gridAutoFlow: "dense",
         }}
       >
-        {CARDS.map((card, idx) => (
-          <Block
-            key={`${card.id}-${idx}`}
-            className={neonClass(card.effect)}
-            style={{
-              // passa a cor do glow para o CSS: .neon-card usa var(--gw)
-              // (se não definir glow, usa a padrão do CSS)
-              ...(card.glow ? ({ ["--gw" as any]: card.glow } as React.CSSProperties) : {}),
-              gridColumn: `auto / span ${Math.max(1, Math.min(12, card.w))}`,
-              gridRow: `auto / span ${Math.max(1, card.h)}`,
-            }}
-          >
-            {card.kind === "donut" ? <DonutChart salesByPlatform={salesByPlatform} /> : null}
-          </Block>
-        ))}
+        {CARDS.map((card, idx) => {
+          const cls = neonClass(card.effect)
+          const style: React.CSSProperties & { ["--gw"]?: string } = {
+            gridColumn: `auto / span ${Math.max(1, Math.min(12, card.w))}`,
+            gridRow: `auto / span ${Math.max(1, card.h)}`,
+            ...(card.glow ? { ["--gw"]: card.glow } : {}), // passa a cor pro .neon-card
+          }
+          return (
+            <Block key={`${card.id}-${idx}`} className={cls} style={style}>
+              {card.kind === "donut" ? <DonutChart salesByPlatform={salesByPlatform} /> : null}
+            </Block>
+          )
+        })}
       </div>
 
       <div className="sr-only">{hasAnySale ? "Com vendas" : "Sem vendas"}</div>

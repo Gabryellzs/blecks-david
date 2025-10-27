@@ -11,7 +11,7 @@ interface DashboardProps {
 }
 
 const HEADER_H = 50
-const CARD_RADIUS_PX = 8
+const CARD_RADIUS_PX = 6
 
 type AutoCard = {
   id: string

@@ -28,31 +28,31 @@ type AutoCard = {
 const CARDS: AutoCard[] = [
   // topo (4 cards largos)
   { id: "top-1", w: 3, h: 2, effect: "neonTop",    glow: "#00f7ff" },
-  { id: "top-2", w: 3, h: 2, effect: "neonTop", glow: "rgb(147 51 234)" }, // roxo
-  { id: "top-3", w: 3, h: 2, effect: "neonTop", glow: "#c81331ff" },
-  { id: "top-4", w: 3, h: 2, effect: "neonTop",    glow: "#f472b6" }, // rosa
+  { id: "top-2", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff"}, 
+  { id: "top-3", w: 3, h: 2, effect: "neonTop", glow: "rgba(3, 144, 245, 1)" },
+  { id: "top-4", w: 3, h: 2, effect: "neonTop",    glow: "#008ffcff" }, 
 
   // bloco grande com donut (neon dourado)
   { id: "big-donut", w: 5, h: 6, kind: "donut", effect: "neonTop", glow: "#0d2de3ff"},
 
   // coluna direita (3x2 menores)
   { id: "r1", w: 3, h: 2, effect: "neonTop", glow: "#22d3ee" },
-  { id: "r2", w: 2, h: 2, effect: "neonTop", glow: "#c81331ff" },
+  { id: "r2", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff"},
   { id: "r3", w: 3, h: 2, effect: "neonTop", glow: "#a3e635" },
   { id: "r4", w: 2, h: 2, effect: "neonTop", glow: "#60a5fa" },
-  { id: "r5", w: 2, h: 2, effect: "neonTop", glow: "#c81331ff" },
-  { id: "r6", w: 2, h: 2, effect: "neonTop", glow: "#fb7185" },
+  { id: "r5", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" },
+  { id: "r6", w: 2, h: 2, effect: "neonTop", glow: "#9500ffff" },
 
   // linhas inferiores (8 cards largos)
-  { id: "b1",  w: 3, h: 2, effect: "neonTop", glow: "#34d399" },
+  { id: "b1",  w: 3, h: 2, effect: "neonTop", glow: "#34d399"},
   { id: "b2",  w: 2, h: 2, effect: "neonTop", glow: "#34d399"},
-  { id: "b3",  w: 2, h: 2, effect: "neonTop", glow: "#f59e0b" },
+  { id: "b3",  w: 2, h: 2, effect: "neonTop", glow: "#69f50bff" },
   { id: "b4",  w: 3, h: 2, effect: "neonTop", glow: "#34d399"},
-  { id: "b5",  w: 3, h: 2, effect: "neonTop", glow: "#a06a0eff" },
+  { id: "b5",  w: 3, h: 2, effect: "neonTop", glow: "#a06a0eff"},
   { id: "b6",  w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },
   { id: "b7",  w: 3, h: 2, effect: "neonTop", glow: "#a855f7" } ,
-  { id: "b8",  w: 3, h: 2, effect: "neonTop", glow: "#c81331ff" },
-  { id: "b9",  w: 3, h: 2, effect: "neonTop", glow: "#c81331ff" },
+  { id: "b8",  w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },
+  { id: "b9",  w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },
   { id: "b10", w: 3, h: 2, effect: "neonTop", glow: "#10b981" },
   { id: "b11", w: 3, h: 2, effect: "neonTop", glow: "#c81331ff" },
 ]

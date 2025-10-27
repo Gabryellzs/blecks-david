@@ -200,19 +200,29 @@ export default function DashboardPage() {
 
           {/* BODY */}
           <div className="flex h-[calc(100%-4rem)] w-full">
+            {/* Painel principal */}
             <div className="w-full md:w-[89%] overflow-auto p-3">
               <DashboardView onViewChange={() => {}} />
             </div>
 
+            {/* Coluna lateral */}
             <div className="hidden md:flex md:w-[22%] overflow-auto p-4 flex-col items-center pt-4 mt-[57px]">
               <img
                 src={imageSrc || "/placeholder.svg"}
                 alt="Suas Próximas Premiações"
                 className="max-w-full h-auto object-contain"
               />
-              <div className="mt-8 w-full px-3">
-                <h3 className="text-lg font-semibold text-center mb-2">Progresso de Conquistas</h3>
-                <div className="text-sm text-muted-foreground text-center mb-1">
+
+              {/* PROGRESSO DE CONQUISTAS */}
+              <div className="mt-8 w-full px-2 text-center">
+                <h3
+                  className="text-[18px] md:text-sm font-semibold leading-none tracking-tight
+                             max-w-full overflow-hidden text-ellipsis whitespace-nowrap mb-1"
+                >
+                  Progresso de Conquistas
+                </h3>
+
+                <div className="text-[14px] text-muted-foreground font-medium whitespace-nowrap mb-2">
                   {achievementData.isMaxGoalReached ? (
                     <span className="text-green-500 font-medium">{achievementData.goalText}</span>
                   ) : (
@@ -222,7 +232,9 @@ export default function DashboardPage() {
                     </>
                   )}
                 </div>
+
                 <Progress value={achievementData.percentage} className="w-full h-3" />
+
                 <p className="text-xs text-muted-foreground text-center mt-2">
                   {achievementData.isMaxGoalReached
                     ? "Todas as metas atingidas!"

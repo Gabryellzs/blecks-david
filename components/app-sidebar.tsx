@@ -125,8 +125,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
     },
     {
       id: "oferta-escalada",
-      title: "oferta Escalada",
-      iconPath: `${ICON_BASE}/oferta-Escalada.png`,
+      title: "oferta escalada",
+      iconPath: `${ICON_BASE}/oferta-escalada.png`,
       href: "/dashboard/oferta-escalada",
       size: 30,
     },

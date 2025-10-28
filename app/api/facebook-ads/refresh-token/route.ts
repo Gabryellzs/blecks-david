@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { PlatformConfigManager } from "@/lib/platform-config-manager"
+import { savePlatformToken } from "@/lib/savePlatformToken" // ✅ vamos usar a função que salva no Supabase
 
 export async function POST(request: Request) {
   const supabase = createClient()
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
 
   try {
     // Obter informações da configuração atual
-    const configInfo = await PlatformConfigManager.getConfigInfo(user.id, 'facebook')
+    const configInfo = await PlatformConfigManager.getConfigInfo(user.id, "facebook")
 
     if (!configInfo) {
       return NextResponse.json(
@@ -24,17 +25,17 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verificar se o token está próximo de expirar (7 dias antes)
+    // Verificar se o token ainda é válido
     if (configInfo.daysUntilExpiry && configInfo.daysUntilExpiry > 7) {
       return NextResponse.json({
         message: "Token ainda válido",
-        expiresAt: configInfo.expiresAt
+        expiresAt: configInfo.expiresAt,
       })
     }
 
-    // Obter token atual para renovação
-    const currentToken = await PlatformConfigManager.getValidToken(user.id, 'facebook')
-    
+    // Obter token atual
+    const currentToken = await PlatformConfigManager.getValidToken(user.id, "facebook")
+
     if (!currentToken) {
       return NextResponse.json(
         { error: "Token do Facebook não encontrado" },
@@ -42,8 +43,12 @@ export async function POST(request: Request) {
       )
     }
 
-    // Renovar o token usando o PlatformConfigManager
-    const newToken = await PlatformConfigManager.refreshToken(user.id, 'facebook', currentToken)
+    // Renovar o token via PlatformConfigManager
+    const newToken = await PlatformConfigManager.refreshToken(
+      user.id,
+      "facebook",
+      currentToken
+    )
 
     if (!newToken) {
       return NextResponse.json(
@@ -52,13 +57,31 @@ export async function POST(request: Request) {
       )
     }
 
-    // Obter informações atualizadas
-    const updatedConfigInfo = await PlatformConfigManager.getConfigInfo(user.id, 'facebook')
+    // Salvar o token na tabela platform_tokens ✅
+    try {
+      await savePlatformToken({
+        userId: user.id,
+        platform: "meta",
+        accountId: configInfo.accountId || "act_default",
+        accessToken: newToken.access_token,
+        refreshToken: newToken.refresh_token,
+        expiresAt: newToken.expires_at,
+      })
+      console.log("✅ Token do Facebook salvo na tabela platform_tokens")
+    } catch (err) {
+      console.error("⚠️ Erro ao salvar token na platform_tokens:", err)
+    }
 
-    console.log("Token do Facebook renovado com sucesso para usuário:", user.id)
+    // Buscar novamente a config atualizada
+    const updatedConfigInfo = await PlatformConfigManager.getConfigInfo(
+      user.id,
+      "facebook"
+    )
+
+    console.log("🔁 Token do Facebook renovado para usuário:", user.id)
     return NextResponse.json({
       message: "Token renovado com sucesso",
-      expiresAt: updatedConfigInfo?.expiresAt
+      expiresAt: updatedConfigInfo?.expiresAt,
     })
   } catch (error: any) {
     console.error("Erro inesperado ao renovar token:", error)
@@ -67,4 +90,4 @@ export async function POST(request: Request) {
       { status: 500 }
     )
   }
-} 
+}

@@ -253,41 +253,33 @@ export default function AdsDashboardView() {
   const fetchAdAccounts = async () => {
   setLoadingAccounts(true)
   try {
-    const response = await getFacebookAdAccounts()
-    console.log("[ADS] Resposta bruta do getFacebookAdAccounts:", response)
-
-    // 🔍 Caso retorne objeto, extrai o array corretamente
-    const accountsArray = Array.isArray(response)
-      ? response
-      : response.data || response.accounts || [] // tenta detectar o campo certo
-
-    // 🔧 normaliza ids (garante string + prefixo act_)
-    const normalized = accountsArray.map(a => ({
-      ...a,
-      id: String(a.id).startsWith("act_") ? String(a.id) : `act_${String(a.id)}`
-    }))
-
-    setAdAccounts(normalized)
-
-    if (normalized.length > 0 && !selectedAccountId) {
-      setSelectedAccountId(normalized[0].id)
+    const res = await fetch("/api/facebook-ads/accounts")
+    if (!res.ok) {
+      const data = await res.json()
+      throw new Error(data.error || "Erro ao buscar contas do Facebook.")
     }
+
+    const accounts = await res.json() // ✅ já é array
+    console.log("[ADS] Contas carregadas:", accounts)
+
+    setAdAccounts(accounts)
 
     toast({
       title: "Contas de Anúncios Carregadas",
-      description: `Foram encontradas ${normalized.length} contas de anúncios.`,
+      description: `Foram encontradas ${accounts.length} contas.`,
     })
-  } catch (error) {
-    console.error("Erro ao buscar contas de anúncios:", error)
+  } catch (error: any) {
+    console.error("[ADS] Erro ao buscar contas:", error)
     toast({
-      title: "Erro",
-      description: "Não foi possível carregar as contas de anúncios.",
+      title: "Erro ao carregar contas",
+      description: error.message || "Falha ao buscar contas de anúncios do Facebook.",
       variant: "destructive",
     })
   } finally {
     setLoadingAccounts(false)
   }
 }
+
 
 
   const fetchCampaigns = async (accountId: string) => {

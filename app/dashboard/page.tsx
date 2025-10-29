@@ -148,102 +148,104 @@ export default function DashboardPage() {
     <NotificationProvider>
       <UpdatesInitializer />
       <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          {/* HEADER */}
-          <div className="flex h-16 items-center justify-between px-4">
-            <div className="flex items-center" />
-            <div className="flex items-center gap-4">
-              <AchievementProgressHeader achievementData={achievementData} />
-              <ThemeToggleButton />
-              <NotificationSalesPopover />
+        <div className="flex h-screen w-screen overflow-hidden"> {/* ✅ overflow-hidden aplicado aqui */}
+          <AppSidebar />
+          <SidebarInset className="overflow-hidden"> {/* ✅ e aqui também */}
+            {/* HEADER */}
+            <div className="flex h-16 items-center justify-between px-4">
+              <div className="flex items-center" />
+              <div className="flex items-center gap-4">
+                <AchievementProgressHeader achievementData={achievementData} />
+                <ThemeToggleButton />
+                <NotificationSalesPopover />
 
-              {/* Avatar + Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger className="rounded-full p-0 outline-none focus:ring-0">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
-                    <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                </DropdownMenuTrigger>
+                {/* Avatar + Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="rounded-full p-0 outline-none focus:ring-0">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
+                      <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                  </DropdownMenuTrigger>
 
-                <DropdownMenuContent
-                  align="end"
-                  sideOffset={8}
-                  className="w-56 rounded-xl border border-border/60 shadow-lg bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-2"
-                >
-                  <DropdownMenuItem
-                    onSelect={(e) => {
-                      e.preventDefault()
-                      router.push("/dashboard/profile")
-                    }}
-                    className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium hover:bg-muted/60 focus:bg-muted/60 cursor-pointer"
+                  <DropdownMenuContent
+                    align="end"
+                    sideOffset={8}
+                    className="w-56 rounded-xl border border-border/60 shadow-lg bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-2"
                   >
-                    <User className="h-4 w-4 opacity-80 group-hover:opacity-100" />
-                    <span>Perfil</span>
-                  </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault()
+                        router.push("/dashboard/profile")
+                      }}
+                      className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium hover:bg-muted/60 focus:bg-muted/60 cursor-pointer"
+                    >
+                      <User className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                      <span>Perfil</span>
+                    </DropdownMenuItem>
 
-                  <DropdownMenuItem
-                    onSelect={(e) => {
-                      e.preventDefault()
-                      handleLogout()
-                    }}
-                    className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 focus:bg-red-50 dark:focus:bg-red-500/10 cursor-pointer"
-                  >
-                    <LogOut className="h-4 w-4 opacity-80 group-hover:opacity-100" />
-                    <span>Sair</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-
-          {/* BODY */}
-          <div className="flex h-[calc(100%-4rem)] w-full">
-            {/* Painel principal */}
-            <div className="w-full md:w-[89%] overflow-auto p-3">
-              <DashboardView onViewChange={() => {}} />
-            </div>
-
-            {/* Coluna lateral */}
-            <div className="hidden md:flex md:w-[22%] overflow-auto p-4 flex-col items-center pt-4 mt-[62px]">
-              <img
-                src={imageSrc || "/placeholder.svg"}
-                alt="Suas Próximas Premiações"
-                className="max-w-full h-auto object-contain"
-              />
-
-              {/* PROGRESSO DE CONQUISTAS */}
-              <div className="mt-8 w-full px-2 text-center">
-                <h3
-                  className="text-[18px] md:text-sm font-semibold leading-none tracking-tight
-                             max-w-full overflow-hidden text-ellipsis whitespace-nowrap mb-1"
-                >
-                  Progresso de Conquistas
-                </h3>
-
-                <div className="text-[14px] text-muted-foreground font-medium whitespace-nowrap mb-2">
-                  {achievementData.isMaxGoalReached ? (
-                    <span className="text-green-500 font-medium">{achievementData.goalText}</span>
-                  ) : (
-                    <>
-                      {formatCurrency(achievementData.currentProgress)} /{" "}
-                      {formatCurrency(achievementData.segmentEnd)}
-                    </>
-                  )}
-                </div>
-
-                <Progress value={achievementData.percentage} className="w-full h-3" />
-
-                <p className="text-xs text-muted-foreground text-center mt-2">
-                  {achievementData.isMaxGoalReached
-                    ? "Todas as metas atingidas!"
-                    : achievementData.goalText}
-                </p>
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault()
+                        handleLogout()
+                      }}
+                      className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 focus:bg-red-50 dark:focus:bg-red-500/10 cursor-pointer"
+                    >
+                      <LogOut className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+                      <span>Sair</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
-          </div>
-        </SidebarInset>
+
+            {/* BODY */}
+            <div className="flex h-[calc(100%-4rem)] w-full overflow-hidden"> {/* ✅ sem rolagem vertical */}
+              {/* Painel principal */}
+              <div className="w-full md:w-[89%] overflow-hidden p-3"> {/* ✅ bloqueia rolagem aqui */}
+                <DashboardView onViewChange={() => {}} />
+              </div>
+
+              {/* Coluna lateral */}
+              <div className="hidden md:flex md:w-[22%] overflow-hidden p-4 flex-col items-center pt-4 mt-[62px]"> {/* ✅ bloqueia rolagem lateral também */}
+                <img
+                  src={imageSrc || "/placeholder.svg"}
+                  alt="Suas Próximas Premiações"
+                  className="max-w-full h-auto object-contain"
+                />
+
+                {/* PROGRESSO DE CONQUISTAS */}
+                <div className="mt-8 w-full px-2 text-center">
+                  <h3
+                    className="text-[18px] md:text-sm font-semibold leading-none tracking-tight
+                               max-w-full overflow-hidden text-ellipsis whitespace-nowrap mb-1"
+                  >
+                    Progresso de Conquistas
+                  </h3>
+
+                  <div className="text-[14px] text-muted-foreground font-medium whitespace-nowrap mb-2">
+                    {achievementData.isMaxGoalReached ? (
+                      <span className="text-green-500 font-medium">{achievementData.goalText}</span>
+                    ) : (
+                      <>
+                        {formatCurrency(achievementData.currentProgress)} /{" "}
+                        {formatCurrency(achievementData.segmentEnd)}
+                      </>
+                    )}
+                  </div>
+
+                  <Progress value={achievementData.percentage} className="w-full h-3" />
+
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    {achievementData.isMaxGoalReached
+                      ? "Todas as metas atingidas!"
+                      : achievementData.goalText}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </SidebarInset>
+        </div>
       </SidebarProvider>
     </NotificationProvider>
   )

@@ -224,51 +224,59 @@ body.dark .rdp-nav_button:hover,
 
 /* =========================================================
    ANTI-LINHA no layout com sidebar-wrapper
-   (alvo direto: o sticky com border-b do seu print)
    ========================================================= */
-
-/* 1) Remove qualquer .border-b em qualquer sticky top-0 no wrapper do dashboard */
 .group\/sidebar-wrapper .sticky.top-0.border-b,
 .group\/sidebar-wrapper .sticky.border-b,
 .group\/sidebar-wrapper [class*="border-b"][class*="sticky"][class*="top-0"] {
   border-bottom: 0 !important;
 }
-
-/* 2) Remove .border-b genérico dentro do wrapper (fallback) */
 .group\/sidebar-wrapper .border-b,
 .group\/sidebar-wrapper [class*="border-b-"] {
   border-bottom: 0 !important;
   border-bottom-width: 0 !important;
 }
-
-/* 3) Garante que o header e tudo dentro dele não gerem linha/sombra */
 .group\/sidebar-wrapper header,
 .group\/sidebar-wrapper header * {
   border-bottom: 0 !important;
   box-shadow: none !important;
 }
-
-/* 4) Elimina separadores visuais */
 .group\/sidebar-wrapper [role="separator"],
 .group\/sidebar-wrapper hr {
   display: none !important;
 }
+
 /* =========================================
-   LOGO ROTATION ANIMATION (Hero Section)
+   LOGO ROTATION ANIMATION
    ========================================= */
 @layer utilities {
   @keyframes rotateY360 {
-    0% {
-      transform: rotateY(0deg);
-    }
-    100% {
-      transform: rotateY(360deg);
-    }
+    0% { transform: rotateY(0deg); }
+    100% { transform: rotateY(360deg); }
   }
-
   .animate-rotateY {
     animation: rotateY360 12s linear infinite;
     transform-style: preserve-3d;
     will-change: transform;
+  }
+}
+
+/* =========================================
+   🔧 FIX GLOBAL DE LAYOUT (Zoom + Scroll)
+   ========================================= */
+html {
+  scrollbar-gutter: stable both-edges;
+}
+*, *::before, *::after {
+  min-width: 0;
+  box-sizing: border-box;
+}
+body {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+@supports (height: 100dvh) {
+  body {
+    min-height: 100dvh;
   }
 }

@@ -168,12 +168,13 @@ export function AppSidebar({ children }: AppSidebarProps) {
             fixed left-0 top-0 h-full z-40 transition-all duration-300 ease-in-out
             bg-background border-border border-r
             ${isExpanded ? "w-64" : "w-16"}
+            flex flex-col
           `}
         >
-          {/* Header */}
-          <div className="p-4">
-            <div className="relative h-[70px]">
-              <div className="absolute left-[-12px] top-1/2 -translate-y-1/2 w-[65px] h-[70px]">
+          {/* Header (reduzido) */}
+          <div className="px-3 pt-2 pb-1">
+            <div className="relative h-[56px]">
+              <div className="absolute left-[-13px] top-1/2 -translate-y-1/2 w-[70px] h-[67px]">
                 <Image
                   src={theme === "dark" ? "/images/sidebar-logo-dark-theme.png" : "/images/sidebar-logo-light-theme.png"}
                   alt="BLECK's Logo"
@@ -184,8 +185,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
               </div>
               <span
                 className={`
-                  absolute top-1/2 -translate-y-1/2 left-[69px]
-                  text-xl font-bold text-foreground tracking-wide whitespace-nowrap
+                  absolute top-1/2 -translate-y-1/2 left-[58px]
+                  text-lg font-bold text-foreground tracking-wide whitespace-nowrap
                   transition-all duration-300 ease-out
                   ${isExpanded ? "opacity-100 translate-x-0 max-w-[220px]" : "opacity-0 -translate-x-2 max-w-0"}
                   overflow-hidden pointer-events-none
@@ -196,8 +197,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
             </div>
           </div>
 
-          {/* Menu */}
-          <div className="px-3 mt-8">
+          {/* Menu (aproximado do topo) */}
+          <div className="px-3 mt-9">
             <div className="space-y-1">
               {menuItems.map((item) => {
                 const active = pathname === item.href
@@ -211,12 +212,12 @@ export function AppSidebar({ children }: AppSidebarProps) {
                       variant="ghost"
                       onClick={() => handleNavigation(item.href)}
                       className={`
-                        w-full h-11 text-sm flex items-center
+                        w-full h-10 text-sm flex items-center
                         ${isExpanded ? "justify-start pl-3 pr-3" : "justify-center px-0"}
                         ${active ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground text-foreground"}
                       `}
                     >
-                      {/* Ícone: centralização perfeita no highlight */}
+                      {/* Ícone */}
                       {item.iconPath ? (
                         <span
                           className={`
@@ -227,8 +228,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
                           style={{
                             width: size,
                             height: size,
-                            // offsets só quando expandido; fechado usa micro ajuste ótico -1px Y
-                            transform: isExpanded ? `translate(${x}px, ${y}px)` : `translate(0px, -1px)`,
+                            transform: isExpanded ? `translate(${x}px, ${y}px)` : `translate(0px, -2px)`,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -248,12 +248,12 @@ export function AppSidebar({ children }: AppSidebarProps) {
                           style={{
                             width: size,
                             height: size,
-                            transform: isExpanded ? `translate(${x}px, ${y}px)` : `translate(0px, -1px)`,
+                            transform: isExpanded ? `translate(${x}px, ${y}px)` : `translate(0px, -2px)`,
                           }}
                         />
                       ) : null}
 
-                      {/* Label: só renderiza quando expandido para não deslocar o centro no fechado */}
+                      {/* Label */}
                       {isExpanded && (
                         <span className="ml-3 overflow-hidden transition-all duration-200 max-w-[220px]">
                           {item.title}
@@ -284,14 +284,14 @@ export function AppSidebar({ children }: AppSidebarProps) {
           {children}
         </div>
 
-        {/* Toggle */}
+        {/* Toggle (subido) */}
         <Button
           variant="ghost"
           size="sm"
           onClick={toggleSidebar}
           className={`
-            fixed top-24 z-50 transition-all duration-300
-            h-8 w-8 rounded-full p-0
+            fixed top-16 z-50 transition-all duration-300
+            h-7 w-7 rounded-full p-0
             ${isExpanded ? "left-60" : "left-12"}
             bg-background hover:bg-accent border-2 border-border hover:border-accent text-foreground hover:text-accent-foreground
             shadow-lg hover:shadow-xl

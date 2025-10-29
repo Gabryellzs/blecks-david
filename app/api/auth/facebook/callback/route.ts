@@ -1,20 +1,29 @@
+// /app/api/auth/facebook/callback/route.ts
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { PlatformConfigManager } from "@/lib/platform-config-manager"
 
+function resolveRedirectUri(): string {
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "")
+  const envRedirect = process.env.NEXT_PUBLIC_FACEBOOK_REDIRECT_URI || "/api/auth/facebook/callback"
+
+  // se já vier absoluta, usa; se vier caminho relativo, prefixa com SITE_URL
+  if (/^https?:\/\//i.test(envRedirect)) return envRedirect
+  return `${siteUrl}${envRedirect.startsWith("/") ? "" : "/"}${envRedirect}`
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get("code")
-  const state = searchParams.get("state")
-  const error = searchParams.get("error")
+  const fbError = searchParams.get("error") // ex: access_denied
   const error_reason = searchParams.get("error_reason")
   const error_description = searchParams.get("error_description")
 
-  // Verificar se houve erro na autorização do Facebook
-  if (error) {
-    console.error("Erro na autorização do Facebook:", { error, error_reason, error_description })
+  // 1) Erro direto do OAuth
+  if (fbError) {
+    console.error("⚠️ Facebook OAuth error:", { fbError, error_reason, error_description })
     return NextResponse.redirect(
-      new URL(`/dashboard/ads?error=facebook_auth_error&reason=${error_reason || error}`, request.url)
+      new URL(`/dashboard/ads?error=facebook_auth_error&reason=${encodeURIComponent(error_reason || fbError)}`, request.url)
     )
   }
 
@@ -22,101 +31,89 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/dashboard/ads?error=no_code", request.url))
   }
 
-  // Construir redirectUri como URL absoluta
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-  const redirectUri = `${siteUrl.replace(/\/$/, '')}/api/auth/facebook/callback`
   const appId = process.env.FACEBOOK_APP_ID
   const appSecret = process.env.FACEBOOK_APP_SECRET
-
-  console.log("🔧 Site URL:", siteUrl)
-  console.log("🔧 Redirect URI construída:", redirectUri)
+  const redirectUri = resolveRedirectUri()
 
   if (!appId || !appSecret) {
-    console.error("Variáveis de ambiente do Facebook não configuradas.")
+    console.error("❌ FACEBOOK_APP_ID/SECRET ausentes nas envs")
     return NextResponse.redirect(new URL("/dashboard/ads?error=env_not_configured", request.url))
   }
 
   try {
-    // Trocar o código por um token de acesso
-    const tokenResponse = await fetch(
-      `https://graph.facebook.com/v23.0/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`,
-      { method: "GET" },
-    )
-    
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text()
-      console.error("Erro na resposta do Facebook:", errorText)
-      return NextResponse.json({ error: errorText }, { status: 500 })
-      //return NextResponse.redirect(new URL("/dashboard/ads?error=token_exchange_failed", request.url))
-    }
-    
-    const tokenData = await tokenResponse.json()
+    // 2) Trocar code por access_token
+    const tokenUrl =
+      `https://graph.facebook.com/v23.0/oauth/access_token` +
+      `?client_id=${encodeURIComponent(appId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&client_secret=${encodeURIComponent(appSecret)}` +
+      `&code=${encodeURIComponent(code)}`
 
-    if (tokenData.error) {
-      console.error("Erro ao obter token de acesso do Facebook:", tokenData.error)
-      return NextResponse.redirect(new URL(`/dashboard/ads?error=${tokenData.error.message}`, request.url))
+    const tokenRes = await fetch(tokenUrl, { method: "GET", cache: "no-store" })
+    const tokenJson = await tokenRes.json().catch(() => ({}))
+
+    if (!tokenRes.ok || !tokenJson?.access_token) {
+      console.error("❌ Erro ao trocar code por token:", { status: tokenRes.status, body: tokenJson })
+      return NextResponse.redirect(new URL("/dashboard/ads?error=token_exchange_failed", request.url))
     }
 
-    const accessToken = tokenData.access_token
-    const refreshToken = tokenData.refresh_token // Facebook pode retornar refresh token
-    const expiresIn = tokenData.expires_in || 5184000 // 60 dias em segundos (padrão do Facebook)
+    const accessToken: string = tokenJson.access_token
+    const refreshToken: string | null = tokenJson.refresh_token ?? null // FB normalmente não retorna
+    const expiresIn: number = tokenJson.expires_in ?? 60 * 24 * 60 * 60 // fallback ~60 dias
 
-    // Verificar se o token é válido e obter informações do usuário
-    const userResponse = await fetch(
-      `https://graph.facebook.com/v23.0/me?fields=id,name,email&access_token=${accessToken}`,
-      { method: "GET" }
+    // 3) Validar token (opcional) e pegar id do usuário do FB
+    const meRes = await fetch(
+      `https://graph.facebook.com/v23.0/me?fields=id,name,email&access_token=${encodeURIComponent(accessToken)}`,
+      { method: "GET", cache: "no-store" }
     )
-    
-    if (!userResponse.ok) {
-      console.error("Erro ao verificar token do Facebook")
+    const meJson = await meRes.json().catch(() => ({}))
+
+    if (!meRes.ok || meJson?.error || !meJson?.id) {
+      console.error("❌ Erro ao validar token / obter /me:", { status: meRes.status, body: meJson })
       return NextResponse.redirect(new URL("/dashboard/ads?error=invalid_token", request.url))
     }
 
-    
-    const userData = await userResponse.json()
+    const facebookUserId: string = meJson.id
 
-    if (userData.error) {
-      console.error("Erro ao obter dados do usuário do Facebook:", userData.error)
-      return NextResponse.redirect(new URL(`/dashboard/ads?error=${userData.error.message}`, request.url))
-    }
-
-    const facebookUserId = userData.id
-
-    // Obter usuário autenticado via cookies
+    // 4) Pegar usuário logado (Supabase)
     const supabase = createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
     if (authError || !user) {
       console.error("❌ Usuário não autenticado:", authError)
       return NextResponse.redirect(new URL("/login?error=authentication_required", request.url))
     }
 
-    console.log("✅ Usuário autenticado:", user.id)
-
-    // Salvar configuração do Facebook usando o PlatformConfigManager
-    const success = await PlatformConfigManager.saveConfig(user.id, 'facebook', {
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      expires_in: expiresIn,
-      platform_user_id: facebookUserId,
-      // scopes: ['ads_read', 'ads_management', 'business_management'],
-      // metadata: {
-      //   name: userData.name,
-      //   email: userData.email
-      // }
-    })
-
-    if (!success) {
-      console.error("Erro ao salvar configuração do Facebook")
-      return NextResponse.redirect(new URL("/dashboard/ads?error=config_save_failed", request.url))
+    // 5) Persistir token/config no Supabase
+    try {
+      // Se sua lib tiver este método, use-o como "caminho feliz"
+      // (salva em platform_tokens e/ou configurações internas)
+      // @ts-ignore - permita cair no catch se não existir
+      await PlatformConfigManager.saveOrUpdateToken?.(user.id, "facebook", accessToken, {
+        refresh_token: refreshToken,
+        expires_in: expiresIn,
+        platform_user_id: facebookUserId,
+      })
+    } catch {
+      // fallback para quem tem apenas saveConfig
+      await PlatformConfigManager.saveConfig(user.id, "facebook", {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_in: expiresIn,
+        platform_user_id: facebookUserId,
+      })
     }
 
-    console.log("Facebook conectado com sucesso para usuário:", user.id)
-    return NextResponse.redirect(new URL("/dashboard/ads?facebook_connected=true", request.url))
-  } catch (error: any) {
-    console.error("Erro inesperado no callback do Facebook:", error)
+    console.log("✅ Facebook conectado p/ user:", user.id, "FB user:", facebookUserId)
+    // o front já trata ?fb=ok para fechar a view e recarregar contas
+    return NextResponse.redirect(new URL("/dashboard/ads?fb=ok", request.url))
+  } catch (err: any) {
+    console.error("❌ Erro inesperado no callback do Facebook:", err)
     return NextResponse.redirect(
-      new URL(`/dashboard/ads?error=${encodeURIComponent(error.message || "unknown_error")}`, request.url)
+      new URL(`/dashboard/ads?error=${encodeURIComponent(err?.message || "unknown_error")}`, request.url)
     )
   }
 }

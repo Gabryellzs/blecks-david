@@ -26,16 +26,48 @@ export function useFacebookAuth() {
     const errorParam = urlParams.get('error')
 
     if (facebookConnected === 'true') {
-      toast({
-        title: "Facebook Conectado!",
-        description: "Sua conta do Facebook foi conectada com sucesso.",
-        variant: "default",
-      })
-      setIsConnected(true)
-      setError(null)
-      // Limpar parâmetros da URL
-      router.replace('/dashboard/ads')
-    }
+  toast({
+    title: "Facebook Conectado!",
+    description: "Sua conta do Facebook foi conectada com sucesso.",
+    variant: "default",
+  })
+  setIsConnected(true)
+  setError(null)
+
+  // === 🔥 Adicione este trecho abaixo ===
+  try {
+    // 1️⃣ Obter usuário atual
+    const { data: sessionData } = await fetch("/api/auth/user").then(r => r.json())
+    const userId = sessionData?.user?.id
+
+    // 2️⃣ Buscar token salvo (ou seu endpoint que troca o código)
+    const tokenRes = await fetch("/api/facebook-ads/token")
+    const tokenData = await tokenRes.json()
+
+    // 3️⃣ Pegar conta ativa (exemplo simplificado)
+    const accountId = tokenData?.account_id || "act_default"
+
+    // 4️⃣ Salvar no Supabase
+    const { savePlatformToken } = await import("@/lib/savePlatformToken")
+    await savePlatformToken({
+      userId,
+      platform: "meta",
+      accountId,
+      accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token,
+      expiresAt: tokenData.expires_at,
+    })
+
+    console.log("[META] Token salvo com sucesso")
+  } catch (err) {
+    console.error("[META] Erro ao salvar token:", err)
+  }
+  // =====================================
+
+  // Limpar parâmetros da URL
+  router.replace('/dashboard/ads')
+}
+
 
     if (errorParam) {
       const errorMessage = getErrorMessage(errorParam)

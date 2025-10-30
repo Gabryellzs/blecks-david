@@ -4,15 +4,14 @@ import { createClient as createServerClient } from "@/lib/supabase/server"
 
 const FB_OAUTH_VERSION = "v23.0"
 
-// MESMA URL que você colocou no painel do Facebook
-// e que o callback usa pra trocar o code pelo token
+// URL fixa registrada no painel do Facebook
 const REDIRECT_URI =
   "https://www.blacksproductivity.site/api/auth/facebook/callback"
 
-// IMPORTANTE: usar variáveis server-side seguras
+// usar variável server-side segura
 const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID
 
-// escopos que permitem puxar contas de anúncio e campanhas
+// permissões necessárias pra puxar contas de anúncio e campanhas
 const SCOPES = [
   "ads_read",
   "ads_management",
@@ -28,11 +27,11 @@ export async function GET(req: NextRequest) {
   } = await supabase.auth.getUser()
 
   if (error || !user) {
-    // se o cara não está logado na sua app, manda pro login
+    // se não está autenticado na sua plataforma -> manda logar
     return NextResponse.redirect(new URL("/login", req.url))
   }
 
-  // 2. validar envs mínimas
+  // 2. conferir envs
   if (!FACEBOOK_APP_ID) {
     console.error("❌ FACEBOOK_APP_ID ausente nas env vars")
     return NextResponse.json(
@@ -44,12 +43,10 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  // 3. gerar state (anti-CSRF / identificação de quem pediu)
-  // pra produção idealmente salva isso em algum lugar (session/server)
+  // 3. gerar state (ideal: salvar em sessão, mas por enquanto ok)
   const state = Math.random().toString(36).slice(2)
 
-  // 4. montar URL oficial do OAuth no Facebook
-  // IMPORTANTE: redirect_uri TEM QUE bater 1:1 com o cadastrado no painel
+  // 4. montar URL oficial de autorização
   const authUrl =
     `https://www.facebook.com/${FB_OAUTH_VERSION}/dialog/oauth` +
     `?client_id=${encodeURIComponent(FACEBOOK_APP_ID)}` +
@@ -58,6 +55,6 @@ export async function GET(req: NextRequest) {
     `&scope=${encodeURIComponent(SCOPES)}` +
     `&state=${encodeURIComponent(state)}`
 
-  // 5. redirecionar o usuário pro Facebook pra autorizar
+  // 5. redirecionar pro Facebook
   return NextResponse.redirect(authUrl, { status: 307 })
 }

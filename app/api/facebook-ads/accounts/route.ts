@@ -4,22 +4,13 @@ import { createClient as createServerClient } from "@/lib/supabase/server"
 import { createClient as createSupabaseAdminClient } from "@supabase/supabase-js"
 import { PlatformConfigManager } from "@/lib/platform-config-manager"
 
-// =============================
-// Supabase Admin (SERVICE ROLE)
-// =============================
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-// IMPORTANTE: o service role NUNCA pode vazar pro client-side.
-// Aqui a rota é server-side, então tudo bem.
 const admin = createSupabaseAdminClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 // cooldown em memória por usuário (reset a cada boot)
-const cooldownUntilByUser = new Map<string, number>() // key = userId, value = epoch ms
+const cooldownUntilByUser = new Map<string, number>()
 
-// =============================
-// Tipos auxiliares
-// =============================
 type FBAdAccountRaw = {
   id?: string
   account_id?: string
@@ -47,33 +38,32 @@ function normalizeAccount(a: FBAdAccountRaw) {
   }
 }
 
-// =============================
-// Busca o token do Meta
-// 1) tabela platform_tokens
-// 2) fallback PlatformConfigManager
-// =============================
+// tenta pegar o token no banco
 async function getMetaAccessToken(userId: string): Promise<string | null> {
-  // 1. tentar na platform_tokens
-  const { data: row, error } = await admin
+  // aceitar tanto "meta" quanto "facebook" por compat
+  const { data, error } = await admin
     .from("platform_tokens")
-    .select("access_token")
+    .select("platform, access_token, updated_at")
     .eq("user_id", userId)
-    .eq("platform", "meta")
+    .in("platform", ["meta", "facebook"])
     .order("updated_at", { ascending: false })
     .limit(1)
-    .maybeSingle()
 
   if (error) {
     console.error("[ACCOUNTS] Supabase platform_tokens error:", error)
+    return null
   }
 
-  if (row?.access_token) {
-    return String(row.access_token)
+  if (data && data.length > 0 && data[0]?.access_token) {
+    return String(data[0].access_token)
   }
 
-  // 2. fallback
+  // fallback compatível com PlatformConfigManager legado
   try {
-    const tokenObj = await PlatformConfigManager.getValidToken(userId, "facebook")
+    const tokenObj = await PlatformConfigManager.getValidToken(
+      userId,
+      "facebook"
+    )
     if (tokenObj?.access_token) {
       return String(tokenObj.access_token)
     }
@@ -84,11 +74,8 @@ async function getMetaAccessToken(userId: string): Promise<string | null> {
   return null
 }
 
-// =============================
-// Handler GET
-// =============================
 export async function GET() {
-  // --- Autenticação do usuário logado via Supabase ---
+  // -- autenticar usuário
   const supabase = createServerClient()
   const {
     data: { user },
@@ -105,7 +92,7 @@ export async function GET() {
     )
   }
 
-  // --- Rate limit simples em memória (cooldown local) ---
+  // -- rate limit local
   const now = Date.now()
   const until = cooldownUntilByUser.get(user.id) ?? 0
   if (now < until) {
@@ -121,22 +108,32 @@ export async function GET() {
   }
 
   try {
-    // --- Recuperar access_token do Meta ---
+    // -- token salvo no banco
     const accessToken = await getMetaAccessToken(user.id)
 
     if (!accessToken) {
+      // DEBUG: vamos olhar o que tem pra esse user na tabela
+      const debugRows = await admin
+        .from("platform_tokens")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(5)
+
       return NextResponse.json(
         {
           error: "SEM_TOKEN_FACEBOOK",
           message:
             "Token de acesso do Facebook não encontrado. Conecte ou renove sua conta de anúncios.",
+          debug_user_id: user.id,
+          debug_rows: debugRows.data ?? null,
+          debug_error: debugRows.error ?? null,
         },
         { status: 400 }
       )
     }
 
-    // --- Montar URL do Graph ---
-    // você estava usando v23.0, mantive
+    // -- montar URL pro Graph
     const fields = [
       "id",
       "name",
@@ -150,26 +147,22 @@ export async function GET() {
       fields
     )}&limit=200`
 
-    // --- Chamar Graph ---
     const graphRes = await fetch(url, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
-      // garantir que Next não faça cache dessa chamada
       cache: "no-store",
     })
 
     const graphJson = await graphRes.json()
 
-    // --- Se o Graph retornou erro ---
     if (!graphRes.ok || graphJson?.error) {
       const err =
         (graphJson?.error as { code?: number; message?: string }) || undefined
 
       console.error("[ACCOUNTS] Graph error:", err || graphJson)
 
-      // Token inválido/expirado
       if (err?.code === 190 || err?.code === 104) {
         return NextResponse.json(
           {
@@ -182,7 +175,6 @@ export async function GET() {
         )
       }
 
-      // Rate limit específico do Meta (ex.: code 80004)
       if (err?.code === 80004) {
         const cooldownSeconds = 90
         cooldownUntilByUser.set(user.id, Date.now() + cooldownSeconds * 1000)
@@ -200,7 +192,6 @@ export async function GET() {
         )
       }
 
-      // Qualquer outro erro do Graph
       return NextResponse.json(
         {
           error: "FACEBOOK_GRAPH_ERROR",
@@ -210,23 +201,20 @@ export async function GET() {
           details: err || graphJson,
         },
         {
-          status: graphRes.status && graphRes.status !== 200
-            ? graphRes.status
-            : 400,
+          status:
+            graphRes.status && graphRes.status !== 200
+              ? graphRes.status
+              : 400,
         }
       )
     }
 
-    // --- Normalizar retorno ---
     const data: FBAdAccountRaw[] = Array.isArray(graphJson?.data)
       ? graphJson.data
       : []
 
     const normalized = data.map(normalizeAccount)
 
-    // IMPORTANTE:
-    // Seu front espera um ARRAY PURO, não objeto {accounts: [...]}
-    // então retorno direto o array
     return NextResponse.json(normalized, {
       status: 200,
       headers: {

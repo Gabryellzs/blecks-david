@@ -184,41 +184,6 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
   )
 
   // ----------------------------
-  // Meta – garantir token salvo
-  // ----------------------------
-  const ensureMetaToken = useCallback(async (): Promise<void> => {
-    const probe = await fetch("/api/facebook-ads/accounts", { cache: "no-store" })
-
-    if (probe.ok) return
-
-    let msg = ""
-    try {
-      const j = await probe.json()
-      msg = String(j?.error || "")
-    } catch {}
-
-    if (probe.status === 400 && /token.*não encontrado/i.test(msg)) {
-      const renew = await fetch("/api/facebook-ads/refresh-token", { method: "POST" })
-      if (!renew.ok) {
-        const r = await renew.json().catch(() => ({} as any))
-        throw new Error(r?.error || "Falha ao renovar token do Facebook")
-      }
-      return
-    }
-
-    if (probe.status === 401) {
-      const renew = await fetch("/api/facebook-ads/refresh-token", { method: "POST" })
-      if (!renew.ok) {
-        const r = await renew.json().catch(() => ({} as any))
-        throw new Error(r?.error || "Não foi possível renovar token expirado")
-      }
-      return
-    }
-
-    throw new Error(msg || "Erro ao verificar token do Facebook")
-  }, [])
-
-  // ----------------------------
   // Meta – botão conectar
   // ----------------------------
   const [isFacebookConnecting, setIsFacebookConnecting] = useState(false)
@@ -259,10 +224,9 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
 
     const loadMetaProfiles = async () => {
       try {
-        await ensureMetaToken()
+        const res = await fetch("/api/facebook-ads/accounts", { credentials: "include" })
 
-        const res = await fetch("/api/facebook-ads/accounts", { credentials: "include", cache: "no-store" })
-
+        // respeita rate limit (429)
         if (res.status === 429) {
           let cooldownSeconds = 60
           try {
@@ -298,6 +262,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
           : []
 
         const profiles = raw.map((acc: any) => ({
+          // Graph geralmente: { id: "act_123", account_id: "123", name: "..." }
           id: acc.id ?? (acc.account_id ? `act_${acc.account_id}` : String(acc.accountId ?? acc.account_id)),
           name: acc.name ?? acc.account_name ?? "Sem nome",
           pictureUrl: acc.pictureUrl ?? acc.picture_url ?? null,
@@ -318,7 +283,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
     }
 
     loadMetaProfiles()
-  }, [selectedPlatform, toast, selectedMetaProfileId, searchParams, isFacebookConnecting, ensureMetaToken])
+  }, [selectedPlatform, toast, selectedMetaProfileId, searchParams, isFacebookConnecting])
 
   // reset guard ao trocar de aba
   useEffect(() => {
@@ -337,15 +302,11 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
       setLoadingFacebookAdAccounts(true)
       setFacebookAdAccountsError(null)
       try {
-        await ensureMetaToken()
-
         const accountsResp = await getFacebookAdAccounts()
 
         // NORMALIZAÇÃO: garantir array
         const accounts: FacebookAdAccount[] = Array.isArray(accountsResp)
           ? accountsResp
-          : Array.isArray((accountsResp as any)?.accounts)
-          ? (accountsResp as any).accounts
           : Array.isArray((accountsResp as any)?.data)
           ? (accountsResp as any).data
           : []
@@ -353,9 +314,8 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
         setFacebookAdAccounts(accounts)
 
         const initial: Record<string, boolean> = {}
-        accounts.forEach((a: any) => {
-          const id = String(a?.id ?? (a?.account_id ? `act_${a.account_id}` : a?.accountId))
-          initial[id] = adAccountStatuses[id] ?? a.account_status === 1
+        accounts.forEach((a) => {
+          initial[a.id] = adAccountStatuses[a.id] ?? a.account_status === 1
         })
         setAdAccountStatuses(initial)
       } catch (error: any) {
@@ -377,7 +337,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
         setLoadingFacebookAdAccounts(false)
       }
     },
-    [adAccountStatuses, toast, ensureMetaToken],
+    [adAccountStatuses, toast],
   )
 
   useEffect(() => {
@@ -391,18 +351,20 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
   }, [selectedPlatform, connectedAccounts.meta, fetchFacebookAdAccounts])
 
   // ----------------------------
-  // Handlers de toggles (ad accounts) + Selecionar
+  // Handlers de toggles (ad accounts)
   // ----------------------------
   const handleToggleAdAccount = useCallback(
     async (adAccountId: string, currentStatus: boolean) => {
       const newStatus = !currentStatus
       setAdAccountStatuses((prev) => ({ ...prev, [adAccountId]: newStatus }))
       try {
+        // aqui você chamaria a API real para ativar/pausar a conta
         toast({
           title: "Status atualizado",
           description: `Conta ${adAccountId} ${newStatus ? "ativada" : "pausada"} (simulado).`,
         })
       } catch (e: any) {
+        // reverte em caso de erro
         setAdAccountStatuses((prev) => ({ ...prev, [adAccountId]: currentStatus }))
         toast({
           title: "Erro ao atualizar",
@@ -436,28 +398,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
         })
       }
     },
-    [toast],
-  )
-
-  const handleSelectAdAccount = useCallback(
-    (rawId: string) => {
-      const id = rawId.startsWith("act_") ? rawId : `act_${rawId}`
-      try {
-        localStorage.setItem("ads:selectedAccountId", id)
-        // notifica o AdsDashboardView
-        window.dispatchEvent(
-          new CustomEvent("blecks:ads:set-account", {
-            detail: { platform: "facebook", adAccountId: id },
-          }),
-        )
-        toast({
-          title: "Conta selecionada",
-          description: `Usaremos a conta ${id} no dashboard.`,
-        })
-      } catch (e) {
-        console.error(e)
-      }
-    },
+    // adAccountsSafe é definido abaixo; em callbacks, tudo bem não pôr na deps aqui
     [toast],
   )
 
@@ -469,8 +410,6 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
     ? facebookAdAccounts
     : Array.isArray((facebookAdAccounts as any)?.data)
     ? (facebookAdAccounts as any).data
-    : Array.isArray((facebookAdAccounts as any)?.accounts)
-    ? (facebookAdAccounts as any).accounts
     : []
 
   return (
@@ -664,25 +603,17 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
                         <p className="text-sm text-muted-foreground">
                           status: {account.account_status === 1 ? "Ativa" : "Inativa"}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1">ID: {account.id}</p>
                       </div>
-
-                      <div className="flex items-center gap-3">
-                        <Button size="sm" variant="outline" onClick={() => handleSelectAdAccount(account.id)}>
-                          Selecionar
-                        </Button>
-
-                        <Switch
-                          checked={adAccountStatuses[account.id] ?? account.account_status === 1}
-                          onCheckedChange={() =>
-                            handleToggleAdAccount(
-                              account.id,
-                              adAccountStatuses[account.id] ?? account.account_status === 1,
-                            )
-                          }
-                          disabled={loadingFacebookAdAccounts}
-                        />
-                      </div>
+                      <Switch
+                        checked={adAccountStatuses[account.id] ?? account.account_status === 1}
+                        onCheckedChange={() =>
+                          handleToggleAdAccount(
+                            account.id,
+                            adAccountStatuses[account.id] ?? account.account_status === 1,
+                          )
+                        }
+                        disabled={loadingFacebookAdAccounts}
+                      />
                     </div>
                   ))}
                 </div>

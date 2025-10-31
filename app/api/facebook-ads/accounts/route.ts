@@ -1,16 +1,15 @@
 // app/api/facebook-ads/accounts/route.ts
 import { NextResponse } from "next/server"
 import { createClient as createServerClient } from "@/lib/supabase/server"
-import { createClient as createAdminClient } from "@supabase/supabase-js"
+import { createClient as createSupabaseAdminClient } from "@supabase/supabase-js"
 import { PlatformConfigManager } from "@/lib/platform-config-manager"
 
-// ===== Supabase Admin (para ler platform_tokens com segurança) =====
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const admin = createAdminClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+const admin = createSupabaseAdminClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 // cooldown em memória por usuário (reset a cada boot)
-const cooldownUntilByUser = new Map<string, number>() // key = userId, value = epoch ms
+const cooldownUntilByUser = new Map<string, number>()
 
 type FBAdAccountRaw = {
   id?: string
@@ -39,29 +38,35 @@ function normalizeAccount(a: FBAdAccountRaw) {
   }
 }
 
-// Busca o token do Meta: 1) platform_tokens 2) fallback no PlatformConfigManager
+// tenta pegar o token no banco
 async function getMetaAccessToken(userId: string): Promise<string | null> {
-  // 1) platform_tokens (preferido)
-  const { data: row, error } = await admin
+  // aceitar tanto "meta" quanto "facebook" por compat
+  const { data, error } = await admin
     .from("platform_tokens")
-    .select("access_token")
+    .select("platform, access_token, updated_at")
     .eq("user_id", userId)
-    .eq("platform", "meta")
+    .in("platform", ["meta", "facebook"])
     .order("updated_at", { ascending: false })
     .limit(1)
-    .maybeSingle()
 
   if (error) {
     console.error("[ACCOUNTS] Supabase platform_tokens error:", error)
-  }
-  if (row?.access_token) {
-    return String(row.access_token)
+    return null
   }
 
-  // 2) fallback para compatibilidade
+  if (data && data.length > 0 && data[0]?.access_token) {
+    return String(data[0].access_token)
+  }
+
+  // fallback compatível com PlatformConfigManager legado
   try {
-    const tokenObj = await PlatformConfigManager.getValidToken(userId, "facebook")
-    if (tokenObj?.access_token) return String(tokenObj.access_token)
+    const tokenObj = await PlatformConfigManager.getValidToken(
+      userId,
+      "facebook"
+    )
+    if (tokenObj?.access_token) {
+      return String(tokenObj.access_token)
+    }
   } catch (e) {
     console.warn("[ACCOUNTS] Fallback PlatformConfigManager falhou:", e)
   }
@@ -70,7 +75,7 @@ async function getMetaAccessToken(userId: string): Promise<string | null> {
 }
 
 export async function GET() {
-  // === Autenticação do usuário ===
+  // -- autenticar usuário
   const supabase = createServerClient()
   const {
     data: { user },
@@ -78,93 +83,155 @@ export async function GET() {
   } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
+    return NextResponse.json(
+      {
+        error: "SEM_SESSAO",
+        message: "Usuário não autenticado.",
+      },
+      { status: 401 }
+    )
   }
 
-  // === Rate limit local (cooldown) ===
+  // -- rate limit local
   const now = Date.now()
   const until = cooldownUntilByUser.get(user.id) ?? 0
   if (now < until) {
     const cooldownSeconds = Math.ceil((until - now) / 1000)
     return NextResponse.json(
-      { error: "Rate limit em andamento. Aguarde.", cooldownSeconds },
+      {
+        error: "RATE_LIMIT",
+        message: "Muitas consultas em sequência. Aguarde alguns segundos.",
+        cooldownSeconds,
+      },
       { status: 429 }
     )
   }
 
   try {
-    // === Token do Meta ===
+    // -- token salvo no banco
     const accessToken = await getMetaAccessToken(user.id)
+
     if (!accessToken) {
+      // DEBUG: vamos olhar o que tem pra esse user na tabela
+      const debugRows = await admin
+        .from("platform_tokens")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(5)
+
       return NextResponse.json(
-        { error: "Token de acesso do Facebook não encontrado. Conecte/renove sua conta." },
+        {
+          error: "SEM_TOKEN_FACEBOOK",
+          message:
+            "Token de acesso do Facebook não encontrado. Conecte ou renove sua conta de anúncios.",
+          debug_user_id: user.id,
+          debug_rows: debugRows.data ?? null,
+          debug_error: debugRows.error ?? null,
+        },
         { status: 400 }
       )
     }
 
-    // === Chamada ao Graph ===
-    // Use a versão que você já estava usando; v23 continua ok
-    const fields = ["id", "name", "account_status", "currency", "timezone_id", "amount_spent"].join(",")
-    const url = `https://graph.facebook.com/v23.0/me/adaccounts?fields=${encodeURIComponent(fields)}&limit=200`
+    // -- montar URL pro Graph
+    const fields = [
+      "id",
+      "name",
+      "account_status",
+      "currency",
+      "timezone_id",
+      "amount_spent",
+    ].join(",")
+
+    const url = `https://graph.facebook.com/v23.0/me/adaccounts?fields=${encodeURIComponent(
+      fields
+    )}&limit=200`
 
     const graphRes = await fetch(url, {
       method: "GET",
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
       cache: "no-store",
     })
 
     const graphJson = await graphRes.json()
 
-    // === Tratamento de erro do Graph ===
     if (!graphRes.ok || graphJson?.error) {
-      const err = graphJson?.error as { code?: number; message?: string } | undefined
+      const err =
+        (graphJson?.error as { code?: number; message?: string }) || undefined
+
       console.error("[ACCOUNTS] Graph error:", err || graphJson)
 
-      // Token inválido/expirado
       if (err?.code === 190 || err?.code === 104) {
         return NextResponse.json(
-          { error: "Token do Facebook expirado. Por favor, reconecte sua conta." },
+          {
+            error: "TOKEN_EXPIRADO",
+            message:
+              "Token do Facebook expirado ou inválido. Por favor, reconecte sua conta.",
+            details: err,
+          },
           { status: 401 }
         )
       }
 
-      // Rate limit — ative um cooldown para este usuário
       if (err?.code === 80004) {
-        const cooldownSeconds = 90 // ajuste se quiser
+        const cooldownSeconds = 90
         cooldownUntilByUser.set(user.id, Date.now() + cooldownSeconds * 1000)
+
         return NextResponse.json(
           {
-            error:
+            error: "FACEBOOK_RATE_LIMIT",
+            message:
               err?.message ||
-              "Muitas chamadas ao ad-account. Aguarde alguns segundos e tente novamente.",
+              "Muitas chamadas para /adaccounts. Aguarde alguns segundos e tente novamente.",
             cooldownSeconds,
+            details: err,
           },
           { status: 429 }
         )
       }
 
-      // Outros erros
       return NextResponse.json(
-        { error: err?.message || "Falha ao buscar contas de anúncio do Facebook." },
-        { status: graphRes.status || 400 }
+        {
+          error: "FACEBOOK_GRAPH_ERROR",
+          message:
+            err?.message ||
+            "Falha ao buscar contas de anúncio do Facebook.",
+          details: err || graphJson,
+        },
+        {
+          status:
+            graphRes.status && graphRes.status !== 200
+              ? graphRes.status
+              : 400,
+        }
       )
     }
 
-    // === Normalização e retorno (sempre array) ===
-    const data: FBAdAccountRaw[] = Array.isArray(graphJson?.data) ? graphJson.data : []
+    const data: FBAdAccountRaw[] = Array.isArray(graphJson?.data)
+      ? graphJson.data
+      : []
+
     const normalized = data.map(normalizeAccount)
 
-    // Importante: retorne **array puro** para combinar com seu getFacebookAdAccounts()
     return NextResponse.json(normalized, {
       status: 200,
       headers: {
         "Cache-Control": "s-maxage=60, stale-while-revalidate=120",
       },
     })
-  } catch (error: any) {
-    console.error("Erro inesperado ao buscar contas de anúncio do Facebook:", error)
+  } catch (err: any) {
+    console.error(
+      "Erro inesperado ao buscar contas de anúncio do Facebook:",
+      err
+    )
+
     return NextResponse.json(
-      { error: error?.message || "Erro interno do servidor" },
+      {
+        error: "ERRO_INTERNO",
+        message: err?.message || "Erro interno do servidor.",
+      },
       { status: 500 }
     )
   }

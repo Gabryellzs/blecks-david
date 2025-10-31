@@ -42,7 +42,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { calculateNewEventTime } from "@/lib/calendar-utils"
 import { useToast } from "@/components/ui/use-toast"
 
-// Tipos
+// ===================== Tipos =====================
 interface CalendarEvent {
   id: string
   title: string
@@ -54,7 +54,7 @@ interface CalendarEvent {
   allDay?: boolean
 }
 
-// Cores
+// ===================== Constantes =====================
 const eventColors = [
   "bg-blue-500",
   "bg-green-500",
@@ -65,19 +65,19 @@ const eventColors = [
   "bg-teal-500",
 ]
 
-// Background
 const backgroundImage = "/mountain-clouds-sunset.jpeg"
 
-// Normaliza datas
-const ensureDateObjects = (events: any[]): CalendarEvent[] =>
-  events.map((event) => ({
+// Garante que start/end sejam Date
+const ensureDateObjects = (events: any[]): CalendarEvent[] => {
+  return events.map((event) => ({
     ...event,
     start: event.start instanceof Date ? event.start : new Date(event.start),
     end: event.end instanceof Date ? event.end : new Date(event.end),
   }))
+}
 
 export default function CalendarView() {
-  // Persistência local
+  // Hook para persistência no localStorage
   const useCalendarEvents = () => {
     const [storedEvents, setStoredEvents] = useLocalStorage<any[]>("calendar-events", [])
     const events = ensureDateObjects(storedEvents)
@@ -87,9 +87,9 @@ export default function CalendarView() {
 
   const [events, setEvents] = useCalendarEvents()
 
-  // Estado
+  // ===== Estados =====
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [view, setView] = useState<"day" | "week" | "month">("month") // abre no Mês
+  const [view, setView] = useState<"day" | "week" | "month">("week")
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [isCreatingEvent, setIsCreatingEvent] = useState(false)
@@ -124,14 +124,21 @@ export default function CalendarView() {
   const { toast } = useToast()
 
   const calendarRef = useRef<HTMLDivElement>(null)
-  const hourHeight = 60
+  const hourHeight = 60 // px
 
-  // DnD
+  // DnD sensores
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
   )
 
-  // Navegação
+  useEffect(() => {
+    // Inicialização
+    // setEvents([]) // opcional para limpar
+  }, [])
+
+  // ======= Navegação =======
   const goToToday = () => setCurrentDate(new Date())
   const goToPrevious = () => {
     if (view === "day") setCurrentDate(subDays(currentDate, 1))
@@ -144,7 +151,7 @@ export default function CalendarView() {
     else setCurrentDate(addMonths(currentDate, 1))
   }
 
-  // CRUD evento
+  // ======= CRUD Evento =======
   const handleCreateEvent = () => {
     const defaultStart = new Date(currentDate)
     defaultStart.setHours(9, 0, 0)
@@ -204,6 +211,7 @@ export default function CalendarView() {
         }
 
         setEvents([...events, event])
+
         toast({ title: "Evento criado", description: "O evento foi criado com sucesso" })
       } else {
         const updatedEvents = events.map((event) =>
@@ -220,6 +228,7 @@ export default function CalendarView() {
               }
             : event,
         )
+
         setEvents(updatedEvents)
         toast({ title: "Evento atualizado", description: "O evento foi atualizado com sucesso" })
       }
@@ -234,34 +243,35 @@ export default function CalendarView() {
 
   const handleDeleteEvent = () => {
     if (selectedEvent) {
-      setEvents(events.filter((e) => e.id !== selectedEvent.id))
+      const updatedEvents = events.filter((event) => event.id !== selectedEvent.id)
+      setEvents(updatedEvents)
       setIsEventDialogOpen(false)
     }
   }
 
   const handleEventClick = (event: CalendarEvent) => {
-    const ev = {
+    const eventWithDateObjects = {
       ...event,
       start: event.start instanceof Date ? event.start : new Date(event.start),
       end: event.end instanceof Date ? event.end : new Date(event.end),
     }
 
-    setSelectedEvent(ev)
+    setSelectedEvent(eventWithDateObjects)
     setNewEvent({
-      title: ev.title,
-      description: ev.description,
-      location: ev.location,
-      color: ev.color,
-      allDay: ev.allDay,
-      start: ev.start,
-      end: ev.end,
+      title: eventWithDateObjects.title,
+      description: eventWithDateObjects.description,
+      location: eventWithDateObjects.location,
+      color: eventWithDateObjects.color,
+      allDay: eventWithDateObjects.allDay,
+      start: eventWithDateObjects.start,
+      end: eventWithDateObjects.end,
     })
 
     setTempTimeRange({
-      startHour: ev.start.getHours().toString().padStart(2, "0"),
-      startMinute: ev.start.getMinutes().toString().padStart(2, "0"),
-      endHour: ev.end.getHours().toString().padStart(2, "0"),
-      endMinute: ev.end.getMinutes().toString().padStart(2, "0"),
+      startHour: eventWithDateObjects.start.getHours().toString().padStart(2, "0"),
+      startMinute: eventWithDateObjects.start.getMinutes().toString().padStart(2, "0"),
+      endHour: eventWithDateObjects.end.getHours().toString().padStart(2, "0"),
+      endMinute: eventWithDateObjects.end.getMinutes().toString().padStart(2, "0"),
     })
 
     setIsCreatingEvent(false)
@@ -270,46 +280,76 @@ export default function CalendarView() {
   }
 
   const handleTimeChange = () => {
-    const baseDate = selectedDate || currentDate
-    const startDate = new Date(baseDate)
-    const endDate = new Date(baseDate)
+    try {
+      const baseDate = selectedDate || currentDate
+      const startDate = new Date(baseDate)
+      const endDate = new Date(baseDate)
 
-    startDate.setHours(Number.parseInt(tempTimeRange.startHour) || 0, Number.parseInt(tempTimeRange.startMinute) || 0)
-    endDate.setHours(Number.parseInt(tempTimeRange.endHour) || 0, Number.parseInt(tempTimeRange.endMinute) || 0)
+      startDate.setHours(Number.parseInt(tempTimeRange.startHour) || 0, Number.parseInt(tempTimeRange.startMinute) || 0)
+      endDate.setHours(Number.parseInt(tempTimeRange.endHour) || 0, Number.parseInt(tempTimeRange.endMinute) || 0)
 
-    if (endDate < startDate) {
-      endDate.setDate(startDate.getDate())
-      endDate.setHours(startDate.getHours() + 1)
+      if (endDate < startDate) {
+        endDate.setDate(startDate.getDate())
+        endDate.setHours(startDate.getHours() + 1)
+      }
+
+      setNewEvent({ ...newEvent, start: startDate, end: endDate })
+    } catch (error) {
+      console.error("Erro ao processar horários:", error)
     }
-
-    setNewEvent({ ...newEvent, start: startDate, end: endDate })
   }
 
-  // Categorias
-  const toggleCalendarCategory = (id: string) =>
-    setCalendarCategories(calendarCategories.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c)))
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date)
+    setCurrentDate(date)
 
-  // Busca
+    const defaultStart = new Date(date)
+    defaultStart.setHours(9, 0, 0)
+    const defaultEnd = new Date(date)
+    defaultEnd.setHours(10, 0, 0)
+
+    setNewEvent({
+      title: "",
+      description: "",
+      location: "",
+      color: eventColors[Math.floor(Math.random() * eventColors.length)],
+      allDay: false,
+      start: defaultStart,
+      end: defaultEnd,
+    })
+
+    setTempTimeRange({ startHour: "09", startMinute: "00", endHour: "10", endMinute: "00" })
+    setIsCreatingEvent(true)
+    setIsViewingEvent(false)
+    setIsEventDialogOpen(true)
+  }
+
+  // ======= Categorias =======
+  const toggleCalendarCategory = (id: string) => {
+    setCalendarCategories(calendarCategories.map((cat) => (cat.id === id ? { ...cat, enabled: !cat.enabled } : cat)))
+  }
+
+  // ======= Busca =======
   const filterEventsBySearch = (eventsToFilter: CalendarEvent[]) => {
-    if (!searchQuery.trim()) return eventsToFilter
-    const q = searchQuery.toLowerCase().trim()
+    if (!searchQuery || searchQuery.trim() === "") return eventsToFilter
+    const query = searchQuery.toLowerCase().trim()
     return eventsToFilter.filter(
-      (e) =>
-        e.title.toLowerCase().includes(q) ||
-        (e.description && e.description.toLowerCase().includes(q)) ||
-        (e.location && e.location.toLowerCase().includes(q)),
+      (event) =>
+        event.title.toLowerCase().includes(query) ||
+        (event.description && event.description.toLowerCase().includes(query)) ||
+        (event.location && event.location.toLowerCase().includes(query)),
     )
   }
 
-  // DnD
+  // ======= DnD =======
   const handleDragStart = (event: DragStartEvent) => {
-    const id = event.active.id as string
-    const found = events.find((e) => e.id === id)
-    if (found) {
+    const eventId = event.active.id as string
+    const dragged = events.find((e) => e.id === eventId)
+    if (dragged) {
       setDraggedEvent({
-        ...found,
-        start: found.start instanceof Date ? found.start : new Date(found.start),
-        end: found.end instanceof Date ? found.end : new Date(found.end),
+        ...dragged,
+        start: dragged.start instanceof Date ? dragged.start : new Date(dragged.start),
+        end: dragged.end instanceof Date ? dragged.end : new Date(dragged.end),
       })
     }
   }
@@ -329,13 +369,15 @@ export default function CalendarView() {
       const minute = minuteStr ? Number.parseInt(minuteStr) : undefined
 
       const { start: newStart, end: newEnd } = calculateNewEventTime(draggedEvent, { date, hour, minute })
+
       const updatedEvent = { ...draggedEvent, start: newStart, end: newEnd }
 
-      const other = events.filter((e) => e.id !== draggedEvent.id)
-      const conflicts = other.filter((e) => {
-        const s = e.start instanceof Date ? e.start : new Date(e.start)
-        const en = e.end instanceof Date ? e.end : new Date(e.end)
-        return isSameDay(s, newStart) && s < newEnd && en > newStart
+      // Conflitos
+      const otherEvents = events.filter((e) => e.id !== draggedEvent.id)
+      const conflicts = otherEvents.filter((e) => {
+        const eStart = e.start instanceof Date ? e.start : new Date(e.start)
+        const eEnd = e.end instanceof Date ? e.end : new Date(e.end)
+        return isSameDay(eStart, newStart) && eStart < newEnd && eEnd > newStart
       })
 
       if (conflicts.length > 0) {
@@ -348,39 +390,48 @@ export default function CalendarView() {
         })
       }
 
-      setEvents(events.map((e) => (e.id === draggedEvent.id ? updatedEvent : e)))
+      const updatedEvents = events.map((e) => (e.id === draggedEvent.id ? updatedEvent : e))
+      setEvents(updatedEvents)
     }
 
     setDraggedEvent(null)
   }
 
-  // Views
+  useEffect(() => {
+    // Re-render ao mudar a busca
+  }, [searchQuery])
+
+  useEffect(() => {
+    console.log("Eventos atualizados:", events)
+  }, [events])
+
+  // ======= Views =======
   const renderDayView = () => {
     const hours = Array.from({ length: 24 }, (_, i) => i)
     const dayEvents = filterEventsBySearch(
-      events.filter((e) => {
-        const s = e.start instanceof Date ? e.start : new Date(e.start)
-        return isSameDay(s, currentDate) && calendarCategories.some((c) => c.color === e.color && c.enabled)
+      events.filter((event) => {
+        const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+        return (
+          isSameDay(eventStart, currentDate) &&
+          calendarCategories.some((cat) => cat.color === event.color && cat.enabled)
+        )
       }),
     )
 
     return (
-      <div className="flex flex-col h-full overflow-y-auto border-x"> {/* bordas externas */}
+      <div className="flex flex-col h-full overflow-y-auto">
         <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b flex items-center p-2">
           <div className="text-xl font-semibold">{format(currentDate, "EEEE, d 'de' MMMM", { locale: ptBR })}</div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {hours.map((hour, idx) => {
-            const hourEvents = dayEvents.filter((e) => {
-              const s = e.start instanceof Date ? e.start : new Date(e.start)
-              return s.getHours() === hour
+          {hours.map((hour) => {
+            const hourEvents = dayEvents.filter((event) => {
+              const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+              return eventStart.getHours() === hour
             })
 
             return (
-              <div
-                key={hour}
-                className={cn("flex min-h-[60px] relative border-b", idx === hours.length - 1 && "last:border-b-0")}
-              >
+              <div key={hour} className="flex border-b min-h-[60px] relative">
                 <div className="w-16 py-2 text-right pr-2 text-sm text-muted-foreground border-r">{hour}:00</div>
                 <div
                   className="flex-1 p-1 relative overflow-hidden"
@@ -388,6 +439,7 @@ export default function CalendarView() {
                   onClick={() => {
                     const date = new Date(currentDate)
                     date.setHours(hour, 0, 0)
+
                     setNewEvent({
                       title: "",
                       description: "",
@@ -397,49 +449,50 @@ export default function CalendarView() {
                       start: date,
                       end: new Date(date.getTime() + 60 * 60 * 1000),
                     })
+
                     setTempTimeRange({
                       startHour: hour.toString().padStart(2, "0"),
                       startMinute: "00",
                       endHour: (hour + 1).toString().padStart(2, "0"),
                       endMinute: "00",
                     })
+
                     setIsCreatingEvent(true)
                     setIsViewingEvent(false)
                     setIsEventDialogOpen(true)
                   }}
                 >
-                  {hourEvents.map((e) => {
-                    const s = e.start instanceof Date ? e.start : new Date(e.start)
-                    const en = e.end instanceof Date ? e.end : new Date(e.end)
-                    const startMin = s.getMinutes()
-                    const durMin = Math.min((en.getTime() - s.getTime()) / 60000, 60 - startMin)
-                    const hPct = (durMin / 60) * 100
+                  {hourEvents.map((event) => {
+                    const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+                    const eventEnd = event.end instanceof Date ? event.end : new Date(event.end)
+                    const startMinutesInHour = eventStart.getMinutes()
+                    const durationMinutes = Math.min(
+                      (eventEnd.getTime() - eventStart.getTime()) / (1000 * 60),
+                      60 - startMinutesInHour,
+                    )
+                    const heightPercentage = (durationMinutes / 60) * 100
 
                     return (
                       <div
-                        key={e.id}
-                        id={e.id}
-                        className={cn(
-                          "absolute rounded p-1 text-white text-sm cursor-move hover:brightness-90 transition-all shadow-sm overflow-hidden",
-                          e.color,
-                          draggedEvent?.id === e.id && "opacity-50",
-                        )}
+                        key={event.id}
+                        id={event.id}
+                        className={`absolute rounded p-1 text-white text-sm cursor-move ${event.color} hover:brightness-90 transition-all shadow-sm overflow-hidden ${draggedEvent?.id === event.id ? "opacity-50" : ""}`}
                         style={{
-                          top: `${(s.getMinutes() / 60) * 100}%`,
-                          height: `${hPct}%`,
+                          top: `${(eventStart.getMinutes() / 60) * 100}%`,
+                          height: `${heightPercentage}%`,
                           width: "calc(100% - 8px)",
                           maxHeight: "calc(100% - 4px)",
                           zIndex: 10,
                         }}
-                        onClick={(ev) => {
-                          ev.stopPropagation()
-                          handleEventClick(e)
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEventClick(event)
                         }}
                       >
                         <div className="flex flex-col justify-center h-full">
-                          <div className="font-medium truncate">{e.title}</div>
+                          <div className="font-medium truncate">{event.title}</div>
                           <div className="text-xs opacity-90 truncate">
-                            {format(s, "HH:mm")} - {format(en, "HH:mm")}
+                            {format(eventStart, "HH:mm")} - {format(eventEnd, "HH:mm")}
                           </div>
                         </div>
                       </div>
@@ -462,44 +515,29 @@ export default function CalendarView() {
 
     return (
       <div className="flex flex-col h-full overflow-hidden">
-        {/* header com borda completa */}
-        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-x">
-          <div className="grid grid-cols-8">
+        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b">
+          <div className="grid grid-cols-8 border-b">
             <div className="p-2 border-r"></div>
-            {days.map((day, i) => (
-              <div
-                key={day.toString()}
-                className={cn(
-                  "p-2 text-center border-r last:border-r-0",
-                  isDateToday(day) && "bg-primary/10",
-                )}
-              >
+            {days.map((day) => (
+              <div key={day.toString()} className={cn("p-2 text-center border-r", isDateToday(day) && "bg-primary/10")}>
                 <div className="font-medium">{format(day, "EEE", { locale: ptBR })}</div>
-                <div className={cn("text-2xl", isDateToday(day) && "text-primary font-bold")}>
-                  {format(day, "d")}
-                </div>
+                <div className={cn("text-2xl", isDateToday(day) && "text-primary font-bold")}>{format(day, "d")}</div>
               </div>
             ))}
           </div>
         </div>
-
-        {/* corpo com borda completa */}
-        <div className="flex-1 overflow-y-auto border-x">
-          {hours.map((hour, rowIdx) => (
-            <div
-              key={hour}
-              className={cn("grid grid-cols-8 min-h-[60px] border-b last:border-b-0")}
-            >
+        <div className="flex-1 overflow-y-auto">
+          {hours.map((hour) => (
+            <div key={hour} className="grid grid-cols-8 border-b min-h-[60px]">
               <div className="py-2 text-right pr-2 text-sm text-muted-foreground border-r">{hour}:00</div>
-
-              {days.map((day, colIdx) => {
+              {days.map((day) => {
                 const dayEvents = filterEventsBySearch(
-                  events.filter((e) => {
-                    const s = e.start instanceof Date ? e.start : new Date(e.start)
+                  events.filter((event) => {
+                    const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
                     return (
-                      isSameDay(s, day) &&
-                      s.getHours() === hour &&
-                      calendarCategories.some((c) => c.color === e.color && c.enabled)
+                      isSameDay(eventStart, day) &&
+                      eventStart.getHours() === hour &&
+                      calendarCategories.some((cat) => cat.color === event.color && cat.enabled)
                     )
                   }),
                 )
@@ -507,11 +545,12 @@ export default function CalendarView() {
                 return (
                   <div
                     key={day.toString()}
-                    className={cn("relative p-1 overflow-hidden border-r last:border-r-0")}
+                    className="relative p-1 border-r overflow-hidden"
                     id={`cell-${day.toISOString().split("T")[0]}-${hour}-0`}
                     onClick={() => {
                       const date = new Date(day)
                       date.setHours(hour, 0, 0)
+
                       setNewEvent({
                         title: "",
                         description: "",
@@ -521,47 +560,48 @@ export default function CalendarView() {
                         start: date,
                         end: new Date(date.getTime() + 60 * 60 * 1000),
                       })
+
                       setTempTimeRange({
                         startHour: hour.toString().padStart(2, "0"),
                         startMinute: "00",
                         endHour: (hour + 1).toString().padStart(2, "0"),
                         endMinute: "00",
                       })
+
                       setIsCreatingEvent(true)
                       setIsViewingEvent(false)
                       setIsEventDialogOpen(true)
                     }}
                   >
-                    {dayEvents.map((e) => {
-                      const s = e.start instanceof Date ? e.start : new Date(e.start)
-                      const en = e.end instanceof Date ? e.end : new Date(e.end)
-                      const startMin = s.getMinutes()
-                      const durMin = Math.min((en.getTime() - s.getTime()) / 60000, 60 - startMin)
-                      const hPct = (durMin / 60) * 100
+                    {dayEvents.map((event) => {
+                      const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+                      const eventEnd = event.end instanceof Date ? event.end : new Date(event.end)
+                      const startMinutesInHour = eventStart.getMinutes()
+                      const durationMinutes = Math.min(
+                        (eventEnd.getTime() - eventStart.getTime()) / (1000 * 60),
+                        60 - startMinutesInHour,
+                      )
+                      const heightPercentage = (durationMinutes / 60) * 100
 
                       return (
                         <div
-                          key={e.id}
-                          id={e.id}
-                          className={cn(
-                            "absolute rounded p-1 text-white text-xs cursor-move hover:brightness-90 transition-all shadow-sm overflow-hidden",
-                            e.color,
-                            draggedEvent?.id === e.id && "opacity-50",
-                          )}
+                          key={event.id}
+                          id={event.id}
+                          className={`absolute rounded p-1 text-white text-xs cursor-move ${event.color} hover:brightness-90 transition-all shadow-sm overflow-hidden ${draggedEvent?.id === event.id ? "opacity-50" : ""}`}
                           style={{
-                            top: `${(s.getMinutes() / 60) * 100}%`,
-                            height: `${hPct}%`,
+                            top: `${(eventStart.getMinutes() / 60) * 100}%`,
+                            height: `${heightPercentage}%`,
                             width: "calc(100% - 8px)",
                             maxHeight: "calc(100% - 4px)",
                             zIndex: 10,
                           }}
-                          onClick={(ev) => {
-                            ev.stopPropagation()
-                            handleEventClick(e)
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEventClick(event)
                           }}
                         >
                           <div className="flex flex-col justify-center h-full">
-                            <div className="font-medium truncate">{e.title}</div>
+                            <div className="font-medium truncate">{event.title}</div>
                           </div>
                         </div>
                       )
@@ -583,32 +623,39 @@ export default function CalendarView() {
     const endDate = endOfWeek(lastDayOfMonth, { weekStartsOn: 0 })
     const days = eachDayOfInterval({ start: startDate, end: endDate })
 
-    // agrupar em semanas
     const weeks: Date[][] = []
-    for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7))
+    let currentWeek: Date[] = []
+
+    days.forEach((day) => {
+      currentWeek.push(day)
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek)
+        currentWeek = []
+      }
+    })
 
     return (
       <div className="flex flex-col h-full">
-        {/* header com borda completa */}
-        <div className="grid grid-cols-7 border-b border-x bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-          {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d, i) => (
-            <div key={d} className="p-2 text-center font-medium border-r last:border-r-0">
-              {d}
+        <div className="grid grid-cols-7 border-b bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+          {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
+            <div key={day} className="p-2 text-center font-medium">
+              {day}
             </div>
           ))}
         </div>
-
-        {/* corpo com borda completa */}
-        <div className="flex-1 grid grid-rows-6 border-x border-b">
-          {weeks.map((week, wi) => (
-            <div key={wi} className={cn("grid grid-cols-7 border-b last:border-b-0")}>
-              {week.map((day, di) => {
+        <div className="flex-1 grid grid-rows-6">
+          {weeks.map((week, weekIndex) => (
+            <div key={weekIndex} className="grid grid-cols-7 border-b h-full">
+              {week.map((day) => {
                 const isCurrentMonth = day.getMonth() === currentDate.getMonth()
                 const isToday = isDateToday(day)
                 const dayEvents = filterEventsBySearch(
-                  events.filter((e) => {
-                    const s = e.start instanceof Date ? e.start : new Date(e.start)
-                    return isSameDay(s, day) && calendarCategories.some((c) => c.color === e.color && c.enabled)
+                  events.filter((event) => {
+                    const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+                    return (
+                      isSameDay(eventStart, day) &&
+                      calendarCategories.some((cat) => cat.color === event.color && cat.enabled)
+                    )
                   }),
                 )
 
@@ -616,7 +663,7 @@ export default function CalendarView() {
                   <div
                     key={day.toString()}
                     className={cn(
-                      "border-r last:border-r-0 p-1 min-h-[120px] relative overflow-hidden",
+                      "border-r p-1 min-h-[100px] relative overflow-hidden",
                       !isCurrentMonth && "bg-muted/20 text-muted-foreground",
                       isToday && "bg-primary/10",
                     )}
@@ -626,26 +673,23 @@ export default function CalendarView() {
                     <div className={cn("text-right font-medium mb-1", isToday && "text-primary font-bold")}>
                       {format(day, "d")}
                     </div>
-                    <div className="space-y-1 overflow-y-auto max-h-[92px]">
-                      {dayEvents.slice(0, 3).map((e) => {
-                        const s = e.start instanceof Date ? e.start : new Date(e.start)
+                    <div className="space-y-1 overflow-y-auto max-h-[80px]">
+                      {dayEvents.slice(0, 3).map((event) => {
+                        const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+
                         return (
                           <div
-                            key={e.id}
-                            id={e.id}
-                            className={cn(
-                              "rounded px-1 py-0.5 text-white text-xs cursor-move hover:brightness-90 transition-all shadow-sm",
-                              e.color,
-                              draggedEvent?.id === e.id && "opacity-50",
-                            )}
-                            onClick={(ev) => {
-                              ev.stopPropagation()
-                              handleEventClick(e)
+                            key={event.id}
+                            id={event.id}
+                            className={`rounded px-1 py-0.5 text-white text-xs cursor-move ${event.color} hover:brightness-90 transition-all shadow-sm ${draggedEvent?.id === event.id ? "opacity-50" : ""}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEventClick(event)
                             }}
                           >
                             <div className="flex items-center">
-                              <span className="inline-block mr-1">{format(s, "HH:mm")}</span>
-                              <span className="truncate">{e.title}</span>
+                              <span className="inline-block mr-1">{format(eventStart, "HH:mm")}</span>
+                              <span className="truncate">{event.title}</span>
                             </div>
                           </div>
                         )
@@ -653,8 +697,8 @@ export default function CalendarView() {
                       {dayEvents.length > 3 && (
                         <div
                           className="text-xs text-muted-foreground text-center cursor-pointer hover:bg-muted/30 rounded py-0.5"
-                          onClick={(ev) => {
-                            ev.stopPropagation()
+                          onClick={(e) => {
+                            e.stopPropagation()
                             setSelectedDate(day)
                             setCurrentDate(day)
                             setView("day")
@@ -678,6 +722,7 @@ export default function CalendarView() {
     const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
     const daysInMonth = getDaysInMonth(currentDate)
     const startDay = getDay(firstDayOfMonth)
+
     const days = []
 
     for (let i = 0; i < startDay; i++) days.push(<div key={`empty-${i}`} className="h-6 w-6" />)
@@ -686,20 +731,13 @@ export default function CalendarView() {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i)
       const isToday = isDateToday(date)
       const isSelected = selectedDate && isSameDay(date, selectedDate)
-      const hasEvents = events.some((e) => {
-        const s = e.start instanceof Date ? e.start : new Date(e.start)
-        return isSameDay(s, date) && calendarCategories.some((c) => c.color === e.color && c.enabled)
+      const hasEvents = events.some((event) => {
+        const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+        return isSameDay(eventStart, date) && calendarCategories.some((cat) => cat.color === event.color && cat.enabled)
       })
 
       days.push(
-        <div
-          key={`day-${i}`}
-          className="flex items-center justify-center"
-          onClick={() => {
-            setSelectedDate(date)
-            setCurrentDate(date)
-          }}
-        >
+        <div key={`day-${i}`} className="flex items-center justify-center" onClick={() => { setSelectedDate(date); setCurrentDate(date) }}>
           <div
             className={cn(
               "h-8 w-8 rounded-full flex items-center justify-center text-sm cursor-pointer",
@@ -728,8 +766,8 @@ export default function CalendarView() {
           </div>
         </div>
         <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground mb-1">
-          {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => (
-            <div key={i}>{d}</div>
+          {["D", "S", "T", "Q", "Q", "S", "S"].map((day, i) => (
+            <div key={i}>{day}</div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-1">{days}</div>
@@ -743,7 +781,7 @@ export default function CalendarView() {
       const now = new Date()
       const show =
         (view === "day" && isSameDay(now, currentDate)) ||
-        (view === "week" && true) // sempre mostra na semana
+        (view === "week" && isSameDay(now, now)) // mostra na semana, baseado no dia atual
 
       if (show) {
         const hour = now.getHours()
@@ -767,11 +805,17 @@ export default function CalendarView() {
     backgroundAttachment: "fixed",
   }
 
+  useEffect(() => {
+    // re-render quando searchQuery muda
+  }, [searchQuery])
+
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} modifiers={[restrictToWindowEdges]}>
       <div className="h-full flex flex-col w-full" style={backgroundStyles}>
+        {/* Overlay */}
         <div className="absolute inset-0 bg-black/30 z-0"></div>
 
+        {/* Conteúdo */}
         <div className="flex flex-col h-full w-full relative z-10">
           <div className="flex items-center justify-between p-2 sm:p-4 border-b bg-background/80 backdrop-blur-sm w-full">
             <div className="flex items-center gap-2">
@@ -824,15 +868,17 @@ export default function CalendarView() {
           )}
 
           <div className="flex flex-1 overflow-hidden w-full">
-            {/* Sidebar (um pouco mais estreita) */}
+            {/* Sidebar */}
             {isSidebarOpen && (
-              <div className="w-full sm:w-56 border-r p-3 flex flex-col gap-4 overflow-y-auto bg-background/80 backdrop-blur-sm absolute sm:relative z-20 h-full">
+              <div className="w-full sm:w-64 border-r p-4 flex flex-col gap-4 overflow-y-auto bg-background/80 backdrop-blur-sm absolute sm:relative z-20 h-full">
                 <Button className="flex items-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white" onClick={handleCreateEvent}>
                   <Plus className="h-4 w-4" />
                   <span>Criar</span>
                 </Button>
 
                 {renderMiniCalendar()}
+
+                {/* (REMOVIDO: seção de Notificações + Testar Notificação) */}
 
                 <div className="space-y-2">
                   <h3 className="font-medium text-sm">Meus calendários</h3>
@@ -845,10 +891,7 @@ export default function CalendarView() {
                           onCheckedChange={() => toggleCalendarCategory(category.id)}
                           className={cn("rounded-full border-0", category.color, !category.enabled && "opacity-50")}
                         />
-                        <label
-                          htmlFor={`calendar-${category.id}`}
-                          className={cn("text-sm cursor-pointer", !category.enabled && "text-muted-foreground")}
-                        >
+                        <label htmlFor={`calendar-${category.id}`} className={cn("text-sm cursor-pointer", !category.enabled && "text-muted-foreground")}>
                           {category.name}
                         </label>
                       </div>
@@ -938,10 +981,16 @@ export default function CalendarView() {
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {selectedEvent?.start &&
-                          format(selectedEvent.start instanceof Date ? selectedEvent.start : new Date(selectedEvent.start), "HH:mm")}{" "}
+                          format(
+                            selectedEvent.start instanceof Date ? selectedEvent.start : new Date(selectedEvent.start),
+                            "HH:mm",
+                          )}{" "}
                         -{" "}
                         {selectedEvent?.end &&
-                          format(selectedEvent.end instanceof Date ? selectedEvent.end : new Date(selectedEvent.end), "HH:mm")}
+                          format(
+                            selectedEvent.end instanceof Date ? selectedEvent.end : new Date(selectedEvent.end),
+                            "HH:mm",
+                          )}
                       </div>
                     </div>
                   </div>

@@ -45,13 +45,17 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
     kwai: [],
   })
 
-  const [connectingAccount, setConnectingAccount] = useState<{ platform: Platform; id: number } | null>(null)
+  const [connectingAccount, setConnectingAccount] = useState<{ platform: Platform; id: number } | null>(
+    null,
+  )
 
-  // Ad accounts (Meta)
+  // Meta (ad accounts)
   const [facebookAdAccounts, setFacebookAdAccounts] = useState<FacebookAdAccount[] | any>([])
   const [adAccountStatuses, setAdAccountStatuses] = useState<Record<string, boolean>>({})
   const [loadingFacebookAdAccounts, setLoadingFacebookAdAccounts] = useState(false)
-  const [facebookAdAccountsError, setFacebookAdAccountsError] = useState<string | null>(null)
+  const [facebookAdAccountsError, setFacebookAdAccountsError] = useState<string | null>(
+    null,
+  )
 
   const [selectedMetaProfileId, setSelectedMetaProfileId] = useState<string | null>(null)
 
@@ -75,7 +79,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
   } = useGoogleAnalyticsAuth()
 
   // ----------------------------
-  // LocalStorage – hidratar com normalização
+  // LocalStorage – hidratar
   // ----------------------------
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -111,26 +115,29 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
     if (sStatuses) {
       try {
         const parsedStatuses = JSON.parse(sStatuses)
-        setAdAccountStatuses(typeof parsedStatuses === "object" && parsedStatuses ? parsedStatuses : {})
+        setAdAccountStatuses(
+          typeof parsedStatuses === "object" && parsedStatuses ? parsedStatuses : {},
+        )
       } catch {
         setAdAccountStatuses({})
       }
     }
   }, [])
 
-  // salvar no localStorage
+  // salvar conexão no localStorage
   useEffect(() => {
     if (typeof window === "undefined") return
     localStorage.setItem("connectedAccounts", JSON.stringify(connectedAccounts))
   }, [connectedAccounts])
 
+  // salvar status on/off no localStorage
   useEffect(() => {
     if (typeof window === "undefined") return
     localStorage.setItem("adAccountStatuses", JSON.stringify(adAccountStatuses))
   }, [adAccountStatuses])
 
   // ----------------------------
-  // Helpers (tiktok/kwai + google/analytics)
+  // Helpers conexão genérica
   // ----------------------------
   const handleConnect = useCallback(
     async (platform: Platform, accountId: number) => {
@@ -169,7 +176,9 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
       if (platform === "meta") return connectedAccounts.meta.some((p) => p.id === accountId)
       if (platform === "google") return isGoogleAdSenseConnected
       if (platform === "analytics") return isGoogleAnalyticsConnected
-      return (connectedAccounts[platform as keyof ConnectedAccountsState] as number[])?.includes(accountId as number)
+      return (connectedAccounts[platform as keyof ConnectedAccountsState] as number[])?.includes(
+        accountId as number,
+      )
     },
     [connectedAccounts, isGoogleAdSenseConnected, isGoogleAnalyticsConnected],
   )
@@ -202,7 +211,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
   }, [user?.id, toast])
 
   // ----------------------------
-  // Meta – carregar perfis (accounts) ao abrir a aba
+  // Meta – carregar perfis (cada conta Meta)
   // ----------------------------
   const metaProfilesLoadedRef = useRef(false)
   const metaCooldownUntilRef = useRef<number | null>(null)
@@ -210,7 +219,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
   useEffect(() => {
     if (selectedPlatform !== "meta") return
 
-    // se voltou do OAuth com sucesso, forçar reload
+    // se voltou do OAuth com sucesso
     const fbParam = searchParams?.get("fb")
     if (fbParam === "ok") {
       metaProfilesLoadedRef.current = false
@@ -226,12 +235,15 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
       try {
         const res = await fetch("/api/facebook-ads/accounts", { credentials: "include" })
 
-        // respeita rate limit (429)
+        // rate limit
         if (res.status === 429) {
           let cooldownSeconds = 60
           try {
             const body = await res.json()
-            if (typeof body?.cooldownSeconds === "number" && body.cooldownSeconds > 0) {
+            if (
+              typeof body?.cooldownSeconds === "number" &&
+              body.cooldownSeconds > 0
+            ) {
               cooldownSeconds = body.cooldownSeconds
             }
           } catch {}
@@ -262,14 +274,19 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
           : []
 
         const profiles = raw.map((acc: any) => ({
-          // Graph geralmente: { id: "act_123", account_id: "123", name: "..." }
-          id: acc.id ?? (acc.account_id ? `act_${acc.account_id}` : String(acc.accountId ?? acc.account_id)),
+          id:
+            acc.id ??
+            (acc.account_id
+              ? `act_${acc.account_id}`
+              : String(acc.accountId ?? acc.account_id)),
           name: acc.name ?? acc.account_name ?? "Sem nome",
           pictureUrl: acc.pictureUrl ?? acc.picture_url ?? null,
         }))
 
         setConnectedAccounts((prev) => ({ ...prev, meta: profiles }))
-        if (profiles.length && !selectedMetaProfileId) setSelectedMetaProfileId(profiles[0].id)
+        if (profiles.length && !selectedMetaProfileId)
+          setSelectedMetaProfileId(profiles[0].id)
+
         metaProfilesLoadedRef.current = true
       } catch (err: any) {
         console.error(err)
@@ -293,7 +310,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
   }, [selectedPlatform])
 
   // ----------------------------
-  // Meta – carregar ad accounts quando houver perfis
+  // Meta – carregar status das ad accounts
   // ----------------------------
   const adAccountsLoadedRef = useRef(false)
 
@@ -304,7 +321,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
       try {
         const accountsResp = await getFacebookAdAccounts()
 
-        // NORMALIZAÇÃO: garantir array
+        // garantir array
         const accounts: FacebookAdAccount[] = Array.isArray(accountsResp)
           ? accountsResp
           : Array.isArray((accountsResp as any)?.data)
@@ -325,7 +342,9 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
           setTimeout(() => fetchFacebookAdAccounts(retry + 1), waitMs)
           return
         }
-        setFacebookAdAccountsError(msg || "Falha ao carregar contas de anúncio do Facebook.")
+        setFacebookAdAccountsError(
+          msg || "Falha ao carregar contas de anúncio do Facebook.",
+        )
         toast({
           title: "Erro ao buscar contas de anúncio",
           description: msg.includes("#80004")
@@ -344,27 +363,27 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
     if (selectedPlatform !== "meta") return
     if (connectedAccounts.meta.length === 0) return
     if (adAccountsLoadedRef.current) return
-    if (metaCooldownUntilRef.current && Date.now() < metaCooldownUntilRef.current) return
+    if (metaCooldownUntilRef.current && Date.now() < metaCooldownUntilRef.current)
+      return
 
     fetchFacebookAdAccounts()
     adAccountsLoadedRef.current = true
   }, [selectedPlatform, connectedAccounts.meta, fetchFacebookAdAccounts])
 
   // ----------------------------
-  // Handlers de toggles (ad accounts)
+  // Handlers toggles
   // ----------------------------
   const handleToggleAdAccount = useCallback(
     async (adAccountId: string, currentStatus: boolean) => {
       const newStatus = !currentStatus
       setAdAccountStatuses((prev) => ({ ...prev, [adAccountId]: newStatus }))
       try {
-        // aqui você chamaria a API real para ativar/pausar a conta
         toast({
           title: "Status atualizado",
           description: `Conta ${adAccountId} ${newStatus ? "ativada" : "pausada"} (simulado).`,
         })
       } catch (e: any) {
-        // reverte em caso de erro
+        // rollback
         setAdAccountStatuses((prev) => ({ ...prev, [adAccountId]: currentStatus }))
         toast({
           title: "Erro ao atualizar",
@@ -388,7 +407,9 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
       try {
         toast({
           title: "Status atualizado",
-          description: `Todas as contas foram ${checked ? "ativadas" : "pausadas"} (simulado).`,
+          description: `Todas as contas foram ${
+            checked ? "ativadas" : "pausadas"
+          } (simulado).`,
         })
       } catch (e: any) {
         toast({
@@ -398,42 +419,57 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
         })
       }
     },
-    // adAccountsSafe é definido abaixo; em callbacks, tudo bem não pôr na deps aqui
     [toast],
   )
 
   // ----------------------------
-  // UI
+  // Derivados
   // ----------------------------
-  const metaProfiles = Array.isArray(connectedAccounts.meta) ? connectedAccounts.meta : []
+  const metaProfiles = Array.isArray(connectedAccounts.meta)
+    ? connectedAccounts.meta
+    : []
+
   const adAccountsSafe: FacebookAdAccount[] = Array.isArray(facebookAdAccounts)
     ? facebookAdAccounts
     : Array.isArray((facebookAdAccounts as any)?.data)
     ? (facebookAdAccounts as any).data
     : []
 
+  // ----------------------------
+  // Render
+  // ----------------------------
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8">
+      {/* Header topo */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button variant="ghost" size="icon" onClick={onBack} className="mr-2">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="scroll-m-20 text-2xl font-semibold tracking-tight">Conectar Contas</h1>
+          <h1 className="scroll-m-20 text-2xl font-semibold tracking-tight">
+            Conectar Contas
+          </h1>
         </div>
       </div>
 
       <p className="text-muted-foreground mb-6">
-        Conecte suas contas de plataformas de anúncios para visualizar seus dados em um só lugar.
+        Conecte suas contas de plataformas de anúncios para visualizar seus
+        dados em um só lugar.
       </p>
 
+      {/* Tabs de plataformas */}
       <div className="flex flex-wrap gap-4">
         <Button
           variant={selectedPlatform === "meta" ? "default" : "outline"}
           className="flex items-center gap-2 px-4 py-2"
           onClick={() => setSelectedPlatform("meta")}
         >
-          <Image src="/icons/meta-new.png" alt="Meta Ads Icon" width={20} height={20} />
+          <Image
+            src="/icons/meta-new.png"
+            alt="Meta Ads Icon"
+            width={20}
+            height={20}
+          />
           <span>Meta ADS</span>
         </Button>
 
@@ -442,7 +478,12 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
           className="flex items-center gap-2 px-4 py-2"
           onClick={() => setSelectedPlatform("google")}
         >
-          <Image src="/icons/google-ads-icon.png" alt="Google Ads Icon" width={24} height={24} />
+          <Image
+            src="/icons/google-ads-icon.png"
+            alt="Google Ads Icon"
+            width={24}
+            height={24}
+          />
           <span>Google ADS</span>
         </Button>
 
@@ -451,7 +492,12 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
           className="flex items-center gap-2 px-4 py-2"
           onClick={() => setSelectedPlatform("analytics")}
         >
-          <Image src="/icons/google-analytics-orange.png" alt="Analytics Icon" width={20} height={20} />
+          <Image
+            src="/icons/google-analytics-orange.png"
+            alt="Analytics Icon"
+            width={20}
+            height={20}
+          />
           <span>Analytics</span>
         </Button>
 
@@ -460,7 +506,12 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
           className="flex items-center gap-2 px-4 py-2"
           onClick={() => setSelectedPlatform("tiktok")}
         >
-          <Image src="/icons/tiktok-new.png" alt="TikTok Ads Icon" width={20} height={20} />
+          <Image
+            src="/icons/tiktok-new.png"
+            alt="TikTok Ads Icon"
+            width={20}
+            height={20}
+          />
           <span>TikTok ADS</span>
         </Button>
 
@@ -469,7 +520,12 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
           className="flex items-center gap-2 px-4 py-2"
           onClick={() => setSelectedPlatform("kwai")}
         >
-          <Image src="/icons/kwai-new.png" alt="Kwai Ads Icon" width={24} height={24} />
+          <Image
+            src="/icons/kwai-new.png"
+            alt="Kwai Ads Icon"
+            width={24}
+            height={24}
+          />
           <span>Kwai ADS</span>
         </Button>
       </div>
@@ -477,7 +533,6 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
       {/* META */}
       {selectedPlatform === "meta" && (
         <div className="mt-8 space-y-2">
-          <div className="flex items-center gap-4" />
           <p className="text-muted-foreground">Conecte seus perfis por aqui:</p>
 
           <Button
@@ -497,123 +552,154 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
             )}
           </Button>
 
-          {/* Lista de perfis conectados */}
+          {/* ÚNICA LISTA (perfis + toggles + ativar todas) */}
           {metaProfiles.length > 0 && (
-            <div className="mt-4 space-y-3">
-              {metaProfiles.map((profile) => (
-                <div
-                  key={profile.id}
-                  className="flex items-center justify-between p-3 border rounded-md bg-card text-card-foreground"
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={profile.pictureUrl ?? "/placeholder-user.jpg"} alt={profile.name ?? "Perfil"} />
-                      <AvatarFallback>
-                        {(profile.name ?? "US")
-                          .split(" ")
-                          .map((s: string) => s[0])
-                          .join("")
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-
-                    <div>
-                      <div className="font-medium leading-none">{profile.name ?? "Sem nome"}</div>
-                      <div className="text-xs text-muted-foreground mt-1">ID: {profile.id}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant={selectedMetaProfileId === profile.id ? "default" : "outline"}
-                      onClick={() => setSelectedMetaProfileId(profile.id)}
-                    >
-                      {selectedMetaProfileId === profile.id ? "Selecionado" : "Selecionar"}
-                    </Button>
-
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="hover:bg-destructive/10"
-                      onClick={() => {
-                        setConnectedAccounts((prev) => ({
-                          ...prev,
-                          meta: prev.meta.filter((p) => p.id !== profile.id),
-                        }))
-                        if (selectedMetaProfileId === profile.id) setSelectedMetaProfileId(null)
-                        toast({
-                          title: "Perfil desconectado",
-                          description: `O perfil ${profile.name ?? profile.id} foi desconectado.`,
-                        })
-                      }}
-                      aria-label="Desconectar perfil"
-                      title="Desconectar perfil"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Contas de anúncio (Meta) */}
-          {metaProfiles.length > 0 && (
-            <div className="mt-8 space-y-4">
+            <div className="mt-4 space-y-4">
+              {/* Header + toggle "Ativar todas" */}
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold">Contas de Anúncio (Meta)</h3>
+                <h3 className="text-lg font-semibold">
+                  Contas de Anúncio (Meta)
+                </h3>
+
                 <div className="flex items-center space-x-2">
-                  <Label htmlFor="toggle-all-ad-accounts">Ativar todas:</Label>
+                  <Label htmlFor="toggle-all-ad-accounts" className="text-sm">
+                    Ativar todas:
+                  </Label>
+
                   <Switch
                     id="toggle-all-ad-accounts"
                     checked={
-                      adAccountsSafe.every((account) => adAccountStatuses[account.id]) &&
-                      adAccountsSafe.length > 0
+                      adAccountsSafe.length > 0 &&
+                      adAccountsSafe.every(
+                        (account) => adAccountStatuses[account.id],
+                      )
                     }
                     onCheckedChange={async (checked) => {
                       await handleToggleAllAdAccounts(checked)
                     }}
-                    disabled={loadingFacebookAdAccounts || adAccountsSafe.length === 0}
+                    disabled={
+                      loadingFacebookAdAccounts ||
+                      adAccountsSafe.length === 0
+                    }
                   />
                 </div>
               </div>
 
+              {/* Estados de carregamento/erro */}
               {loadingFacebookAdAccounts ? (
                 <div className="flex items-center justify-center h-40">
-                  <Loader2 className="mr-2 h-6 w-6 animate-spin" /> Carregando contas de anúncio...
+                  <Loader2 className="mr-2 h-6 w-6 animate-spin" /> Carregando
+                  contas de anúncio...
                 </div>
               ) : facebookAdAccountsError ? (
                 <Alert variant="destructive">
-                  <AlertTitle>Erro ao carregar contas de anúncio</AlertTitle>
-                  <AlertDescription>{facebookAdAccountsError}</AlertDescription>
+                  <AlertTitle>
+                    Erro ao carregar contas de anúncio
+                  </AlertTitle>
+                  <AlertDescription>
+                    {facebookAdAccountsError}
+                  </AlertDescription>
                 </Alert>
-              ) : adAccountsSafe.length === 0 ? (
-                <p className="text-muted-foreground">Nenhuma conta de anúncio encontrada para este perfil.</p>
+              ) : metaProfiles.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  Nenhuma conta de anúncio encontrada.
+                </p>
               ) : (
-                <div className="space-y-4">
-                  {adAccountsSafe.map((account) => (
+                <div className="space-y-3">
+                  {metaProfiles.map((profile) => (
                     <div
-                      key={account.id}
-                      className="flex items-center justify-between p-4 border rounded-md bg-card text-card-foreground shadow-sm"
+                      key={profile.id}
+                      className="flex items-center justify-between p-3 border rounded-md bg-card text-card-foreground shadow-sm"
                     >
-                      <div>
-                        <h4 className="font-medium">{account.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          status: {account.account_status === 1 ? "Ativa" : "Inativa"}
-                        </p>
+                      {/* Esquerda: avatar + nome + ID */}
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage
+                            src={
+                              profile.pictureUrl ?? "/placeholder-user.jpg"
+                            }
+                            alt={profile.name ?? "Perfil"}
+                          />
+                          <AvatarFallback>
+                            {(profile.name ?? "US")
+                              .split(" ")
+                              .map((s: string) => s[0])
+                              .join("")
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+
+                        <div>
+                          <div className="font-medium leading-none">
+                            {profile.name ?? "Sem nome"}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            ID: {profile.id}
+                          </div>
+                        </div>
                       </div>
-                      <Switch
-                        checked={adAccountStatuses[account.id] ?? account.account_status === 1}
-                        onCheckedChange={() =>
-                          handleToggleAdAccount(
-                            account.id,
-                            adAccountStatuses[account.id] ?? account.account_status === 1,
-                          )
-                        }
-                        disabled={loadingFacebookAdAccounts}
-                      />
+
+                      {/* Direita: Selecionar / Toggle individual / Lixeira */}
+                      <div className="flex items-center gap-3">
+                        {/* botão Selecionar */}
+                        <Button
+                          size="sm"
+                          variant={
+                            selectedMetaProfileId === profile.id
+                              ? "default"
+                              : "outline"
+                          }
+                          onClick={() => setSelectedMetaProfileId(profile.id)}
+                        >
+                          {selectedMetaProfileId === profile.id
+                            ? "Selecionado"
+                            : "Selecionar"}
+                        </Button>
+
+                        {/* toggle individual */}
+                        <Switch
+                          checked={
+                            adAccountStatuses[profile.id] ?? true
+                          }
+                          onCheckedChange={() => {
+                            const current =
+                              adAccountStatuses[profile.id] ?? true
+                            handleToggleAdAccount(profile.id, current)
+                          }}
+                          disabled={loadingFacebookAdAccounts}
+                        />
+
+                        {/* botão lixeira */}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="hover:bg-destructive/10"
+                          onClick={() => {
+                            setConnectedAccounts((prev) => ({
+                              ...prev,
+                              meta: prev.meta.filter(
+                                (p) => p.id !== profile.id,
+                              ),
+                            }))
+
+                            if (selectedMetaProfileId === profile.id) {
+                              setSelectedMetaProfileId(null)
+                            }
+
+                            toast({
+                              title: "Perfil desconectado",
+                              description: `O perfil ${
+                                profile.name ?? profile.id
+                              } foi desconectado.`,
+                            })
+                          }}
+                          aria-label="Desconectar perfil"
+                          title="Desconectar perfil"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -626,7 +712,6 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
       {/* GOOGLE ADS */}
       {selectedPlatform === "google" && (
         <div className="mt-8 space-y-2">
-          <div className="flex items-center gap-2" />
           <p className="text-muted-foreground">Conecte seus perfis por aqui:</p>
 
           {googleAdSenseError && (
@@ -656,7 +741,6 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
       {/* ANALYTICS */}
       {selectedPlatform === "analytics" && (
         <div className="mt-8 space-y-2">
-          <div className="flex items-center gap-2" />
           <p className="text-muted-foreground">Conecte seus perfis por aqui:</p>
 
           {isGoogleAnalyticsLoading ? (
@@ -675,9 +759,16 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
                     height={32}
                     className="rounded-full"
                   />
-                  <span className="font-medium">Google Analytics Conectado</span>
+                  <span className="font-medium">
+                    Google Analytics Conectado
+                  </span>
                 </div>
-                <Button variant="outline" size="sm" onClick={disconnectGoogleAnalytics} disabled={isGoogleAnalyticsLoading}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={disconnectGoogleAnalytics}
+                  disabled={isGoogleAnalyticsLoading}
+                >
                   Desconectar
                 </Button>
               </div>
@@ -710,7 +801,6 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
       {/* TIKTOK */}
       {selectedPlatform === "tiktok" && (
         <div className="mt-8 space-y-2">
-          <div className="flex items-center gap-2" />
           <p className="text-muted-foreground">Conecte seus perfis por aqui:</p>
           {(() => {
             const connected = isAccountConnected("tiktok", 1)
@@ -741,7 +831,6 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
       {/* KWAI */}
       {selectedPlatform === "kwai" && (
         <div className="mt-8 space-y-2">
-          <div className="flex items-center gap-2" />
           <p className="text-muted-foreground">Conecte seus perfis por aqui:</p>
           {(() => {
             const connected = isAccountConnected("kwai", 1)
@@ -769,6 +858,7 @@ export function ConnectAccountsPage({ onBack }: ConnectAccountsPageProps) {
         </div>
       )}
 
+      {/* placeholder pra manter altura caso nenhuma aba esteja ativa */}
       {selectedPlatform === null && <div className="h-[calc(100vh-250px)]" />}
     </div>
   )

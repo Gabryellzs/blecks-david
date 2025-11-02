@@ -9,10 +9,10 @@ import React, {
   type CSSProperties,
 } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase" // ajuste se o caminho for diferente
+import { supabase } from "@/lib/supabase"
 
 // =============================
-// TIPOS DA TABELA (confirmado)
+// TIPOS DA TABELA
 // =============================
 export type GatewayEventType =
   | "sale"
@@ -30,6 +30,10 @@ export type GatewayStatus =
   | "pending"
   | "refunded"
   | "canceled"
+  | "cancelled"
+  | "failed"
+  | "error"
+  | "timeout"
   | "success"
   | "completed"
   | "complete"
@@ -37,6 +41,12 @@ export type GatewayStatus =
   | "settled"
   | "done"
   | "ok"
+  | "paid_out"
+  | "confirmed"
+  | "refused"
+  | "rejected"
+  | "denied"
+  | "declined"
   | string
 
 export interface GatewayTransaction {
@@ -44,7 +54,7 @@ export interface GatewayTransaction {
   user_id: string | null
   transaction_id: string | null
   gateway_id: string | null
-  amount: number | null          // assumindo que ESTE é o valor bruto oficial
+  amount: number | null
   currency: string | null
   customer_name: string | null
   customer_email: string | null
@@ -63,23 +73,31 @@ export interface GatewayTransaction {
   product_price: number | null
 }
 
-export type SalesByPlatform = Record<string, number>
-
 // =============================
-// KPI MATH
+// KPI TYPES
 // =============================
-export type KpiTotals = {
-  grossApproved: number   // Receita Total (bruto)
-  netApproved: number     // valor líquido depois de taxa
-  feesTotal: number       // soma de taxas
-  refundsTotal: number
-  chargebacksTotal: number
-  abandonedTotal: number
-  countApproved: number   // nº vendas válidas
+export type KpiFilter = {
+  userId?: string
+  from?: string
+  to?: string
+  search?: string
 }
 
-// status que significam "pago" / "ok"
-const approvedStatusList = [
+export type GatewayKpisLight = {
+  receitaTotal: number
+  vendas: number
+  reembolsosTotal: number
+  chargebacksTotal: number
+}
+
+// =============================
+// HELPERS
+// =============================
+function norm(v: string | null | undefined) {
+  return (v || "").toLowerCase().trim()
+}
+
+const APPROVED_STATUS = [
   "approved",
   "paid",
   "succeeded",
@@ -90,134 +108,118 @@ const approvedStatusList = [
   "settled",
   "done",
   "ok",
+  "paid_out",
+  "confirmed",
 ]
 
-// eventos que NÃO são venda normal
-const nonSaleEvents = [
-  "refund",
-  "chargeback",
-  "charge_back",
-  "checkout_abandonment",
+const BLOCK_STATUS_PARTIAL = [
+  "abandon",
   "abandoned",
   "abandonment",
+  "cancel",
+  "canceled",
+  "cancelled",
+  "failed",
+  "error",
+  "timeout",
+  "refused",
+  "refuse",
+  "rejected",
+  "reject",
+  "denied",
+  "declined",
 ]
 
-// normaliza string
-function norm(v: string | null | undefined) {
-  return (v || "").toLowerCase().trim()
+function isApprovedSale(row: GatewayTransaction) {
+  const st = norm(row.status)
+  const ev = norm(row.event_type)
+
+  const okStatus = APPROVED_STATUS.includes(st)
+  if (!okStatus) return false
+
+  for (const bad of BLOCK_STATUS_PARTIAL) {
+    if (st.includes(bad) || ev.includes(bad)) return false
+  }
+
+  if (st.includes("refund") || ev.includes("refund")) return false
+  if (ev.includes("charge") && ev.includes("back")) return false
+
+  return true
 }
 
-/**
- * getMoney(r)
- *
- * ESTE é o ponto que faz a Receita Total bater com sua dashboard Gateways.
- * Estamos usando only `amount` como valor bruto.
- *
- * Se precisar usar outro campo, troca aqui:
- * - se o oficial for net_amount:  const raw = r.net_amount ?? 0
- * - se for product_price:        const raw = r.product_price ?? 0
- *
- * Se o gateway salva em centavos, descomenta o `/100`.
- */
-function getMoney(r: GatewayTransaction) {
-  const raw = r.amount ?? 0
+function isRefund(row: GatewayTransaction) {
+  const st = norm(row.status)
+  const ev = norm(row.event_type)
+  return st.includes("refund") || ev.includes("refund")
+}
+
+function isChargeback(row: GatewayTransaction) {
+  const ev = norm(row.event_type)
+  return ev.includes("charge") && ev.includes("back")
+}
+
+function getBruto(row: GatewayTransaction) {
+  const raw = row.amount ?? 0
   const num = Number(raw) || 0
-
-  // Se vier em centavos, use:
-  // return num / 100
-
+  // se estiver em centavos, troca pra return num / 100
   return num
 }
 
-// calcula KPIs
-function calcKpis(rows: GatewayTransaction[]): KpiTotals {
-  let grossApproved = 0
-  let netApproved = 0
-  let feesTotal = 0
-  let refundsTotal = 0
+function calcGatewaySummaryForPeriod(rows: GatewayTransaction[]): GatewayKpisLight {
+  let receitaTotal = 0
+  let vendas = 0
+  let reembolsosTotal = 0
   let chargebacksTotal = 0
-  let abandonedTotal = 0
-  let countApproved = 0
 
   for (const r of rows) {
-    const eventType = norm(r.event_type)
-    const status = norm(r.status)
-
-    const isClearlyRefund =
-      eventType.includes("refund") || status.includes("refund")
-
-    const isClearlyChargeback =
-      eventType.includes("charge") && eventType.includes("back")
-
-    const isAbandoned = eventType.includes("abandon")
-
-    const seemsPaidStatus =
-      approvedStatusList.includes(status) ||
-      status === "" // alguns gateways salvam vazio mesmo aprovada
-
-    const isNotBlocked =
-      !isClearlyRefund &&
-      !isClearlyChargeback &&
-      !isAbandoned &&
-      !nonSaleEvents.includes(eventType)
-
-    // VENDA / RECEITA BRUTA
-    if (isNotBlocked && seemsPaidStatus) {
-      const val = getMoney(r)
-      if (val > 0) {
-        const fee = Number(r.fee || 0)
-        const netBase = Number(r.net_amount ?? val)
-
-        grossApproved += val                 // bruto
-        netApproved += netBase - fee         // líquido
-        countApproved += 1
+    if (isApprovedSale(r)) {
+      const bruto = getBruto(r)
+      if (bruto > 0) {
+        receitaTotal += bruto
+        vendas += 1
       }
     }
 
-    // taxas totais
-    feesTotal += Number(r.fee || 0)
-
-    // REEMBOLSOS
-    if (isClearlyRefund) {
-      const val = getMoney(r)
-      refundsTotal += Math.abs(val)
+    if (isRefund(r)) {
+      reembolsosTotal += Math.abs(getBruto(r))
     }
 
-    // CHARGEBACK
-    if (isClearlyChargeback) {
-      const val = getMoney(r)
-      chargebacksTotal += Math.abs(val)
-    }
-
-    // ABANDONO / NÃO CONCLUÍDA
-    if (isAbandoned || eventType.includes("abandon")) {
-      abandonedTotal += Number(r.product_price || 0)
+    if (isChargeback(r)) {
+      chargebacksTotal += Math.abs(getBruto(r))
     }
   }
 
   return {
-    grossApproved,
-    netApproved,
-    feesTotal,
-    refundsTotal,
+    receitaTotal,
+    vendas,
+    reembolsosTotal,
     chargebacksTotal,
-    abandonedTotal,
-    countApproved,
   }
 }
 
-// =============================
-// HOOK SUPABASE (fetch + realtime)
-// =============================
-export type KpiFilter = {
-  userId?: string
-  from?: string // ISO (incl.)
-  to?: string   // ISO (excl.)
-  search?: string
+function calcGatewaySplit(rows: GatewayTransaction[]): Record<string, number> {
+  const totals: Record<string, number> = {}
+
+  for (const r of rows) {
+    if (!isApprovedSale(r)) continue
+
+    const bruto = getBruto(r)
+    if (bruto <= 0) continue
+
+    const key = r.gateway_id || "Outro"
+    totals[key] = (totals[key] || 0) + bruto
+  }
+
+  return totals
 }
 
+// =============================
+// HOOK SUPABASE
+// =============================
 export function useGatewayKpis(filter: KpiFilter) {
   const { userId, from, to, search } = filter
+  const _keepUserId = userId
+
   const [rows, setRows] = useState<GatewayTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -234,12 +236,9 @@ export function useGatewayKpis(filter: KpiFilter) {
       )
       .order("created_at", { ascending: false })
 
-    // painel admin geral -> não filtra por userId
-    // se quiser filtrar futuro:
-    // if (userId) q.eq("user_id", userId)
-
     if (from) q.gte("created_at", from)
     if (to) q.lt("created_at", to)
+
     if (search && search.trim()) {
       q.or(
         `customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,product_name.ilike.%${search}%`
@@ -269,7 +268,7 @@ export function useGatewayKpis(filter: KpiFilter) {
       channelRef.current = null
     }
 
-    const channel = supabase.channel("gateway_transactions_kpis")
+    const channel = supabase.channel("gateway_transactions_dashboard")
 
     channel
       .on(
@@ -277,13 +276,8 @@ export function useGatewayKpis(filter: KpiFilter) {
         { event: "INSERT", schema: "public", table: "gateway_transactions" },
         (payload) => {
           const row = payload.new as GatewayTransaction
-
-          // reativar se precisar filtrar por user específico:
-          // if (userId && row.user_id !== userId) return
-
           if (from && row.created_at < from) return
           if (to && row.created_at >= to) return
-
           setRows((prev) => [row, ...prev])
         }
       )
@@ -311,15 +305,231 @@ export function useGatewayKpis(filter: KpiFilter) {
     }
   }, [userId, from, to])
 
-  const kpis: KpiTotals = useMemo(() => calcKpis(rows), [rows])
+  const kpis: GatewayKpisLight = useMemo(
+    () => calcGatewaySummaryForPeriod(rows),
+    [rows]
+  )
 
   return { rows, kpis, loading, error, refetch: fetchAll }
 }
 
 // =============================
-// LAYOUT / DASHBOARD
+// DONUT CHART
 // =============================
+function DonutChart({ data }: { data: Record<string, number> }) {
+  const entries = Object.entries(data).filter(([, v]) => v > 0)
+  const total = entries.reduce((s, [, v]) => s + v, 0)
 
+  if (total === 0) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <div className="text-white/55 text-sm">Aguardando vendas...</div>
+      </div>
+    )
+  }
+
+  // visual base do donut
+  const OUTER_R = 70        // raio externo
+  const STROKE = 28         // espessura da argola
+  const INNER_R = OUTER_R - STROKE
+  const C = 2 * Math.PI * OUTER_R
+  const BOX = OUTER_R * 2 + STROKE * 2
+  const CENTER = OUTER_R + STROKE
+
+  // >>> AQUI ESTÁ O SEGREDO: ajustes separados pra fatia grande e pequena
+  // você controla cada grupo individualmente
+  const bigLabel = {
+    offsetIn: 10, // empurra o texto da fatia grande mais para dentro (maior número = mais pro centro)
+    yAdjust: 24,   // empurra vertical da fatia grande (positivo = desce)
+  }
+
+  const smallLabel = {
+    offsetIn: 2,  // empurra o texto da fatia pequena (menor = mais perto da borda colorida)
+    yAdjust: -14,  // sobe um pouco (negativo = sobe)
+  }
+
+  // Se você quiser ajustar por nome da gateway e não por tamanho da fatia,
+  // você pode criar um mapa aqui em vez de usar "pct > 50". Exemplo:
+  // const customByGateway = {
+  //   pepper: { offsetIn: 10, yAdjust: 6 },
+  //   cakto: { offsetIn: 2, yAdjust: -2 },
+  // }
+
+  function colorForGateway(name: string) {
+    const palette = [
+      "#00c2ff",
+      "#8b5cf6",
+      "#10b981",
+      "#facc15",
+      "#ef4444",
+      "#38bdf8",
+      "#fb923c",
+      "#ec4899",
+    ]
+    let hash = 0
+    for (let i = 0; i < name.length; i++) {
+      hash = (hash + name.charCodeAt(i) * 97) % palette.length
+    }
+    return palette[hash]
+  }
+
+  function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
+    const angleRad = (angleDeg * Math.PI) / 180
+    return {
+      x: cx + r * Math.cos(angleRad),
+      y: cy + r * Math.sin(angleRad),
+    }
+  }
+
+  let offsetLen = 0
+
+  const slices: React.ReactNode[] = []
+  const labels: React.ReactNode[] = []
+
+  entries.forEach(([name, value]) => {
+    const pct = value / total
+    const pct100 = pct * 100
+    const sliceLen = pct * C
+
+    // desenha a faixa
+    slices.push(
+      <circle
+        key={name}
+        r={OUTER_R}
+        fill="none"
+        stroke={colorForGateway(name)}
+        strokeWidth={STROKE}
+        strokeDasharray={`${sliceLen} ${C - sliceLen}`}
+        strokeDashoffset={-offsetLen}
+        strokeLinecap="butt"
+        transform="rotate(-90)"
+        style={{
+          transition: "stroke-dashoffset 0.6s ease",
+        }}
+      />
+    )
+
+    // ângulo do meio da fatia
+    const startFrac = offsetLen / C
+    const endFrac = (offsetLen + sliceLen) / C
+    const midFrac = (startFrac + endFrac) / 2
+    const midAngleDeg = midFrac * 360 - 90
+
+    // decidir qual ajuste usar pra esse label
+    // regra atual: se a fatia é maior que 50%, trata como "big" (ex: 99%)
+    // senão como "small" (ex: 1%)
+    const cfg = pct100 > 50 ? bigLabel : smallLabel
+
+    // raio onde o texto fica:
+    // meio da argola -> INNER_R + STROKE/2
+    // menos offsetIn -> empurra em direção ao centro
+    const labelRadius =
+      INNER_R + STROKE / 2 - cfg.offsetIn
+
+    // posição final
+    const { x, y } = polarToCartesian(0, 0, labelRadius, midAngleDeg)
+
+    const pctText = pct100.toLocaleString("pt-BR", {
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0,
+    })
+
+    labels.push(
+      <text
+        key={name + "-label"}
+        x={x}
+        y={y + cfg.yAdjust} // <-- ajuste vertical específico pra essa fatia
+        fill="#ffffff"
+        fontSize="12px"
+        fontWeight={700}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        style={{
+          paintOrder: "stroke",
+          stroke: "rgba(0,0,0,0.75)",
+          strokeWidth: 3,
+        }}
+      >
+        {pctText}%
+      </text>
+    )
+
+    offsetLen += sliceLen
+  })
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full w-full">
+      <svg
+        width={BOX}
+        height={BOX}
+        viewBox={`0 0 ${BOX} ${BOX}`}
+        className="mb-4"
+      >
+        <g
+          transform={`translate(${CENTER}, ${CENTER})`}
+          style={{ transition: "all 0.3s ease" }}
+        >
+          {/* fundo cinza atrás */}
+          <circle
+            r={OUTER_R}
+            fill="none"
+            stroke="rgba(255,255,255,0.07)"
+            strokeWidth={STROKE}
+          />
+
+          {/* fatias */}
+          {slices}
+
+          {/* textos % individuais */}
+          {labels}
+        </g>
+      </svg>
+
+      {/* legenda */}
+      <div
+        className="
+          flex flex-row flex-wrap
+          items-start justify-center
+          gap-x-6 gap-y-3
+          text-[12px] leading-none
+          text-white/80
+        "
+      >
+        {entries.map(([name, value]) => {
+          const pctNum = total === 0 ? 0 : (value / total) * 100
+          const pctText = pctNum.toLocaleString("pt-BR", {
+            maximumFractionDigits: 1,
+            minimumFractionDigits: 1,
+          })
+
+          return (
+            <div
+              key={name}
+              className="flex flex-row items-center gap-2 text-white/80 text-[12px] leading-none"
+            >
+              <span
+                className="h-3 w-3 rounded-full inline-block"
+                style={{ backgroundColor: colorForGateway(name) }}
+              />
+              <span className="flex flex-row flex-wrap items-baseline gap-1 leading-none">
+                <span className="text-white text-[13px] font-medium leading-none">
+                  {name || "Outro"}
+                </span>
+                <span className="text-white/50 text-[12px] font-light leading-none">
+                  {pctText}%
+                </span>
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// =============================
+// DASHBOARD VIEW
+// =============================
 export type CardRenderer =
   | React.ReactNode
   | ((slotId: string, ctx: ReturnType<typeof useGatewayKpis>) => React.ReactNode)
@@ -331,7 +541,7 @@ export type LayoutOverridesMap = Record<string, LayoutOverride>
 
 interface DashboardProps {
   userName?: string
-  salesByPlatform?: SalesByPlatform
+  salesByPlatform?: Record<string, number>
   onRefresh?: () => Promise<void> | void
   cardContent?: CardContentMap
   visibleSlots?: VisibleSlotsMap
@@ -356,7 +566,7 @@ type AutoCard = {
 const CARDS: AutoCard[] = [
   { id: "top-1", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Receita Total
   { id: "top-2", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Vendas
-  { id: "top-3", w: 3, h: 2, effect: "neonTop", glow: "rgba(3, 144, 245, 1)" }, // Reembolsos
+  { id: "top-3", w: 3, h: 2, effect: "neonTop", glow: "rgba(3,144,245,1)" }, // Reembolsos
   { id: "top-4", w: 3, h: 2, effect: "neonTop", glow: "#008ffcff" }, // Chargebacks
 
   { id: "big-donut", w: 5, h: 6, kind: "donut", effect: "neonTop", glow: "#0d2de3ff" },
@@ -383,7 +593,6 @@ const CARDS: AutoCard[] = [
 
 export const CARDS_IDS = CARDS.map((c) => c.id)
 
-// neon visual class
 function neonClass(effect?: AutoCard["effect"]) {
   switch (effect) {
     case "neon":
@@ -397,7 +606,6 @@ function neonClass(effect?: AutoCard["effect"]) {
   }
 }
 
-// bloco base
 function Block({
   className = "",
   style,
@@ -418,7 +626,6 @@ function Block({
   )
 }
 
-// fallback quando não tem card custom
 function Placeholder({ slotId }: { slotId: string }) {
   return (
     <div className="h-full w-full flex items-center justify-center text-xs text-white/60 select-none">
@@ -427,96 +634,97 @@ function Placeholder({ slotId }: { slotId: string }) {
   )
 }
 
-// badge usada no donut legend
-function Badge({ label }: { label: string }) {
-  return (
-    <span className="px-2 py-1 rounded-lg border border-white/30 text-white/80 text-xs tracking-wide">
-      {label}
-    </span>
-  )
-}
+// =============================
+// RANGE BUILDER
+// =============================
+type RangePreset =
+  | "maximo"
+  | "hoje"
+  | "ontem"
+  | "7d"
+  | "30d"
+  | "90d"
+  | "custom"
 
-// donut chart
-function DonutChart({ salesByPlatform = {} as SalesByPlatform }) {
-  const entries = Object.entries(salesByPlatform).filter(([, v]) => v > 0)
-  const total = entries.reduce((s, [, v]) => s + v, 0)
+function makeRange(
+  preset: RangePreset,
+  customStart?: string,
+  customEnd?: string
+) {
+  const now = new Date()
 
-  if (total === 0) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <div className="text-white/55 text-sm">Aguardando vendas...</div>
-      </div>
-    )
+  if (preset === "maximo") {
+    return { from: undefined, to: undefined, label: "Máximo" }
   }
 
-  const R = 110
-  const C = 2 * Math.PI * R
-  let offset = 0
+  if (preset === "hoje") {
+    const start = new Date(now)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(start)
+    end.setDate(end.getDate() + 1)
+    return {
+      from: start.toISOString(),
+      to: end.toISOString(),
+      label: "Hoje",
+    }
+  }
 
-  return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-3">
-      <svg
-        width={R * 2 + 28}
-        height={R * 2 + 28}
-        viewBox={`0 0 ${R * 2 + 28} ${R * 2 + 28}`}
-      >
-        <g transform={`translate(${14 + R}, ${14 + R})`}>
-          {/* base cinza */}
-          <circle
-            r={R}
-            fill="none"
-            stroke="rgba(119, 119, 119, 0.97)"
-            strokeWidth={12}
-          />
-          {/* fatias */}
-          {entries.map(([name, value]) => {
-            const len = (value / total) * C
-            const el = (
-              <circle
-                key={name}
-                r={R}
-                fill="none"
-                stroke="white"
-                strokeOpacity={0.9}
-                strokeWidth={12}
-                strokeDasharray={`${len} ${C - len}`}
-                strokeDashoffset={-offset}
-                transform="rotate(-90)"
-                style={{
-                  transition: "stroke-dashoffset 600ms ease",
-                }}
-              />
-            )
-            offset += len
-            return el
-          })}
-        </g>
-      </svg>
+  if (preset === "ontem") {
+    const start = new Date(now)
+    start.setHours(0, 0, 0, 0)
+    start.setDate(start.getDate() - 1)
+    const end = new Date(start)
+    end.setDate(end.getDate() + 1)
+    return {
+      from: start.toISOString(),
+      to: end.toISOString(),
+      label: "Ontem",
+    }
+  }
 
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        {entries.map(([name]) => (
-          <Badge key={name} label={name} />
-        ))}
-      </div>
-    </div>
-  )
+  if (preset === "7d" || preset === "30d" || preset === "90d") {
+    const days = preset === "7d" ? 7 : preset === "30d" ? 30 : 90
+    const end = new Date(now)
+    const start = new Date(now)
+    start.setDate(start.getDate() - days)
+    start.setHours(0, 0, 0, 0)
+    const label =
+      preset === "7d"
+        ? "Últimos 7 dias"
+        : preset === "30d"
+        ? "Últimos 30 dias"
+        : "Últimos 90 dias"
+    return {
+      from: start.toISOString(),
+      to: end.toISOString(),
+      label,
+    }
+  }
+
+  const startDate = customStart
+    ? new Date(customStart + "T00:00:00")
+    : undefined
+  const endDateExclusive = customEnd
+    ? new Date(
+        new Date(customEnd + "T00:00:00").getTime() +
+          24 * 60 * 60 * 1000
+      )
+    : undefined
+
+  return {
+    from: startDate ? startDate.toISOString() : undefined,
+    to: endDateExclusive
+      ? endDateExclusive.toISOString()
+      : undefined,
+    label: "Personalizado",
+  }
 }
 
 // =============================
-// DASHBOARD VIEW
+// COMPONENTE PRINCIPAL
 // =============================
 export default function DashboardView({
-  salesByPlatform = {
-    Cakto: 0,
-    Kirvano: 0,
-    Pepper: 0,
-    Kiwify: 0,
-    Hotmart: 0,
-    Monetizze: 0,
-    Eduzz: 0,
-    Braip: 0,
-    Lastlink: 0,
-  },
+  salesByPlatform = {},
   onRefresh,
   cardContent,
   visibleSlots,
@@ -525,77 +733,40 @@ export default function DashboardView({
   kpiFilter,
 }: DashboardProps) {
   const router = useRouter()
+  const _useSales = salesByPlatform
 
-  // ================= estado único =================
-  // período: dia / mês / ano
-  const [rangeType, setRangeType] = useState<"day" | "month" | "year">("day")
+  const [preset, setPreset] = useState<RangePreset>("hoje")
+  const [customStart, setCustomStart] = useState<string>("")
+  const [customEnd, setCustomEnd] = useState<string>("")
 
-  // botão atualizar
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [tickState, setTickState] = useState(0)
+  const _tick = tickState
 
-  // calcula intervalo de datas com base no período selecionado
-  function getRangeISO(rt: "day" | "month" | "year"): { from: string; to: string } {
-    const now = new Date()
+  const { from, to, label } = useMemo(() => {
+    return makeRange(preset, customStart, customEnd)
+  }, [preset, customStart, customEnd])
 
-    if (rt === "day") {
-      const start = new Date(now)
-      start.setHours(0, 0, 0, 0)
-
-      const end = new Date(start)
-      end.setDate(end.getDate() + 1)
-
-      return {
-        from: start.toISOString(),
-        to: end.toISOString(),
-      }
-    }
-
-    if (rt === "month") {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0)
-
-      return {
-        from: start.toISOString(),
-        to: end.toISOString(),
-      }
-    }
-
-    // year
-    const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0)
-    const end = new Date(now.getFullYear() + 1, 0, 1, 0, 0, 0, 0)
-
-    return {
-      from: start.toISOString(),
-      to: end.toISOString(),
-    }
-  }
-
-  const { from, to } = useMemo(() => getRangeISO(rangeType), [rangeType])
-
-  // hook com o range calculado
   const data = useGatewayKpis({
-    // userId: kpiFilter?.userId, // se quiser filtrar depois por um dono específico
+    // userId: kpiFilter?.userId,
     search: kpiFilter?.search,
     from,
     to,
   })
 
-  // conteúdo padrão dos cards
   const defaultContent: CardContentMap = {
     "top-1": (_slotId, ctx) => {
       const loading = ctx.loading
-      const value = ctx.kpis.grossApproved ?? 0
+      const value = ctx.kpis.receitaTotal ?? 0
       const formatted = loading
         ? "…"
         : value.toLocaleString("pt-BR", {
             style: "currency",
             currency: "BRL",
           })
-
       return (
         <div className="p-3">
-          <div className="text-xs text-white/70 mb-3">Receita Total</div>
+          <div className="text-xs text-white/70 mb-2">Receita Total</div>
           <div className="text-2xl font-semibold">{formatted}</div>
         </div>
       )
@@ -603,12 +774,11 @@ export default function DashboardView({
 
     "top-2": (_slotId, ctx) => {
       const loading = ctx.loading
-      const value = ctx.kpis.countApproved ?? 0
+      const value = ctx.kpis.vendas ?? 0
       const formatted = loading ? "…" : value.toLocaleString("pt-BR")
-
       return (
         <div className="p-3">
-          <div className="text-xs text-white/70 mb-3">Vendas</div>
+          <div className="text-xs text-white/70 mb-2">Vendas</div>
           <div className="text-2xl font-semibold">{formatted}</div>
         </div>
       )
@@ -616,14 +786,13 @@ export default function DashboardView({
 
     "top-3": (_slotId, ctx) => {
       const loading = ctx.loading
-      const value = ctx.kpis.refundsTotal ?? 0
+      const value = ctx.kpis.reembolsosTotal ?? 0
       const formatted = loading
         ? "…"
         : value.toLocaleString("pt-BR", {
             style: "currency",
             currency: "BRL",
           })
-
       return (
         <div className="p-3">
           <div className="text-xs text-white/70 mb-2">Reembolsos</div>
@@ -641,7 +810,6 @@ export default function DashboardView({
             style: "currency",
             currency: "BRL",
           })
-
       return (
         <div className="p-3">
           <div className="text-xs text-white/70 mb-2">Chargebacks</div>
@@ -651,45 +819,11 @@ export default function DashboardView({
     },
 
     "big-donut": (_slotId, ctx) => {
-      const rows = ctx.rows ?? []
-      const map: SalesByPlatform = {}
-
-      for (const r of rows) {
-        const eventType = norm(r.event_type)
-        const status = norm(r.status)
-
-        const isClearlyRefund =
-          eventType.includes("refund") || status.includes("refund")
-
-        const isClearlyChargeback =
-          eventType.includes("charge") && eventType.includes("back")
-
-        const isAbandoned = eventType.includes("abandon")
-
-        const seemsPaidStatus =
-          approvedStatusList.includes(status) ||
-          status === ""
-
-        const isNotBlocked =
-          !isClearlyRefund &&
-          !isClearlyChargeback &&
-          !isAbandoned &&
-          !nonSaleEvents.includes(eventType)
-
-        if (isNotBlocked && seemsPaidStatus) {
-          const val = getMoney(r)
-          if (val > 0) {
-            const key = r.gateway_id || "Outro"
-            map[key] = (map[key] || 0) + val
-          }
-        }
-      }
-
-      return <DonutChart salesByPlatform={map} />
+      const split = calcGatewaySplit(ctx.rows)
+      return <DonutChart data={split} />
     },
   }
 
-  // cards visíveis + overrides
   const effectiveCards = useMemo(() => {
     const v = visibleSlots ?? {}
     const o = layoutOverrides ?? {}
@@ -699,17 +833,16 @@ export default function DashboardView({
     }))
   }, [visibleSlots, layoutOverrides])
 
-  // quantas linhas o grid precisa
   const rowsNeeded = useMemo(() => {
     const units = effectiveCards.reduce(
       (sum, c) =>
-        sum + Math.max(1, Math.min(12, c.w)) * Math.max(1, c.h),
+        sum +
+        Math.max(1, Math.min(12, c.w)) * Math.max(1, c.h),
       0
     )
     return Math.max(6, Math.ceil(units / 12) + 1)
   }, [effectiveCards])
 
-  // botão Atualizar
   const doRefresh = useCallback(async () => {
     try {
       setIsRefreshing(true)
@@ -727,52 +860,87 @@ export default function DashboardView({
     }
   }, [onRefresh, router, data])
 
-  return (
-    <div
-      className="px-4 md:px-8 pt-2 md:pt-3 pb-0 overflow-hidden"
-      style={{ height: `calc(100vh - ${HEADER_H}px)` }}
-    >
-      {/* =====================================================
-         TOPO: Período (esq) + Atualizar (dir)
-         ===================================================== */}
-      <div className="mb-2 flex items-center justify-between gap-2 flex-wrap">
-        {/* seletor de período */}
-        <div className="flex items-center gap-2">
+  function PeriodSelector() {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label
-            htmlFor="rangeType"
+            htmlFor="preset"
             className="text-white/70 text-xs font-medium"
           >
             Período
           </label>
 
           <select
-            id="rangeType"
-            value={rangeType}
-            onChange={(e) =>
-              setRangeType(e.target.value as "day" | "month" | "year")
-            }
+            id="preset"
+            value={preset}
+            onChange={(e) => {
+              const next = e.target.value as RangePreset
+              setPreset(next)
+            }}
             className={[
               "bg-black/40 text-white/90 text-xs px-2 py-1 rounded-md",
               "border border-white/20 outline-none focus:ring-0 focus:border-white/40",
               "cursor-pointer",
             ].join(" ")}
-            style={{
-              minWidth: "90px",
-            }}
+            style={{ minWidth: "140px" }}
           >
-            <option value="day">Hoje</option>
-            <option value="month">Mês</option>
-            <option value="year">Ano</option>
+            <option value="maximo">Máximo</option>
+            <option value="hoje">Hoje</option>
+            <option value="ontem">Ontem</option>
+            <option value="7d">Últimos 7 dias</option>
+            <option value="30d">Últimos 30 dias</option>
+            <option value="90d">Últimos 90 dias</option>
+            <option value="custom">Personalizado</option>
           </select>
 
-          {/* range atual visível pra conferência */}
-          <span className="text-[10px] text-white/40 whitespace-nowrap">
-            {new Date(from).toLocaleDateString("pt-BR")} →{" "}
-            {new Date(to).toLocaleDateString("pt-BR")}
+          <span className="text-[10px] text-white/40 whitespace-nowrap leading-none">
+            {label}
+            {from && to
+              ? ` — ${new Date(from).toLocaleDateString(
+                  "pt-BR"
+                )} → ${new Date(to).toLocaleDateString(
+                  "pt-BR"
+                )}`
+              : ""}
           </span>
         </div>
 
-        {/* botão atualizar */}
+        {preset === "custom" && (
+          <div className="flex flex-wrap items-center gap-2 text-[10px] text-white/70">
+            <div className="flex items-center gap-1">
+              <span>De</span>
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="bg-black/40 text-white/90 text-[10px] px-2 py-1 rounded-md border border-white/20 outline-none focus:ring-0 focus:border-white/40"
+              />
+            </div>
+
+            <div className="flex items-center gap-1">
+              <span>Até</span>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="bg-black/40 text-white/90 text-[10px] px-2 py-1 rounded-md border border-white/20 outline-none focus:ring-0 focus:border-white/40"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="px-4 md:px-8 pt-2 md:pt-3 pb-0 overflow-hidden"
+      style={{ height: `calc(100vh - ${HEADER_H}px)` }}
+    >
+      <div className="mb-2 flex items-start justify-between gap-2 flex-wrap">
+        <PeriodSelector />
+
         <button
           onClick={doRefresh}
           disabled={isRefreshing}
@@ -792,7 +960,6 @@ export default function DashboardView({
         </button>
       </div>
 
-      {/* GRID PRINCIPAL */}
       <div
         className="grid h-[calc(100%-40px)]"
         style={{
@@ -814,11 +981,12 @@ export default function DashboardView({
             ...(card.glow ? { ["--gw"]: card.glow } : {}),
           }
 
-          // mescla conteúdo default + overrides
-          const sourceMap = { ...(defaultContent || {}), ...(cardContent || {}) }
+          const sourceMap = {
+            ...(defaultContent || {}),
+            ...(cardContent || {}),
+          }
           const plug = sourceMap[card.id]
 
-          // sempre chamamos fun passando ctx (data)
           let content: React.ReactNode | null = null
           if (typeof plug === "function") {
             content = (plug as any)(card.id, data)
@@ -828,7 +996,9 @@ export default function DashboardView({
 
           const fallback =
             card.kind === "donut" && !hideDefaultDonut ? (
-              <DonutChart salesByPlatform={salesByPlatform} />
+              <div className="flex h-full w-full items-center justify-center text-white/55 text-sm">
+                Aguardando vendas...
+              </div>
             ) : (
               <Placeholder slotId={card.id} />
             )

@@ -55,6 +55,9 @@ import {
 } from "@/lib/facebook-ads-service"
 import type { FacebookAdAccount, FacebookCampaign } from "@/lib/types/facebook-ads"
 import { Skeleton } from "@/components/ui/skeleton"
+console.log("✅ RENDER AdsDashboardView atualizado")
+
+
 
 // Adicione este estilo para esconder a barra de rolagem
 const scrollbarHideStyle = `
@@ -3049,59 +3052,81 @@ export default function AdsDashboardView() {
                         </Button>
                       </CardHeader>
                       <CardContent>
-                        {loadingAccounts ? (
-                          <div className="space-y-2">
-                            <Skeleton className="h-10 w-full" />
-                            <Skeleton className="h-10 w-full" />
-                          </div>
-                        ) : adAccounts.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">Nenhuma conta de anúncios encontrada.</p>
-                        ) : (
-                          <Select
-                            value={selectedAccountId || ""}
-                            onValueChange={(value) => setSelectedAccountId(value)}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Selecione uma conta de anúncios" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {adAccounts.map((account) => (
-                                <SelectItem key={account.id} value={account.id}>
-                                  <div className="flex items-center gap-2">
-                                    <Image
-                                      src={platformLogos.facebook || "/placeholder.svg"}
-                                      alt="Facebook Logo"
-                                      width={20}
-                                      height={20}
-                                      className="rounded-full"
-                                    />
-                                    <span>
-                                      {account.name} ({account.id}) -{" "}
-                                      {account.account_status === 1 ? "Ativa" : "Inativa"}
-                                    </span>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="ml-auto h-6 w-6"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleAccountStatusChange(account.id, account.account_status)
-                                      }}
-                                    >
-                                      {account.account_status === 1 ? (
-                                        <Pause className="h-4 w-4" />
-                                      ) : (
-                                        <PlayIcon className="h-4 w-4" />
-                                      )}
-                                      <span className="sr-only">Toggle Status</span>
-                                    </Button>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </CardContent>
+  {loadingAccounts ? (
+    <div className="space-y-2">
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-10 w-full" />
+    </div>
+  ) : adAccounts.length === 0 ? (
+    <p className="text-sm text-muted-foreground">
+      Nenhuma conta de anúncios encontrada.
+    </p>
+  ) : (
+    <div className="space-y-4">
+      {/* Toggle global: Ativar todas */}
+      <div className="flex items-center justify-between pb-2 border-b border-border/40">
+        <h3 className="text-sm font-medium text-muted-foreground">
+          Contas de Anúncio (Meta)
+        </h3>
+        <div className="flex items-center gap-2">
+          <span className="text-sm">Ativar todas:</span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 cursor-pointer accent-primary"
+            onChange={(e) => {
+              const newStatus = e.target.checked ? 1 : 0
+              adAccounts.forEach((acc) =>
+                handleAccountStatusChange(acc.id, newStatus)
+              )
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Lista de contas individuais */}
+      {adAccounts.map((account) => (
+        <div
+          key={account.id}
+          className="flex items-center justify-between border border-border/60 rounded-lg px-4 py-3 hover:bg-muted/40 transition"
+        >
+          <div className="flex flex-col">
+            <span className="font-medium">{account.name}</span>
+            <span className="text-xs text-muted-foreground">
+              ID: {account.id} •{" "}
+              {account.account_status === 1 ? "Ativa" : "Inativa"}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* botão Selecionar */}
+            <Button
+              size="sm"
+              variant={
+                selectedAccountId === account.id ? "default" : "outline"
+              }
+              onClick={() => setSelectedAccountId(account.id)}
+            >
+              {selectedAccountId === account.id
+                ? "Selecionado"
+                : "Selecionar"}
+            </Button>
+
+            {/* toggle individual */}
+            <input
+              type="checkbox"
+              checked={account.account_status === 1}
+              className="h-4 w-4 cursor-pointer accent-primary"
+              onChange={() =>
+                handleAccountStatusChange(account.id, account.account_status)
+              }
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</CardContent>
+
                     </Card>
                   </>
                 ) : (

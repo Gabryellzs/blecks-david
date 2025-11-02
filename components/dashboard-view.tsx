@@ -78,8 +78,8 @@ export interface GatewayTransaction {
 // =============================
 export type KpiFilter = {
   userId?: string
-  from?: string
-  to?: string
+  from?: string // ISO start inclusive
+  to?: string // ISO end exclusive
   search?: string
 }
 
@@ -158,14 +158,19 @@ function isChargeback(row: GatewayTransaction) {
   return ev.includes("charge") && ev.includes("back")
 }
 
+/**
+ * Valor bruto
+ * Se o banco salva em centavos, trocar pra return num / 100
+ */
 function getBruto(row: GatewayTransaction) {
   const raw = row.amount ?? 0
   const num = Number(raw) || 0
-  // se estiver em centavos, trocar pra return num / 100
   return num
 }
 
-function calcGatewaySummaryForPeriod(rows: GatewayTransaction[]): GatewayKpisLight {
+function calcGatewaySummaryForPeriod(
+  rows: GatewayTransaction[]
+): GatewayKpisLight {
   let receitaTotal = 0
   let vendas = 0
   let reembolsosTotal = 0
@@ -214,12 +219,10 @@ function calcGatewaySplit(rows: GatewayTransaction[]): Record<string, number> {
 }
 
 // =============================
-// HOOK SUPABASE
+// HOOK SUPABASE (fetch + realtime)
 // =============================
 export function useGatewayKpis(filter: KpiFilter) {
   const { userId, from, to, search } = filter
-  const _keepUserId = userId // evitar unused lint
-
   const [rows, setRows] = useState<GatewayTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -257,11 +260,13 @@ export function useGatewayKpis(filter: KpiFilter) {
     setLoading(false)
   }
 
+  // carrega quando muda range / search
   useEffect(() => {
     fetchAll()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, from, to, search])
 
+  // realtime
   useEffect(() => {
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
@@ -297,8 +302,8 @@ export function useGatewayKpis(filter: KpiFilter) {
       )
       .subscribe()
 
-  // limpar canal ao desmontar
-    channelRef.current = channel
+  ;(channelRef as any).current = channel
+
     return () => {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
       channelRef.current = null
@@ -314,7 +319,7 @@ export function useGatewayKpis(filter: KpiFilter) {
 }
 
 // =============================
-// DONUT CHART
+// DONUT (gráfico pizza gateways)
 // =============================
 function DonutChart({ data }: { data: Record<string, number> }) {
   const entries = Object.entries(data).filter(([, v]) => v > 0)
@@ -328,28 +333,25 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     )
   }
 
-  // Config base do donut (tamanho, stroke)
-  const OUTER_R = 70        // raio externo visível
-  const STROKE = 28         // espessura da argola
+  // geometria
+  const OUTER_R = 70
+  const STROKE = 28
   const INNER_R = OUTER_R - STROKE
   const C = 2 * Math.PI * OUTER_R
   const BOX = OUTER_R * 2 + STROKE * 2
   const CENTER = OUTER_R + STROKE
 
-  // Presets automáticos pros labels
-  // topLabel → usa quando a fatia está na parte de cima do donut (tipo o 1%)
-  // bottomLabel → usa quando a fatia está na parte de baixo (tipo o 99%)
+  // presets pros textos (em cima/embaixo)
   const topLabel = {
-    offsetIn: 2,   // quão pra dentro do donut (menor = mais perto da borda colorida)
-    yAdjust: -14,  // sobe o texto
+    offsetIn: 2,
+    yAdjust: -14,
   }
 
   const bottomLabel = {
-    offsetIn: 10,  // empurra mais pro centro
-    yAdjust: 24,   // desce o texto
+    offsetIn: 10,
+    yAdjust: 24,
   }
 
-  // gerar cor consistente por gateway
   function colorForGateway(name: string) {
     const palette = [
       "#00c2ff",
@@ -368,8 +370,12 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     return palette[hash]
   }
 
-  // converte ângulo polar pra x,y no SVG
-  function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
+  function polarToCartesian(
+    cx: number,
+    cy: number,
+    r: number,
+    angleDeg: number
+  ) {
     const angleRad = (angleDeg * Math.PI) / 180
     return {
       x: cx + r * Math.cos(angleRad),
@@ -378,7 +384,6 @@ function DonutChart({ data }: { data: Record<string, number> }) {
   }
 
   let offsetLen = 0
-
   const slices: React.ReactNode[] = []
   const labels: React.ReactNode[] = []
 
@@ -387,7 +392,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     const pct100 = pct * 100
     const sliceLen = pct * C
 
-    // fatia (arco)
+    // fatia
     slices.push(
       <circle
         key={name}
@@ -399,37 +404,38 @@ function DonutChart({ data }: { data: Record<string, number> }) {
         strokeDashoffset={-offsetLen}
         strokeLinecap="butt"
         transform="rotate(-90)"
-        style={{ transition: "stroke-dashoffset 0.6s ease" }}
+        style={{
+          transition: "stroke-dashoffset 0.6s ease",
+        }}
       />
     )
 
-    // ângulo do centro dessa fatia
+    // ângulo médio
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
-    const midAngleDeg = midFrac * 360 - 90 // -90 = começa no topo
+    const midAngleDeg = midFrac * 360 - 90
 
-    // 1) calculamos posição BASE no meio do aro
-    //    (ainda sem yAdjust)
-    const baseRadius = INNER_R + STROKE / 2 - 6 // offset "padrão" pro texto
-    const basePoint = polarToCartesian(0, 0, baseRadius, midAngleDeg)
-
-    // 2) decidimos se essa label está em cima (y < 0) ou embaixo (y >= 0)
-    //    isso funciona pra qualquer quantidade de fatias
+    // checar se está na metade de cima pra decidir preset
+    const basePoint = polarToCartesian(
+      0,
+      0,
+      INNER_R + STROKE / 2 - 6,
+      midAngleDeg
+    )
     const isTopHalf = basePoint.y < 0
     const cfg = isTopHalf ? topLabel : bottomLabel
 
-    // 3) recalculamos o raio final levando em conta cfg.offsetIn
-    const finalRadius = INNER_R + STROKE / 2 - cfg.offsetIn
-    const { x, y } = polarToCartesian(0, 0, finalRadius, midAngleDeg)
+    const labelRadius =
+      INNER_R + STROKE / 2 - cfg.offsetIn
 
-    // texto de porcentagem
+    const { x, y } = polarToCartesian(0, 0, labelRadius, midAngleDeg)
+
     const pctText = pct100.toLocaleString("pt-BR", {
       maximumFractionDigits: 0,
       minimumFractionDigits: 0,
     })
 
-    // 4) render do label já ajustado
     labels.push(
       <text
         key={name + "-label"}
@@ -465,7 +471,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
           transform={`translate(${CENTER}, ${CENTER})`}
           style={{ transition: "all 0.3s ease" }}
         >
-          {/* anel de fundo */}
+          {/* anel base */}
           <circle
             r={OUTER_R}
             fill="none"
@@ -476,7 +482,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
           {/* fatias */}
           {slices}
 
-          {/* labels (%) já posicionadas automaticamente */}
+          {/* labels de % */}
           {labels}
         </g>
       </svg>
@@ -524,7 +530,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
 }
 
 // =============================
-// DASHBOARD VIEW
+// DASHBOARD LAYOUT
 // =============================
 export type CardRenderer =
   | React.ReactNode
@@ -559,6 +565,7 @@ type AutoCard = {
   glow?: string
 }
 
+// IMPORTANTE: layout NÃO MUDA
 const CARDS: AutoCard[] = [
   { id: "top-1", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Receita Total
   { id: "top-2", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Vendas
@@ -602,6 +609,7 @@ function neonClass(effect?: AutoCard["effect"]) {
   }
 }
 
+// card container (mantém seu estilo neon + borda)
 function Block({
   className = "",
   style,
@@ -622,6 +630,7 @@ function Block({
   )
 }
 
+// fallback quando a gente não setou nada pro card
 function Placeholder({ slotId }: { slotId: string }) {
   return (
     <div className="h-full w-full flex items-center justify-center text-xs text-white/60 select-none">
@@ -631,7 +640,7 @@ function Placeholder({ slotId }: { slotId: string }) {
 }
 
 // =============================
-// RANGE BUILDER
+// RANGE BUILDER (período)
 // =============================
 type RangePreset =
   | "maximo"
@@ -650,7 +659,7 @@ function makeRange(
   const now = new Date()
 
   if (preset === "maximo") {
-    return { from: undefined, to: undefined, label: "Máximo" }
+    return { from: undefined, to: undefined }
   }
 
   if (preset === "hoje") {
@@ -661,7 +670,6 @@ function makeRange(
     return {
       from: start.toISOString(),
       to: end.toISOString(),
-      label: "Hoje",
     }
   }
 
@@ -674,7 +682,6 @@ function makeRange(
     return {
       from: start.toISOString(),
       to: end.toISOString(),
-      label: "Ontem",
     }
   }
 
@@ -684,19 +691,13 @@ function makeRange(
     const start = new Date(now)
     start.setDate(start.getDate() - days)
     start.setHours(0, 0, 0, 0)
-    const label =
-      preset === "7d"
-        ? "Últimos 7 dias"
-        : preset === "30d"
-        ? "Últimos 30 dias"
-        : "Últimos 90 dias"
     return {
       from: start.toISOString(),
       to: end.toISOString(),
-      label,
     }
   }
 
+  // custom
   const startDate = customStart
     ? new Date(customStart + "T00:00:00")
     : undefined
@@ -712,12 +713,11 @@ function makeRange(
     to: endDateExclusive
       ? endDateExclusive.toISOString()
       : undefined,
-    label: "Personalizado",
   }
 }
 
 // =============================
-// COMPONENTE PRINCIPAL
+// DASHBOARD COMPONENT
 // =============================
 export default function DashboardView({
   salesByPlatform = {},
@@ -729,39 +729,42 @@ export default function DashboardView({
   kpiFilter,
 }: DashboardProps) {
   const router = useRouter()
-  const _useSales = salesByPlatform
 
+  // período
   const [preset, setPreset] = useState<RangePreset>("hoje")
   const [customStart, setCustomStart] = useState<string>("")
   const [customEnd, setCustomEnd] = useState<string>("")
 
+  // refresh
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [tickState, setTickState] = useState(0)
   const _tick = tickState
 
-  const { from, to, label } = useMemo(() => {
+  // intervalo calculado
+  const { from, to } = useMemo(() => {
     return makeRange(preset, customStart, customEnd)
   }, [preset, customStart, customEnd])
 
+  // busca KPIs/Supabase
   const data = useGatewayKpis({
-    // userId: kpiFilter?.userId,
     search: kpiFilter?.search,
     from,
     to,
   })
 
+  // ======= CARD CONTENTS =======
   const defaultContent: CardContentMap = {
+    // linha original de cima
     "top-1": (_slotId, ctx) => {
-      const loading = ctx.loading
       const value = ctx.kpis.receitaTotal ?? 0
-      const formatted = loading
-        ? "…"
+      const formatted = ctx.loading
+        ? "R$ 0,00"
         : value.toLocaleString("pt-BR", {
             style: "currency",
             currency: "BRL",
           })
       return (
-        <div className="p-3">
+        <div className="p-3 text-white">
           <div className="text-xs text-white/70 mb-2">Receita Total</div>
           <div className="text-2xl font-semibold">{formatted}</div>
         </div>
@@ -769,11 +772,12 @@ export default function DashboardView({
     },
 
     "top-2": (_slotId, ctx) => {
-      const loading = ctx.loading
       const value = ctx.kpis.vendas ?? 0
-      const formatted = loading ? "…" : value.toLocaleString("pt-BR")
+      const formatted = ctx.loading
+        ? "0"
+        : value.toLocaleString("pt-BR")
       return (
-        <div className="p-3">
+        <div className="p-3 text-white">
           <div className="text-xs text-white/70 mb-2">Vendas</div>
           <div className="text-2xl font-semibold">{formatted}</div>
         </div>
@@ -781,16 +785,15 @@ export default function DashboardView({
     },
 
     "top-3": (_slotId, ctx) => {
-      const loading = ctx.loading
       const value = ctx.kpis.reembolsosTotal ?? 0
-      const formatted = loading
-        ? "…"
+      const formatted = ctx.loading
+        ? "R$ 0,00"
         : value.toLocaleString("pt-BR", {
             style: "currency",
             currency: "BRL",
           })
       return (
-        <div className="p-3">
+        <div className="p-3 text-white">
           <div className="text-xs text-white/70 mb-2">Reembolsos</div>
           <div className="text-2xl font-semibold">{formatted}</div>
         </div>
@@ -798,28 +801,159 @@ export default function DashboardView({
     },
 
     "top-4": (_slotId, ctx) => {
-      const loading = ctx.loading
       const value = ctx.kpis.chargebacksTotal ?? 0
-      const formatted = loading
-        ? "…"
+      const formatted = ctx.loading
+        ? "R$ 0,00"
         : value.toLocaleString("pt-BR", {
             style: "currency",
             currency: "BRL",
           })
       return (
-        <div className="p-3">
+        <div className="p-3 text-white">
           <div className="text-xs text-white/70 mb-2">Chargebacks</div>
           <div className="text-2xl font-semibold">{formatted}</div>
         </div>
       )
     },
 
+    // r1..r6 (mantendo layout, só mudando label/valor)
+    r1: () => {
+      const label = "Gastos com anúncios"
+      const value = 0
+      const formatted = value.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      })
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2">{label}</div>
+          <div className="text-2xl font-semibold">{formatted}</div>
+        </div>
+      )
+    },
+
+    r2: () => {
+      const label = "ROAS"
+      const value = 0 // tipo 1.39
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2">{label}</div>
+          <div className="text-2xl font-semibold">
+            {value.toLocaleString("pt-BR")}
+          </div>
+        </div>
+      )
+    },
+
+    r3: () => {
+      const label = "Vendas Pendentes"
+      const value = 0
+      const formatted = value.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      })
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2">{label}</div>
+          <div className="text-2xl font-semibold">{formatted}</div>
+        </div>
+      )
+    },
+
+    r4: () => {
+      const label = "Lucro"
+      const value = 0
+      const formatted = value.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      })
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2">{label}</div>
+          <div className="text-2xl font-semibold text-green-400">
+            {formatted}
+          </div>
+        </div>
+      )
+    },
+
+    r5: () => {
+      const label = "ROI"
+      const value = 0 // %
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2">{label}</div>
+          <div className="text-2xl font-semibold text-green-400">
+            {value.toFixed(1)}%
+          </div>
+        </div>
+      )
+    },
+
+    r6: () => {
+      const label = "Margem de Lucro"
+      const value = 0 // %
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2">{label}</div>
+          <div className="text-2xl font-semibold text-green-400">
+            {value.toFixed(1)}%
+          </div>
+        </div>
+      )
+    },
+
+    // b1, b2, b3 agora entram com seus nomes
+    b1: () => {
+      const label = "Custo por conversa"
+      const value = 0 // R$
+      const formatted = value.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      })
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2">{label}</div>
+          <div className="text-2xl font-semibold">{formatted}</div>
+        </div>
+      )
+    },
+
+    b2: () => {
+      const label = "Conversa"
+      const value = 0 // quantidade de conversas
+      const formatted = value.toLocaleString("pt-BR")
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2">{label}</div>
+          <div className="text-2xl font-semibold">{formatted}</div>
+        </div>
+      )
+    },
+
+    b3: () => {
+      const label = "Imposto"
+      const value = 0 // R$
+      const formatted = value.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      })
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2">{label}</div>
+          <div className="text-2xl font-semibold">{formatted}</div>
+        </div>
+      )
+    },
+
+    // big donut continua
     "big-donut": (_slotId, ctx) => {
       const split = calcGatewaySplit(ctx.rows)
       return <DonutChart data={split} />
     },
   }
 
+  // aplica visibilidade e overrides -> cards finais
   const effectiveCards = useMemo(() => {
     const v = visibleSlots ?? {}
     const o = layoutOverrides ?? {}
@@ -829,16 +963,19 @@ export default function DashboardView({
     }))
   }, [visibleSlots, layoutOverrides])
 
+  // calcula altura de linhas do grid
   const rowsNeeded = useMemo(() => {
     const units = effectiveCards.reduce(
       (sum, c) =>
         sum +
-        Math.max(1, Math.min(12, c.w)) * Math.max(1, c.h),
+        Math.max(1, Math.min(12, c.w)) *
+          Math.max(1, c.h),
       0
     )
     return Math.max(6, Math.ceil(units / 12) + 1)
   }, [effectiveCards])
 
+  // botão atualizar
   const doRefresh = useCallback(async () => {
     try {
       setIsRefreshing(true)
@@ -856,6 +993,7 @@ export default function DashboardView({
     }
   }, [onRefresh, router, data])
 
+  // seletor de período SEM mostrar "Hoje — data → data"
   function PeriodSelector() {
     return (
       <div className="flex flex-col gap-2">
@@ -923,7 +1061,7 @@ export default function DashboardView({
       className="px-4 md:px-8 pt-2 md:pt-3 pb-0 overflow-hidden"
       style={{ height: `calc(100vh - ${HEADER_H}px)` }}
     >
-      {/* header topo */}
+      {/* header */}
       <div className="mb-2 flex items-start justify-between gap-2 flex-wrap">
         <PeriodSelector />
 
@@ -968,7 +1106,6 @@ export default function DashboardView({
             ...(card.glow ? { ["--gw"]: card.glow } : {}),
           }
 
-          // monta conteúdo do slot
           const sourceMap = {
             ...(defaultContent || {}),
             ...(cardContent || {}),

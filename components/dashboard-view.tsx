@@ -889,17 +889,6 @@ export default function DashboardView({
             <option value="90d">Últimos 90 dias</option>
             <option value="custom">Personalizado</option>
           </select>
-
-          <span className="text-[10px] text-white/40 whitespace-nowrap leading-none">
-            {label}
-            {from && to
-              ? ` — ${new Date(from).toLocaleDateString(
-                  "pt-BR"
-                )} → ${new Date(to).toLocaleDateString(
-                  "pt-BR"
-                )}`
-              : ""}
-          </span>
         </div>
 
         {preset === "custom" && (

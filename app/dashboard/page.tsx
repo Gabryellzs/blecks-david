@@ -84,7 +84,10 @@ export default function DashboardPage() {
       setAuthError(null)
       setLoading(false)
 
-      toast({ title: "Bem-vindo ao Dashboard!", description: "Você está logado com sucesso." })
+      toast({
+        title: "Bem-vindo ao Dashboard!",
+        description: "Você está logado com sucesso.",
+      })
     } catch (error: any) {
       setAuthError(error.message || "Erro desconhecido ao verificar autenticação")
       setLoading(false)
@@ -136,21 +139,25 @@ export default function DashboardPage() {
           <AlertTitle>Erro de autenticação</AlertTitle>
           <AlertDescription>{authError || "Sessão não encontrada"}</AlertDescription>
         </Alert>
-        <Button onClick={() => (window.location.href = "/login")}>Ir para página de login</Button>
+        <Button onClick={() => (window.location.href = "/login")}>
+          Ir para página de login
+        </Button>
       </div>
     )
   }
 
   const imageSrc =
-    theme === "dark" ? "/images/premiacoes-dark-large.png" : "/images/premiacoes-light-large.png"
+    theme === "dark"
+      ? "/images/premiacoes-dark-large.png"
+      : "/images/premiacoes-light-large.png"
 
   return (
     <NotificationProvider>
       <UpdatesInitializer />
       <SidebarProvider>
-        <div className="flex h-screen w-screen overflow-hidden"> {/* ✅ overflow-hidden aplicado aqui */}
+        <div className="flex h-screen w-screen overflow-hidden">
           <AppSidebar />
-          <SidebarInset className="overflow-hidden"> {/* ✅ e aqui também */}
+          <SidebarInset className="overflow-hidden">
             {/* HEADER */}
             <div className="flex h-16 items-center justify-between px-4">
               <div className="flex items-center" />
@@ -163,8 +170,13 @@ export default function DashboardPage() {
                 <DropdownMenu>
                   <DropdownMenuTrigger className="rounded-full p-0 outline-none focus:ring-0">
                     <Avatar className="h-9 w-9">
-                      <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
-                      <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarImage
+                        src={userAvatarUrl || "/placeholder-user.jpg"}
+                        alt="User Avatar"
+                      />
+                      <AvatarFallback>
+                        {userName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>
 
@@ -200,47 +212,52 @@ export default function DashboardPage() {
             </div>
 
             {/* BODY */}
-            <div className="flex h-[calc(100%-4rem)] w-full overflow-hidden"> {/* ✅ sem rolagem vertical */}
+            <div className="flex h-[calc(100%-4rem)] w-full overflow-hidden">
               {/* Painel principal */}
-              <div className="w-full md:w-[80%] overflow-hidden p-3"> {/* ✅ bloqueia rolagem aqui */}
+              <div className="w-full md:w-[90%] overflow-hidden p-0">
                 <DashboardView onViewChange={() => {}} />
               </div>
 
               {/* Coluna lateral */}
-              <div className="hidden md:flex md:w-[22%] overflow-hidden p-4 flex-col items-center pt-4 mt-[62px]"> {/* ✅ bloqueia rolagem lateral também */}
-                <img
-                  src={imageSrc || "/placeholder.svg"}
-                  alt="Suas Próximas Premiações"
-                  className="max-w-full h-auto object-contain"
-                />
+              <div className="hidden md:flex md:w-[18%] overflow-hidden p-4 flex-col items-center pt-4 mt-[137px]">
+                {/* Wrapper interno reduzido */}
+                <div className="w-full max-w-[280px] scale-100 origin-top mx-auto flex flex-col items-center">
+                  <img
+                    src={imageSrc || "/placeholder.svg"}
+                    alt="Suas Próximas Premiações"
+                    style={{ transform: "scale(1.19)" }}
+                  />
 
-                {/* PROGRESSO DE CONQUISTAS */}
-                <div className="mt-8 w-full px-2 text-center">
-                  <h3
-                    className="text-[18px] md:text-sm font-semibold leading-none tracking-tight
-                               max-w-full overflow-hidden text-ellipsis whitespace-nowrap mb-1"
-                  >
-                    Progresso de Conquistas
-                  </h3>
+                  {/* PROGRESSO DE CONQUISTAS */}
+                  <div className="mt-6 w-full px 1 text-center">
+                    <h3
+                      className="text-[18px] md:text-sm font-semibold leading-none tracking-tight
+                                 max-w-full overflow-hidden text-ellipsis whitespace-nowrap mb-1"
+                    >
+                      Progresso de Conquistas
+                    </h3>
 
-                  <div className="text-[14px] text-muted-foreground font-medium whitespace-nowrap mb-2">
-                    {achievementData.isMaxGoalReached ? (
-                      <span className="text-green-500 font-medium">{achievementData.goalText}</span>
-                    ) : (
-                      <>
-                        {formatCurrency(achievementData.currentProgress)} /{" "}
-                        {formatCurrency(achievementData.segmentEnd)}
-                      </>
-                    )}
+                    <div className="text-[11px] text-muted-foreground font-medium whitespace-nowrap mb-2">
+                      {achievementData.isMaxGoalReached ? (
+                        <span className="text-green-500 font-medium">
+                          {achievementData.goalText}
+                        </span>
+                      ) : (
+                        <>
+                          {formatCurrency(achievementData.currentProgress)} /{" "}
+                          {formatCurrency(achievementData.segmentEnd)}
+                        </>
+                      )}
+                    </div>
+
+                    <Progress value={achievementData.percentage} className="w-full h-3" />
+
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      {achievementData.isMaxGoalReached
+                        ? "Todas as metas atingidas!"
+                        : achievementData.goalText}
+                    </p>
                   </div>
-
-                  <Progress value={achievementData.percentage} className="w-full h-3" />
-
-                  <p className="text-xs text-muted-foreground text-center mt-2">
-                    {achievementData.isMaxGoalReached
-                      ? "Todas as metas atingidas!"
-                      : achievementData.goalText}
-                  </p>
                 </div>
               </div>
             </div>

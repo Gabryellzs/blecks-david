@@ -161,7 +161,7 @@ function isChargeback(row: GatewayTransaction) {
 function getBruto(row: GatewayTransaction) {
   const raw = row.amount ?? 0
   const num = Number(raw) || 0
-  // se estiver em centavos, troca pra return num / 100
+  // se estiver em centavos, trocar pra return num / 100
   return num
 }
 
@@ -218,7 +218,7 @@ function calcGatewaySplit(rows: GatewayTransaction[]): Record<string, number> {
 // =============================
 export function useGatewayKpis(filter: KpiFilter) {
   const { userId, from, to, search } = filter
-  const _keepUserId = userId
+  const _keepUserId = userId // evitar unused lint
 
   const [rows, setRows] = useState<GatewayTransaction[]>([])
   const [loading, setLoading] = useState(true)
@@ -297,8 +297,8 @@ export function useGatewayKpis(filter: KpiFilter) {
       )
       .subscribe()
 
+  // limpar canal ao desmontar
     channelRef.current = channel
-
     return () => {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
       channelRef.current = null
@@ -328,33 +328,28 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     )
   }
 
-  // visual base do donut
-  const OUTER_R = 70        // raio externo
+  // Config base do donut (tamanho, stroke)
+  const OUTER_R = 70        // raio externo visível
   const STROKE = 28         // espessura da argola
   const INNER_R = OUTER_R - STROKE
   const C = 2 * Math.PI * OUTER_R
   const BOX = OUTER_R * 2 + STROKE * 2
   const CENTER = OUTER_R + STROKE
 
-  // >>> AQUI ESTÁ O SEGREDO: ajustes separados pra fatia grande e pequena
-  // você controla cada grupo individualmente
-  const bigLabel = {
-    offsetIn: 10, // empurra o texto da fatia grande mais para dentro (maior número = mais pro centro)
-    yAdjust: 24,   // empurra vertical da fatia grande (positivo = desce)
+  // Presets automáticos pros labels
+  // topLabel → usa quando a fatia está na parte de cima do donut (tipo o 1%)
+  // bottomLabel → usa quando a fatia está na parte de baixo (tipo o 99%)
+  const topLabel = {
+    offsetIn: 2,   // quão pra dentro do donut (menor = mais perto da borda colorida)
+    yAdjust: -14,  // sobe o texto
   }
 
-  const smallLabel = {
-    offsetIn: 2,  // empurra o texto da fatia pequena (menor = mais perto da borda colorida)
-    yAdjust: -14,  // sobe um pouco (negativo = sobe)
+  const bottomLabel = {
+    offsetIn: 10,  // empurra mais pro centro
+    yAdjust: 24,   // desce o texto
   }
 
-  // Se você quiser ajustar por nome da gateway e não por tamanho da fatia,
-  // você pode criar um mapa aqui em vez de usar "pct > 50". Exemplo:
-  // const customByGateway = {
-  //   pepper: { offsetIn: 10, yAdjust: 6 },
-  //   cakto: { offsetIn: 2, yAdjust: -2 },
-  // }
-
+  // gerar cor consistente por gateway
   function colorForGateway(name: string) {
     const palette = [
       "#00c2ff",
@@ -373,6 +368,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     return palette[hash]
   }
 
+  // converte ângulo polar pra x,y no SVG
   function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
     const angleRad = (angleDeg * Math.PI) / 180
     return {
@@ -391,7 +387,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     const pct100 = pct * 100
     const sliceLen = pct * C
 
-    // desenha a faixa
+    // fatia (arco)
     slices.push(
       <circle
         key={name}
@@ -403,42 +399,42 @@ function DonutChart({ data }: { data: Record<string, number> }) {
         strokeDashoffset={-offsetLen}
         strokeLinecap="butt"
         transform="rotate(-90)"
-        style={{
-          transition: "stroke-dashoffset 0.6s ease",
-        }}
+        style={{ transition: "stroke-dashoffset 0.6s ease" }}
       />
     )
 
-    // ângulo do meio da fatia
+    // ângulo do centro dessa fatia
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
-    const midAngleDeg = midFrac * 360 - 90
+    const midAngleDeg = midFrac * 360 - 90 // -90 = começa no topo
 
-    // decidir qual ajuste usar pra esse label
-    // regra atual: se a fatia é maior que 50%, trata como "big" (ex: 99%)
-    // senão como "small" (ex: 1%)
-    const cfg = pct100 > 50 ? bigLabel : smallLabel
+    // 1) calculamos posição BASE no meio do aro
+    //    (ainda sem yAdjust)
+    const baseRadius = INNER_R + STROKE / 2 - 6 // offset "padrão" pro texto
+    const basePoint = polarToCartesian(0, 0, baseRadius, midAngleDeg)
 
-    // raio onde o texto fica:
-    // meio da argola -> INNER_R + STROKE/2
-    // menos offsetIn -> empurra em direção ao centro
-    const labelRadius =
-      INNER_R + STROKE / 2 - cfg.offsetIn
+    // 2) decidimos se essa label está em cima (y < 0) ou embaixo (y >= 0)
+    //    isso funciona pra qualquer quantidade de fatias
+    const isTopHalf = basePoint.y < 0
+    const cfg = isTopHalf ? topLabel : bottomLabel
 
-    // posição final
-    const { x, y } = polarToCartesian(0, 0, labelRadius, midAngleDeg)
+    // 3) recalculamos o raio final levando em conta cfg.offsetIn
+    const finalRadius = INNER_R + STROKE / 2 - cfg.offsetIn
+    const { x, y } = polarToCartesian(0, 0, finalRadius, midAngleDeg)
 
+    // texto de porcentagem
     const pctText = pct100.toLocaleString("pt-BR", {
       maximumFractionDigits: 0,
       minimumFractionDigits: 0,
     })
 
+    // 4) render do label já ajustado
     labels.push(
       <text
         key={name + "-label"}
         x={x}
-        y={y + cfg.yAdjust} // <-- ajuste vertical específico pra essa fatia
+        y={y + cfg.yAdjust}
         fill="#ffffff"
         fontSize="12px"
         fontWeight={700}
@@ -469,7 +465,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
           transform={`translate(${CENTER}, ${CENTER})`}
           style={{ transition: "all 0.3s ease" }}
         >
-          {/* fundo cinza atrás */}
+          {/* anel de fundo */}
           <circle
             r={OUTER_R}
             fill="none"
@@ -480,7 +476,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
           {/* fatias */}
           {slices}
 
-          {/* textos % individuais */}
+          {/* labels (%) já posicionadas automaticamente */}
           {labels}
         </g>
       </svg>
@@ -938,6 +934,7 @@ export default function DashboardView({
       className="px-4 md:px-8 pt-2 md:pt-3 pb-0 overflow-hidden"
       style={{ height: `calc(100vh - ${HEADER_H}px)` }}
     >
+      {/* header topo */}
       <div className="mb-2 flex items-start justify-between gap-2 flex-wrap">
         <PeriodSelector />
 
@@ -960,6 +957,7 @@ export default function DashboardView({
         </button>
       </div>
 
+      {/* GRID PRINCIPAL */}
       <div
         className="grid h-[calc(100%-40px)]"
         style={{
@@ -981,6 +979,7 @@ export default function DashboardView({
             ...(card.glow ? { ["--gw"]: card.glow } : {}),
           }
 
+          // monta conteúdo do slot
           const sourceMap = {
             ...(defaultContent || {}),
             ...(cardContent || {}),

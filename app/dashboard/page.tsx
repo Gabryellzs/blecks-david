@@ -202,7 +202,7 @@ export default function DashboardPage() {
             {/* BODY */}
             <div className="flex h-[calc(100%-4rem)] w-full overflow-hidden"> {/* ✅ sem rolagem vertical */}
               {/* Painel principal */}
-              <div className="w-full md:w-[89%] overflow-hidden p-3"> {/* ✅ bloqueia rolagem aqui */}
+              <div className="w-full md:w-[80%] overflow-hidden p-3"> {/* ✅ bloqueia rolagem aqui */}
                 <DashboardView onViewChange={() => {}} />
               </div>
 

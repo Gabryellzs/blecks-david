@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
 // =============================
-// TIPOS DA TABELA
+// TIPOS / MODELOS DE DADOS
 // =============================
 export type GatewayEventType =
   | "sale"
@@ -97,6 +97,7 @@ function norm(v: string | null | undefined) {
   return (v || "").toLowerCase().trim()
 }
 
+// status considerados venda aprovada
 const APPROVED_STATUS = [
   "approved",
   "paid",
@@ -112,6 +113,7 @@ const APPROVED_STATUS = [
   "confirmed",
 ]
 
+// status/eventos que desclassificam: abandono, cancelado, erro etc
 const BLOCK_STATUS_PARTIAL = [
   "abandon",
   "abandoned",
@@ -130,6 +132,7 @@ const BLOCK_STATUS_PARTIAL = [
   "declined",
 ]
 
+// venda válida?
 function isApprovedSale(row: GatewayTransaction) {
   const st = norm(row.status)
   const ev = norm(row.event_type)
@@ -147,30 +150,29 @@ function isApprovedSale(row: GatewayTransaction) {
   return true
 }
 
+// é reembolso?
 function isRefund(row: GatewayTransaction) {
   const st = norm(row.status)
   const ev = norm(row.event_type)
   return st.includes("refund") || ev.includes("refund")
 }
 
+// é chargeback?
 function isChargeback(row: GatewayTransaction) {
   const ev = norm(row.event_type)
   return ev.includes("charge") && ev.includes("back")
 }
 
-/**
- * Valor bruto
- * Se o banco salva em centavos, trocar pra return num / 100
- */
+// valor bruto da venda
+// (se o seu banco guarda centavos, aqui viraria num/100)
 function getBruto(row: GatewayTransaction) {
   const raw = row.amount ?? 0
   const num = Number(raw) || 0
   return num
 }
 
-function calcGatewaySummaryForPeriod(
-  rows: GatewayTransaction[]
-): GatewayKpisLight {
+// KPIs gerais da faixa
+function calcGatewaySummaryForPeriod(rows: GatewayTransaction[]): GatewayKpisLight {
   let receitaTotal = 0
   let vendas = 0
   let reembolsosTotal = 0
@@ -202,12 +204,12 @@ function calcGatewaySummaryForPeriod(
   }
 }
 
+// soma de receita aprovada por gateway_id (donut)
 function calcGatewaySplit(rows: GatewayTransaction[]): Record<string, number> {
   const totals: Record<string, number> = {}
 
   for (const r of rows) {
     if (!isApprovedSale(r)) continue
-
     const bruto = getBruto(r)
     if (bruto <= 0) continue
 
@@ -223,6 +225,7 @@ function calcGatewaySplit(rows: GatewayTransaction[]): Record<string, number> {
 // =============================
 export function useGatewayKpis(filter: KpiFilter) {
   const { userId, from, to, search } = filter
+
   const [rows, setRows] = useState<GatewayTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -260,13 +263,13 @@ export function useGatewayKpis(filter: KpiFilter) {
     setLoading(false)
   }
 
-  // carrega quando muda range / search
+  // carrega quando range/search muda
   useEffect(() => {
     fetchAll()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, from, to, search])
 
-  // realtime
+  // realtime (INSERT / UPDATE)
   useEffect(() => {
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
@@ -281,6 +284,7 @@ export function useGatewayKpis(filter: KpiFilter) {
         { event: "INSERT", schema: "public", table: "gateway_transactions" },
         (payload) => {
           const row = payload.new as GatewayTransaction
+          // respeita range atual
           if (from && row.created_at < from) return
           if (to && row.created_at >= to) return
           setRows((prev) => [row, ...prev])
@@ -302,7 +306,7 @@ export function useGatewayKpis(filter: KpiFilter) {
       )
       .subscribe()
 
-  ;(channelRef as any).current = channel
+    channelRef.current = channel
 
     return () => {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
@@ -319,7 +323,7 @@ export function useGatewayKpis(filter: KpiFilter) {
 }
 
 // =============================
-// DONUT (gráfico pizza gateways)
+// DONUT CHART
 // =============================
 function DonutChart({ data }: { data: Record<string, number> }) {
   const entries = Object.entries(data).filter(([, v]) => v > 0)
@@ -333,7 +337,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     )
   }
 
-  // geometria
+  // dimensões da pizza
   const OUTER_R = 70
   const STROKE = 28
   const INNER_R = OUTER_R - STROKE
@@ -341,18 +345,14 @@ function DonutChart({ data }: { data: Record<string, number> }) {
   const BOX = OUTER_R * 2 + STROKE * 2
   const CENTER = OUTER_R + STROKE
 
-  // presets pros textos (em cima/embaixo)
-  const topLabel = {
-    offsetIn: 2,
-    yAdjust: -14,
-  }
-
-  const bottomLabel = {
-    offsetIn: 10,
-    yAdjust: 24,
-  }
+  // duas configs de posição de label:
+  // - fatia na metade de cima -> label sobe
+  // - fatia na metade de baixo -> label desce
+  const TOP_CFG = { offsetIn: 2, yAdjust: -14 }
+  const BOTTOM_CFG = { offsetIn: 10, yAdjust: 24 }
 
   function colorForGateway(name: string) {
+    // paleta determinística
     const palette = [
       "#00c2ff",
       "#8b5cf6",
@@ -392,7 +392,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     const pct100 = pct * 100
     const sliceLen = pct * C
 
-    // fatia
+    // fatia colorida
     slices.push(
       <circle
         key={name}
@@ -410,24 +410,24 @@ function DonutChart({ data }: { data: Record<string, number> }) {
       />
     )
 
-    // ângulo médio
+    // ângulo central da fatia (em graus)
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
     const midAngleDeg = midFrac * 360 - 90
 
-    // checar se está na metade de cima pra decidir preset
-    const basePoint = polarToCartesian(
+    // decidir se label vai usar config TOP ou BOTTOM
+    const midPoint = polarToCartesian(
       0,
       0,
       INNER_R + STROKE / 2 - 6,
       midAngleDeg
     )
-    const isTopHalf = basePoint.y < 0
-    const cfg = isTopHalf ? topLabel : bottomLabel
+    const isTopHalf = midPoint.y < 0
+    const cfg = isTopHalf ? TOP_CFG : BOTTOM_CFG
 
-    const labelRadius =
-      INNER_R + STROKE / 2 - cfg.offsetIn
+    // raio do texto
+    const labelRadius = INNER_R + STROKE / 2 - cfg.offsetIn
 
     const { x, y } = polarToCartesian(0, 0, labelRadius, midAngleDeg)
 
@@ -471,7 +471,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
           transform={`translate(${CENTER}, ${CENTER})`}
           style={{ transition: "all 0.3s ease" }}
         >
-          {/* anel base */}
+          {/* fundo cinza */}
           <circle
             r={OUTER_R}
             fill="none"
@@ -482,12 +482,12 @@ function DonutChart({ data }: { data: Record<string, number> }) {
           {/* fatias */}
           {slices}
 
-          {/* labels de % */}
+          {/* % */}
           {labels}
         </g>
       </svg>
 
-      {/* legenda */}
+      {/* legenda em linha, wrap se tiver muitas gateways */}
       <div
         className="
           flex flex-row flex-wrap
@@ -530,7 +530,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
 }
 
 // =============================
-// DASHBOARD LAYOUT
+// DASHBOARD LAYOUT / GRID
 // =============================
 export type CardRenderer =
   | React.ReactNode
@@ -565,7 +565,8 @@ type AutoCard = {
   glow?: string
 }
 
-// IMPORTANTE: layout NÃO MUDA
+// IMPORTANTÍSSIMO: grid exatamente igual ao seu,
+// só acrescentei b4..b8 lá embaixo com as logos, mas NÃO mexi no layout w/h
 const CARDS: AutoCard[] = [
   { id: "top-1", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Receita Total
   { id: "top-2", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Vendas
@@ -574,21 +575,23 @@ const CARDS: AutoCard[] = [
 
   { id: "big-donut", w: 5, h: 6, kind: "donut", effect: "neonTop", glow: "#0d2de3ff" },
 
-  { id: "r1", w: 3, h: 2, effect: "neonTop", glow: "#22d3ee" },
-  { id: "r2", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" },
-  { id: "r3", w: 3, h: 2, effect: "neonTop", glow: "#00e5ffff" },
-  { id: "r4", w: 2, h: 2, effect: "neonTop", glow: "#60a5fa" },
-  { id: "r5", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" },
-  { id: "r6", w: 2, h: 2, effect: "neonTop", glow: "#00bbffff" },
+  { id: "r1", w: 3, h: 2, effect: "neonTop", glow: "#22d3ee" },      // Gastos com anúncios
+  { id: "r2", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" },    // ROAS
+  { id: "r3", w: 3, h: 2, effect: "neonTop", glow: "#00e5ffff" },    // Vendas pendentes
+  { id: "r4", w: 2, h: 2, effect: "neonTop", glow: "#60a5fa" },      // Lucro
+  { id: "r5", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" },    // ROI
+  { id: "r6", w: 2, h: 2, effect: "neonTop", glow: "#00bbffff" },    // Margem de Lucro
 
-  { id: "b1", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },
-  { id: "b2", w: 2, h: 2, effect: "neonTop", glow: "#34d399" },
-  { id: "b3", w: 2, h: 2, effect: "neonTop", glow: "#f59e0b" },
-  { id: "b4", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },
-  { id: "b5", w: 3, h: 2, effect: "neonTop", glow: "#ee5706ff" },
-  { id: "b6", w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },
-  { id: "b7", w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },
-  { id: "b8", w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },
+  { id: "b1", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },      // Custo por conversa
+  { id: "b2", w: 2, h: 2, effect: "neonTop", glow: "#34d399" },      // Conversa
+  { id: "b3", w: 2, h: 2, effect: "neonTop", glow: "#f59e0b" },      // Imposto
+
+  { id: "b4", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },      // Meta ADS
+  { id: "b5", w: 3, h: 2, effect: "neonTop", glow: "#ee5706ff" },    // Google ADS
+  { id: "b6", w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },      // Analytics
+  { id: "b7", w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },      // TikTok ADS
+  { id: "b8", w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },    // Kwai ADS
+
   { id: "b9", w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },
   { id: "b10", w: 3, h: 2, effect: "neonTop", glow: "#10b981" },
   { id: "b11", w: 3, h: 2, effect: "neonTop", glow: "#c81331ff" },
@@ -596,6 +599,7 @@ const CARDS: AutoCard[] = [
 
 export const CARDS_IDS = CARDS.map((c) => c.id)
 
+// classe neon
 function neonClass(effect?: AutoCard["effect"]) {
   switch (effect) {
     case "neon":
@@ -609,7 +613,7 @@ function neonClass(effect?: AutoCard["effect"]) {
   }
 }
 
-// card container (mantém seu estilo neon + borda)
+// card container (caixa com borda glow)
 function Block({
   className = "",
   style,
@@ -630,7 +634,6 @@ function Block({
   )
 }
 
-// fallback quando a gente não setou nada pro card
 function Placeholder({ slotId }: { slotId: string }) {
   return (
     <div className="h-full w-full flex items-center justify-center text-xs text-white/60 select-none">
@@ -640,7 +643,7 @@ function Placeholder({ slotId }: { slotId: string }) {
 }
 
 // =============================
-// RANGE BUILDER (período)
+// RANGE BUILDER (Período)
 // =============================
 type RangePreset =
   | "maximo"
@@ -667,10 +670,7 @@ function makeRange(
     start.setHours(0, 0, 0, 0)
     const end = new Date(start)
     end.setDate(end.getDate() + 1)
-    return {
-      from: start.toISOString(),
-      to: end.toISOString(),
-    }
+    return { from: start.toISOString(), to: end.toISOString() }
   }
 
   if (preset === "ontem") {
@@ -679,10 +679,7 @@ function makeRange(
     start.setDate(start.getDate() - 1)
     const end = new Date(start)
     end.setDate(end.getDate() + 1)
-    return {
-      from: start.toISOString(),
-      to: end.toISOString(),
-    }
+    return { from: start.toISOString(), to: end.toISOString() }
   }
 
   if (preset === "7d" || preset === "30d" || preset === "90d") {
@@ -691,10 +688,7 @@ function makeRange(
     const start = new Date(now)
     start.setDate(start.getDate() - days)
     start.setHours(0, 0, 0, 0)
-    return {
-      from: start.toISOString(),
-      to: end.toISOString(),
-    }
+    return { from: start.toISOString(), to: end.toISOString() }
   }
 
   // custom
@@ -710,14 +704,12 @@ function makeRange(
 
   return {
     from: startDate ? startDate.toISOString() : undefined,
-    to: endDateExclusive
-      ? endDateExclusive.toISOString()
-      : undefined,
+    to: endDateExclusive ? endDateExclusive.toISOString() : undefined,
   }
 }
 
 // =============================
-// DASHBOARD COMPONENT
+// COMPONENTE PRINCIPAL DO DASHBOARD
 // =============================
 export default function DashboardView({
   salesByPlatform = {},
@@ -730,230 +722,296 @@ export default function DashboardView({
 }: DashboardProps) {
   const router = useRouter()
 
-  // período
+  // período selecionado
   const [preset, setPreset] = useState<RangePreset>("hoje")
   const [customStart, setCustomStart] = useState<string>("")
   const [customEnd, setCustomEnd] = useState<string>("")
 
-  // refresh
+  // botão Atualizar
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [tickState, setTickState] = useState(0)
   const _tick = tickState
 
-  // intervalo calculado
+  // calcula período final (from/to)
   const { from, to } = useMemo(() => {
     return makeRange(preset, customStart, customEnd)
   }, [preset, customStart, customEnd])
 
-  // busca KPIs/Supabase
+  // hook que lê Supabase com esse período
   const data = useGatewayKpis({
     search: kpiFilter?.search,
     from,
     to,
   })
 
-  // ======= CARD CONTENTS =======
+  // função helper pra formatar moeda BRL
+  function brl(n: number) {
+    return n.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    })
+  }
+
+  // função helper pra % verde
+  function greenPct(p: string) {
+    return (
+      <span className="text-green-400 text-2xl font-semibold">{p}</span>
+    )
+  }
+
+  // =============================
+  // conteúdo padrão dos cards
+  // =============================
   const defaultContent: CardContentMap = {
-    // linha original de cima
+    // KPIs linha de cima
     "top-1": (_slotId, ctx) => {
       const value = ctx.kpis.receitaTotal ?? 0
-      const formatted = ctx.loading
-        ? "R$ 0,00"
-        : value.toLocaleString("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-          })
       return (
         <div className="p-3 text-white">
           <div className="text-xs text-white/70 mb-2">Receita Total</div>
-          <div className="text-2xl font-semibold">{formatted}</div>
+          <div className="text-2xl font-semibold">
+            {ctx.loading ? brl(0) : brl(value)}
+          </div>
         </div>
       )
     },
 
     "top-2": (_slotId, ctx) => {
       const value = ctx.kpis.vendas ?? 0
-      const formatted = ctx.loading
-        ? "0"
-        : value.toLocaleString("pt-BR")
       return (
         <div className="p-3 text-white">
           <div className="text-xs text-white/70 mb-2">Vendas</div>
-          <div className="text-2xl font-semibold">{formatted}</div>
+          <div className="text-2xl font-semibold">
+            {ctx.loading ? "0" : value.toLocaleString("pt-BR")}
+          </div>
         </div>
       )
     },
 
     "top-3": (_slotId, ctx) => {
       const value = ctx.kpis.reembolsosTotal ?? 0
-      const formatted = ctx.loading
-        ? "R$ 0,00"
-        : value.toLocaleString("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-          })
       return (
         <div className="p-3 text-white">
           <div className="text-xs text-white/70 mb-2">Reembolsos</div>
-          <div className="text-2xl font-semibold">{formatted}</div>
+          <div className="text-2xl font-semibold">
+            {ctx.loading ? brl(0) : brl(value)}
+          </div>
         </div>
       )
     },
 
     "top-4": (_slotId, ctx) => {
       const value = ctx.kpis.chargebacksTotal ?? 0
-      const formatted = ctx.loading
-        ? "R$ 0,00"
-        : value.toLocaleString("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-          })
       return (
         <div className="p-3 text-white">
           <div className="text-xs text-white/70 mb-2">Chargebacks</div>
-          <div className="text-2xl font-semibold">{formatted}</div>
-        </div>
-      )
-    },
-
-    // r1..r6 (mantendo layout, só mudando label/valor)
-    r1: () => {
-      const label = "Gastos com anúncios"
-      const value = 0
-      const formatted = value.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })
-      return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">{label}</div>
-          <div className="text-2xl font-semibold">{formatted}</div>
-        </div>
-      )
-    },
-
-    r2: () => {
-      const label = "ROAS"
-      const value = 0 // tipo 1.39
-      return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">{label}</div>
           <div className="text-2xl font-semibold">
-            {value.toLocaleString("pt-BR")}
+            {ctx.loading ? brl(0) : brl(value)}
           </div>
         </div>
       )
     },
 
-    r3: () => {
-      const label = "Vendas Pendentes"
-      const value = 0
-      const formatted = value.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })
+    // r1..r6 (linha cinza/branco estilo que você pediu)
+    r1: () => {
+      const valText = brl(0)
       return (
         <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">{label}</div>
-          <div className="text-2xl font-semibold">{formatted}</div>
+          <div className="text-xs text-white/70 mb-2">
+            Gastos com anúncios
+          </div>
+          <div className="text-2xl font-semibold">{valText}</div>
+        </div>
+      )
+    },
+
+    r2: () => {
+      const valText = "0"
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2">ROAS</div>
+          <div className="text-2xl font-semibold">{valText}</div>
+        </div>
+      )
+    },
+
+    r3: () => {
+      const valText = brl(0)
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2">
+            Vendas Pendentes
+          </div>
+          <div className="text-2xl font-semibold">{valText}</div>
         </div>
       )
     },
 
     r4: () => {
-      const label = "Lucro"
-      const value = 0
-      const formatted = value.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })
+      const valText = brl(0)
       return (
         <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">{label}</div>
+          <div className="text-xs text-white/70 mb-2">Lucro</div>
           <div className="text-2xl font-semibold text-green-400">
-            {formatted}
+            {valText}
           </div>
         </div>
       )
     },
 
     r5: () => {
-      const label = "ROI"
-      const value = 0 // %
       return (
         <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">{label}</div>
-          <div className="text-2xl font-semibold text-green-400">
-            {value.toFixed(1)}%
-          </div>
+          <div className="text-xs text-white/70 mb-2">ROI</div>
+          {greenPct("0.0%")}
         </div>
       )
     },
 
     r6: () => {
-      const label = "Margem de Lucro"
-      const value = 0 // %
       return (
         <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">{label}</div>
-          <div className="text-2xl font-semibold text-green-400">
-            {value.toFixed(1)}%
+          <div className="text-xs text-white/70 mb-2">
+            Margem de Lucro
           </div>
+          {greenPct("0.0%")}
         </div>
       )
     },
 
-    // b1, b2, b3 agora entram com seus nomes
+    // b1..b3 (suas métricas internas)
     b1: () => {
-      const label = "Custo por conversa"
-      const value = 0 // R$
-      const formatted = value.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })
+      const valText = brl(0)
       return (
         <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">{label}</div>
-          <div className="text-2xl font-semibold">{formatted}</div>
+          <div className="text-xs text-white/70 mb-2">
+            Custo por conversa
+          </div>
+          <div className="text-2xl font-semibold">{valText}</div>
         </div>
       )
     },
 
     b2: () => {
-      const label = "Conversa"
-      const value = 0 // quantidade de conversas
-      const formatted = value.toLocaleString("pt-BR")
+      const valText = "0"
       return (
         <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">{label}</div>
-          <div className="text-2xl font-semibold">{formatted}</div>
+          <div className="text-xs text-white/70 mb-2">Conversa</div>
+          <div className="text-2xl font-semibold">{valText}</div>
         </div>
       )
     },
 
     b3: () => {
-      const label = "Imposto"
-      const value = 0 // R$
-      const formatted = value.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })
+      const valText = brl(0)
       return (
         <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">{label}</div>
-          <div className="text-2xl font-semibold">{formatted}</div>
+          <div className="text-xs text-white/70 mb-2">Imposto</div>
+          <div className="text-2xl font-semibold">{valText}</div>
         </div>
       )
     },
 
-    // big donut continua
+    // b4..b8 AGORA COM LOGO DA PLATAFORMA
+    // Ajusta o caminho do src conforme o nome do arquivo real em /public/ads-logos/
+    b4: () => {
+      const valText = brl(0)
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2 flex items-center gap-2">
+            <img
+              src="/ads-logos/meta-ads.png"
+              alt=""
+              className="w-4 h-4 object-contain"
+            />
+            <span className="leading-none">Meta ADS</span>
+          </div>
+
+          <div className="text-2xl font-semibold">{valText}</div>
+        </div>
+      )
+    },
+
+    b5: () => {
+      const valText = brl(0)
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2 flex items-center gap-2">
+            <img
+              src="/ads-logos/google-ads.png"
+              alt=""
+              className="w-4 h-4 object-contain"
+            />
+            <span className="leading-none">Google ADS</span>
+          </div>
+
+          <div className="text-2xl font-semibold">{valText}</div>
+        </div>
+      )
+    },
+
+    b6: () => {
+      const valText = brl(0)
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2 flex items-center gap-2">
+            <img
+              src="/ads-logos/google-analytics.png"
+              alt=""
+              className="w-4 h-4 object-contain"
+            />
+            <span className="leading-none">Analytics</span>
+          </div>
+
+          <div className="text-2xl font-semibold">{valText}</div>
+        </div>
+      )
+    },
+
+    b7: () => {
+      const valText = brl(0)
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2 flex items-center gap-2">
+            <img
+              src="/ads-logos/tiktok-ads.png"
+              alt=""
+              className="w-4 h-4 object-contain"
+            />
+            <span className="leading-none">TikTok ADS</span>
+          </div>
+
+          <div className="text-2xl font-semibold">{valText}</div>
+        </div>
+      )
+    },
+
+    b8: () => {
+      const valText = brl(0)
+      return (
+        <div className="p-3 text-white">
+          <div className="text-xs text-white/70 mb-2 flex items-center gap-2">
+            <img
+              src="/ads-logos/kwai-ads.png"
+              alt=""
+              className="w-4 h-4 object-contain"
+            />
+            <span className="leading-none">Kwai ADS</span>
+          </div>
+
+          <div className="text-2xl font-semibold">{valText}</div>
+        </div>
+      )
+    },
+
+    // donut grande
     "big-donut": (_slotId, ctx) => {
       const split = calcGatewaySplit(ctx.rows)
       return <DonutChart data={split} />
     },
   }
 
-  // aplica visibilidade e overrides -> cards finais
+  // aplica visibilidade e overrides do layout
   const effectiveCards = useMemo(() => {
     const v = visibleSlots ?? {}
     const o = layoutOverrides ?? {}
@@ -963,7 +1021,7 @@ export default function DashboardView({
     }))
   }, [visibleSlots, layoutOverrides])
 
-  // calcula altura de linhas do grid
+  // quantas linhas de grid eu preciso pra desenhar tudo
   const rowsNeeded = useMemo(() => {
     const units = effectiveCards.reduce(
       (sum, c) =>
@@ -975,7 +1033,7 @@ export default function DashboardView({
     return Math.max(6, Math.ceil(units / 12) + 1)
   }, [effectiveCards])
 
-  // botão atualizar
+  // botão Atualizar
   const doRefresh = useCallback(async () => {
     try {
       setIsRefreshing(true)
@@ -983,7 +1041,7 @@ export default function DashboardView({
       if (onRefresh) {
         await onRefresh()
       } else if ("refresh" in router) {
-        // @ts-ignore
+        // @ts-ignore next/navigation refresh (next13+)
         router.refresh()
       } else {
         setTickState((t) => t + 1)
@@ -993,10 +1051,11 @@ export default function DashboardView({
     }
   }, [onRefresh, router, data])
 
-  // seletor de período SEM mostrar "Hoje — data → data"
+  // seletor de período
   function PeriodSelector() {
     return (
       <div className="flex flex-col gap-2">
+        {/* primeira linha: rótulo + select */}
         <div className="flex flex-wrap items-center gap-2">
           <label
             htmlFor="preset"
@@ -1029,6 +1088,7 @@ export default function DashboardView({
           </select>
         </div>
 
+        {/* range manual só aparece se preset = custom */}
         {preset === "custom" && (
           <div className="flex flex-wrap items-center gap-2 text-[10px] text-white/70">
             <div className="flex items-center gap-1">
@@ -1056,12 +1116,15 @@ export default function DashboardView({
     )
   }
 
+  // =============================
+  // RENDER
+  // =============================
   return (
     <div
       className="px-4 md:px-8 pt-2 md:pt-3 pb-0 overflow-hidden"
       style={{ height: `calc(100vh - ${HEADER_H}px)` }}
     >
-      {/* header */}
+      {/* HEADER TOPO - Período + botão Atualizar */}
       <div className="mb-2 flex items-start justify-between gap-2 flex-wrap">
         <PeriodSelector />
 
@@ -1084,7 +1147,7 @@ export default function DashboardView({
         </button>
       </div>
 
-      {/* GRID PRINCIPAL */}
+      {/* GRID PRINCIPAL - mantém SEU layout de 12 col com spans */}
       <div
         className="grid h-[calc(100%-40px)]"
         style={{
@@ -1097,6 +1160,7 @@ export default function DashboardView({
         {effectiveCards.map((card, idx) => {
           const cls = neonClass(card.effect)
 
+          // posição/tamanho no grid
           const style: CSSProperties & { ["--gw"]?: string } = {
             gridColumn: `auto / span ${Math.max(
               1,
@@ -1106,6 +1170,7 @@ export default function DashboardView({
             ...(card.glow ? { ["--gw"]: card.glow } : {}),
           }
 
+          // escolhe o conteúdo daquele slot
           const sourceMap = {
             ...(defaultContent || {}),
             ...(cardContent || {}),
@@ -1114,11 +1179,13 @@ export default function DashboardView({
 
           let content: React.ReactNode | null = null
           if (typeof plug === "function") {
-            content = (plug as any)(card.id, data)
+            // @ts-ignore
+            content = plug(card.id, data)
           } else {
             content = plug ?? null
           }
 
+          // fallback se não tiver conteúdo
           const fallback =
             card.kind === "donut" && !hideDefaultDonut ? (
               <div className="flex h-full w-full items-center justify-center text-white/55 text-sm">

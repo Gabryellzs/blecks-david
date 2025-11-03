@@ -97,7 +97,6 @@ function norm(v: string | null | undefined) {
   return (v || "").toLowerCase().trim()
 }
 
-// status considerados venda aprovada
 const APPROVED_STATUS = [
   "approved",
   "paid",
@@ -113,7 +112,6 @@ const APPROVED_STATUS = [
   "confirmed",
 ]
 
-// status/eventos que desclassificam: abandono, cancelado, erro etc
 const BLOCK_STATUS_PARTIAL = [
   "abandon",
   "abandoned",
@@ -132,7 +130,6 @@ const BLOCK_STATUS_PARTIAL = [
   "declined",
 ]
 
-// venda válida?
 function isApprovedSale(row: GatewayTransaction) {
   const st = norm(row.status)
   const ev = norm(row.event_type)
@@ -150,21 +147,18 @@ function isApprovedSale(row: GatewayTransaction) {
   return true
 }
 
-// é reembolso?
 function isRefund(row: GatewayTransaction) {
   const st = norm(row.status)
   const ev = norm(row.event_type)
   return st.includes("refund") || ev.includes("refund")
 }
 
-// é chargeback?
 function isChargeback(row: GatewayTransaction) {
   const ev = norm(row.event_type)
   return ev.includes("charge") && ev.includes("back")
 }
 
 // valor bruto da venda
-// (se o seu banco guarda centavos, aqui viraria num/100)
 function getBruto(row: GatewayTransaction) {
   const raw = row.amount ?? 0
   const num = Number(raw) || 0
@@ -263,13 +257,11 @@ export function useGatewayKpis(filter: KpiFilter) {
     setLoading(false)
   }
 
-  // carrega quando range/search muda
   useEffect(() => {
     fetchAll()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, from, to, search])
 
-  // realtime (INSERT / UPDATE)
   useEffect(() => {
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
@@ -284,7 +276,6 @@ export function useGatewayKpis(filter: KpiFilter) {
         { event: "INSERT", schema: "public", table: "gateway_transactions" },
         (payload) => {
           const row = payload.new as GatewayTransaction
-          // respeita range atual
           if (from && row.created_at < from) return
           if (to && row.created_at >= to) return
           setRows((prev) => [row, ...prev])
@@ -337,7 +328,6 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     )
   }
 
-  // dimensões da pizza
   const OUTER_R = 70
   const STROKE = 28
   const INNER_R = OUTER_R - STROKE
@@ -345,14 +335,10 @@ function DonutChart({ data }: { data: Record<string, number> }) {
   const BOX = OUTER_R * 2 + STROKE * 2
   const CENTER = OUTER_R + STROKE
 
-  // duas configs de posição de label:
-  // - fatia na metade de cima -> label sobe
-  // - fatia na metade de baixo -> label desce
   const TOP_CFG = { offsetIn: 2, yAdjust: -14 }
   const BOTTOM_CFG = { offsetIn: 10, yAdjust: 24 }
 
   function colorForGateway(name: string) {
-    // paleta determinística
     const palette = [
       "#00c2ff",
       "#8b5cf6",
@@ -392,7 +378,6 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     const pct100 = pct * 100
     const sliceLen = pct * C
 
-    // fatia colorida
     slices.push(
       <circle
         key={name}
@@ -410,13 +395,11 @@ function DonutChart({ data }: { data: Record<string, number> }) {
       />
     )
 
-    // ângulo central da fatia (em graus)
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
     const midAngleDeg = midFrac * 360 - 90
 
-    // decidir se label vai usar config TOP ou BOTTOM
     const midPoint = polarToCartesian(
       0,
       0,
@@ -426,7 +409,6 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     const isTopHalf = midPoint.y < 0
     const cfg = isTopHalf ? TOP_CFG : BOTTOM_CFG
 
-    // raio do texto
     const labelRadius = INNER_R + STROKE / 2 - cfg.offsetIn
 
     const { x, y } = polarToCartesian(0, 0, labelRadius, midAngleDeg)
@@ -471,23 +453,17 @@ function DonutChart({ data }: { data: Record<string, number> }) {
           transform={`translate(${CENTER}, ${CENTER})`}
           style={{ transition: "all 0.3s ease" }}
         >
-          {/* fundo cinza */}
           <circle
             r={OUTER_R}
             fill="none"
             stroke="rgba(255,255,255,0.07)"
             strokeWidth={STROKE}
           />
-
-          {/* fatias */}
           {slices}
-
-          {/* % */}
           {labels}
         </g>
       </svg>
 
-      {/* legenda em linha, wrap se tiver muitas gateways */}
       <div
         className="
           flex flex-row flex-wrap
@@ -565,33 +541,41 @@ type AutoCard = {
   glow?: string
 }
 
-// IMPORTANTÍSSIMO: grid exatamente igual ao seu,
-// só acrescentei b4..b8 lá embaixo com as logos, mas NÃO mexi no layout w/h
+// >>>>>>> AQUI É O SEGREDO <<<<<<
+// 1. a ordem fica lógica (topos, métricas, depois trio custo/conversa/imposto)
+// 2. b1/b2/b3 cada um ocupa w:4 pra ficarem lado a lado na MESMA linha
 const CARDS: AutoCard[] = [
+  // linha de KPIs principais
   { id: "top-1", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Receita Total
   { id: "top-2", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Vendas
   { id: "top-3", w: 3, h: 2, effect: "neonTop", glow: "rgba(3,144,245,1)" }, // Reembolsos
   { id: "top-4", w: 3, h: 2, effect: "neonTop", glow: "#008ffcff" }, // Chargebacks
 
-  { id: "big-donut", w: 5, h: 6, kind: "donut", effect: "neonTop", glow: "#0d2de3ff" },
+  // donut grande (painel da esquerda)
+  { id: "big-donut", w: 4, h: 6, kind: "donut", effect: "neonTop", glow: "#0d2de3ff" },
 
-  { id: "r1", w: 3, h: 2, effect: "neonTop", glow: "#22d3ee" },      // Gastos com anúncios
-  { id: "r2", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" },    // ROAS
-  { id: "r3", w: 3, h: 2, effect: "neonTop", glow: "#00e5ffff" },    // Vendas pendentes
-  { id: "r4", w: 2, h: 2, effect: "neonTop", glow: "#60a5fa" },      // Lucro
-  { id: "r5", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" },    // ROI
-  { id: "r6", w: 2, h: 2, effect: "neonTop", glow: "#00bbffff" },    // Margem de Lucro
+  // métricas operacionais (gastos / roas / lucro / etc)
+  { id: "r1", w: 3, h: 2, effect: "neonTop", glow: "#22d3ee" },   // Gastos com anúncios
+  { id: "r2", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" }, // ROAS
+  { id: "r4", w: 3, h: 2, effect: "neonTop", glow: "#60a5fa" },   // Lucro
+  { id: "r3", w: 3, h: 2, effect: "neonTop", glow: "#00e5ffff" }, // Vendas Pendentes
+  { id: "r5", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" }, // ROI
+  { id: "r6", w: 3, h: 2, effect: "neonTop", glow: "#00bbffff" }, // Margem de Lucro
 
-  { id: "b1", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },      // Custo por conversa
-  { id: "b2", w: 2, h: 2, effect: "neonTop", glow: "#34d399" },      // Conversa
-  { id: "b3", w: 2, h: 2, effect: "neonTop", glow: "#f59e0b" },      // Imposto
+  // >>> linha que você quer ajustar visualmente <<<
+  // agora os três com w:4 cada (4+4+4 = 12 colunas).
+  { id: "b1", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },   // Custo por conversa
+  { id: "b2", w: 2, h: 2, effect: "neonTop", glow: "#34d399" },   // Conversa
+  { id: "b3", w: 3, h: 2, effect: "neonTop", glow: "#f59e0b" },   // Imposto
 
-  { id: "b4", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },      // Meta ADS
-  { id: "b5", w: 3, h: 2, effect: "neonTop", glow: "#ee5706ff" },    // Google ADS
-  { id: "b6", w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },      // Analytics
-  { id: "b7", w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },      // TikTok ADS
-  { id: "b8", w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },    // Kwai ADS
+  // plataformas de anúncio
+  { id: "b4", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },   // Meta ADS
+  { id: "b5", w: 3, h: 2, effect: "neonTop", glow: "#ee5706ff" }, // Google ADS
+  { id: "b6", w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },   // Analytics
+  { id: "b7", w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },   // TikTok ADS
+  { id: "b8", w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" }, // Kwai ADS
 
+  // slots livres
   { id: "b9", w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },
   { id: "b10", w: 3, h: 2, effect: "neonTop", glow: "#10b981" },
   { id: "b11", w: 3, h: 2, effect: "neonTop", glow: "#c81331ff" },
@@ -599,7 +583,6 @@ const CARDS: AutoCard[] = [
 
 export const CARDS_IDS = CARDS.map((c) => c.id)
 
-// classe neon
 function neonClass(effect?: AutoCard["effect"]) {
   switch (effect) {
     case "neon":
@@ -613,7 +596,6 @@ function neonClass(effect?: AutoCard["effect"]) {
   }
 }
 
-// card container (caixa com borda glow)
 function Block({
   className = "",
   style,
@@ -691,7 +673,6 @@ function makeRange(
     return { from: start.toISOString(), to: end.toISOString() }
   }
 
-  // custom
   const startDate = customStart
     ? new Date(customStart + "T00:00:00")
     : undefined
@@ -722,29 +703,24 @@ export default function DashboardView({
 }: DashboardProps) {
   const router = useRouter()
 
-  // período selecionado
   const [preset, setPreset] = useState<RangePreset>("hoje")
   const [customStart, setCustomStart] = useState<string>("")
   const [customEnd, setCustomEnd] = useState<string>("")
 
-  // botão Atualizar
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [tickState, setTickState] = useState(0)
   const _tick = tickState
 
-  // calcula período final (from/to)
   const { from, to } = useMemo(() => {
     return makeRange(preset, customStart, customEnd)
   }, [preset, customStart, customEnd])
 
-  // hook que lê Supabase com esse período
   const data = useGatewayKpis({
     search: kpiFilter?.search,
     from,
     to,
   })
 
-  // função helper pra formatar moeda BRL
   function brl(n: number) {
     return n.toLocaleString("pt-BR", {
       style: "currency",
@@ -752,18 +728,13 @@ export default function DashboardView({
     })
   }
 
-  // função helper pra % verde
   function greenPct(p: string) {
     return (
       <span className="text-green-400 text-2xl font-semibold">{p}</span>
     )
   }
 
-  // =============================
-  // conteúdo padrão dos cards
-  // =============================
   const defaultContent: CardContentMap = {
-    // KPIs linha de cima
     "top-1": (_slotId, ctx) => {
       const value = ctx.kpis.receitaTotal ?? 0
       return (
@@ -812,7 +783,6 @@ export default function DashboardView({
       )
     },
 
-    // r1..r6 (linha cinza/branco estilo que você pediu)
     r1: () => {
       const valText = brl(0)
       return (
@@ -879,7 +849,9 @@ export default function DashboardView({
       )
     },
 
-    // b1..b3 (suas métricas internas)
+    // =====================
+    // AQUI: linha custo -> conversa -> imposto
+    // =====================
     b1: () => {
       const valText = brl(0)
       return (
@@ -896,7 +868,9 @@ export default function DashboardView({
       const valText = "0"
       return (
         <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">Conversa</div>
+          <div className="text-xs text-white/70 mb-2">
+            Conversa
+          </div>
           <div className="text-2xl font-semibold">{valText}</div>
         </div>
       )
@@ -912,8 +886,7 @@ export default function DashboardView({
       )
     },
 
-    // b4..b8 AGORA COM LOGO DA PLATAFORMA
-    // Ajusta o caminho do src conforme o nome do arquivo real em /public/ads-logos/
+    // plataformas de anúncio
     b4: () => {
       const valText = brl(0)
       return (
@@ -926,7 +899,6 @@ export default function DashboardView({
             />
             <span className="leading-none">Meta ADS</span>
           </div>
-
           <div className="text-2xl font-semibold">{valText}</div>
         </div>
       )
@@ -944,7 +916,6 @@ export default function DashboardView({
             />
             <span className="leading-none">Google ADS</span>
           </div>
-
           <div className="text-2xl font-semibold">{valText}</div>
         </div>
       )
@@ -962,7 +933,6 @@ export default function DashboardView({
             />
             <span className="leading-none">Analytics</span>
           </div>
-
           <div className="text-2xl font-semibold">{valText}</div>
         </div>
       )
@@ -980,7 +950,6 @@ export default function DashboardView({
             />
             <span className="leading-none">TikTok ADS</span>
           </div>
-
           <div className="text-2xl font-semibold">{valText}</div>
         </div>
       )
@@ -998,20 +967,17 @@ export default function DashboardView({
             />
             <span className="leading-none">Kwai ADS</span>
           </div>
-
           <div className="text-2xl font-semibold">{valText}</div>
         </div>
       )
     },
 
-    // donut grande
     "big-donut": (_slotId, ctx) => {
       const split = calcGatewaySplit(ctx.rows)
       return <DonutChart data={split} />
     },
   }
 
-  // aplica visibilidade e overrides do layout
   const effectiveCards = useMemo(() => {
     const v = visibleSlots ?? {}
     const o = layoutOverrides ?? {}
@@ -1021,7 +987,6 @@ export default function DashboardView({
     }))
   }, [visibleSlots, layoutOverrides])
 
-  // quantas linhas de grid eu preciso pra desenhar tudo
   const rowsNeeded = useMemo(() => {
     const units = effectiveCards.reduce(
       (sum, c) =>
@@ -1033,7 +998,6 @@ export default function DashboardView({
     return Math.max(6, Math.ceil(units / 12) + 1)
   }, [effectiveCards])
 
-  // botão Atualizar
   const doRefresh = useCallback(async () => {
     try {
       setIsRefreshing(true)
@@ -1041,7 +1005,7 @@ export default function DashboardView({
       if (onRefresh) {
         await onRefresh()
       } else if ("refresh" in router) {
-        // @ts-ignore next/navigation refresh (next13+)
+        // @ts-ignore
         router.refresh()
       } else {
         setTickState((t) => t + 1)
@@ -1051,11 +1015,9 @@ export default function DashboardView({
     }
   }, [onRefresh, router, data])
 
-  // seletor de período
   function PeriodSelector() {
     return (
       <div className="flex flex-col gap-2">
-        {/* primeira linha: rótulo + select */}
         <div className="flex flex-wrap items-center gap-2">
           <label
             htmlFor="preset"
@@ -1088,7 +1050,6 @@ export default function DashboardView({
           </select>
         </div>
 
-        {/* range manual só aparece se preset = custom */}
         {preset === "custom" && (
           <div className="flex flex-wrap items-center gap-2 text-[10px] text-white/70">
             <div className="flex items-center gap-1">
@@ -1116,15 +1077,11 @@ export default function DashboardView({
     )
   }
 
-  // =============================
-  // RENDER
-  // =============================
   return (
     <div
       className="px-4 md:px-8 pt-2 md:pt-3 pb-0 overflow-hidden"
       style={{ height: `calc(100vh - ${HEADER_H}px)` }}
     >
-      {/* HEADER TOPO - Período + botão Atualizar */}
       <div className="mb-2 flex items-start justify-between gap-2 flex-wrap">
         <PeriodSelector />
 
@@ -1147,7 +1104,6 @@ export default function DashboardView({
         </button>
       </div>
 
-      {/* GRID PRINCIPAL - mantém SEU layout de 12 col com spans */}
       <div
         className="grid h-[calc(100%-40px)]"
         style={{
@@ -1160,7 +1116,6 @@ export default function DashboardView({
         {effectiveCards.map((card, idx) => {
           const cls = neonClass(card.effect)
 
-          // posição/tamanho no grid
           const style: CSSProperties & { ["--gw"]?: string } = {
             gridColumn: `auto / span ${Math.max(
               1,
@@ -1170,7 +1125,6 @@ export default function DashboardView({
             ...(card.glow ? { ["--gw"]: card.glow } : {}),
           }
 
-          // escolhe o conteúdo daquele slot
           const sourceMap = {
             ...(defaultContent || {}),
             ...(cardContent || {}),
@@ -1185,7 +1139,6 @@ export default function DashboardView({
             content = plug ?? null
           }
 
-          // fallback se não tiver conteúdo
           const fallback =
             card.kind === "donut" && !hideDefaultDonut ? (
               <div className="flex h-full w-full items-center justify-center text-white/55 text-sm">

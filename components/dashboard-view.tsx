@@ -133,16 +133,13 @@ const BLOCK_STATUS_PARTIAL = [
 function isApprovedSale(row: GatewayTransaction) {
   const st = norm(row.status)
   const ev = norm(row.event_type)
-  const okStatus = APPROVED_STATUS.includes(st)
-  if (!okStatus) return false
 
+  if (!APPROVED_STATUS.includes(st)) return false
   for (const bad of BLOCK_STATUS_PARTIAL) {
     if (st.includes(bad) || ev.includes(bad)) return false
   }
-
   if (st.includes("refund") || ev.includes("refund")) return false
   if (ev.includes("charge") && ev.includes("back")) return false
-
   return true
 }
 
@@ -157,14 +154,12 @@ function isChargeback(row: GatewayTransaction) {
   return ev.includes("charge") && ev.includes("back")
 }
 
-// valor bruto da venda
 function getBruto(row: GatewayTransaction) {
   const raw = row.amount ?? 0
   const num = Number(raw) || 0
   return num
 }
 
-// KPIs gerais da faixa
 function calcGatewaySummaryForPeriod(rows: GatewayTransaction[]): GatewayKpisLight {
   let receitaTotal = 0
   let vendas = 0
@@ -179,37 +174,22 @@ function calcGatewaySummaryForPeriod(rows: GatewayTransaction[]): GatewayKpisLig
         vendas += 1
       }
     }
-
-    if (isRefund(r)) {
-      reembolsosTotal += Math.abs(getBruto(r))
-    }
-
-    if (isChargeback(r)) {
-      chargebacksTotal += Math.abs(getBruto(r))
-    }
+    if (isRefund(r)) reembolsosTotal += Math.abs(getBruto(r))
+    if (isChargeback(r)) chargebacksTotal += Math.abs(getBruto(r))
   }
 
-  return {
-    receitaTotal,
-    vendas,
-    reembolsosTotal,
-    chargebacksTotal,
-  }
+  return { receitaTotal, vendas, reembolsosTotal, chargebacksTotal }
 }
 
-// soma de receita aprovada por gateway_id (donut)
 function calcGatewaySplit(rows: GatewayTransaction[]): Record<string, number> {
   const totals: Record<string, number> = {}
-
   for (const r of rows) {
     if (!isApprovedSale(r)) continue
     const bruto = getBruto(r)
     if (bruto <= 0) continue
-
     const key = r.gateway_id || "Outro"
     totals[key] = (totals[key] || 0) + bruto
   }
-
   return totals
 }
 
@@ -313,11 +293,26 @@ export function useGatewayKpis(filter: KpiFilter) {
 }
 
 // =============================
-// DONUT CHART
+// DONUT CHART (labels no anel + tooltip + responsivo)
 // =============================
 function DonutChart({ data }: { data: Record<string, number> }) {
-  const entries = Object.entries(data).filter(([, v]) => v > 0)
-  const total = entries.reduce((s, [, v]) => s + v, 0)
+  const entries = useMemo(
+    () => Object.entries(data).filter(([, v]) => v > 0),
+    [data]
+  )
+  const total = useMemo(
+    () => entries.reduce((s, [, v]) => s + v, 0),
+    [entries]
+  )
+
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [tip, setTip] = useState<{
+    show: boolean
+    name: string
+    pct: number
+    x: number
+    y: number
+  }>({ show: false, name: "", pct: 0, x: 0, y: 0 })
 
   if (total === 0) {
     return (
@@ -329,6 +324,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     )
   }
 
+  // ViewBox fixo + width/height 100% => responsivo e centralizado
   const OUTER_R = 70
   const STROKE = 28
   const INNER_R = OUTER_R - STROKE
@@ -336,19 +332,16 @@ function DonutChart({ data }: { data: Record<string, number> }) {
   const BOX = OUTER_R * 2 + STROKE * 2
   const CENTER = OUTER_R + STROKE
 
-  const TOP_CFG = { offsetIn: 2, yAdjust: -14 }
-  const BOTTOM_CFG = { offsetIn: 10, yAdjust: 24 }
-
   function colorForGateway(name: string) {
     const palette = [
-      "#00c2ff",
-      "#8b5cf6",
-      "#10b981",
-      "#facc15",
-      "#ef4444",
-      "#38bdf8",
-      "#fb923c",
-      "#ec4899",
+      "#ef4444", // vermelho
+      "#22c55e", // verde
+      "#3b82f6", // azul
+      "#eab308", // amarelo
+      "#a855f7", // roxo
+      "#06b6d4", // ciano
+      "#fb923c", // laranja
+      "#ec4899", // rosa
     ]
     let hash = 0
     for (let i = 0; i < name.length; i++) {
@@ -364,10 +357,34 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     angleDeg: number
   ) {
     const angleRad = (angleDeg * Math.PI) / 180
-    return {
-      x: cx + r * Math.cos(angleRad),
-      y: cy + r * Math.sin(angleRad),
-    }
+    return { x: cx + r * Math.cos(angleRad), y: cy + r * Math.sin(angleRad) }
+  }
+
+  function handleEnter(
+    e: React.MouseEvent<SVGCircleElement, MouseEvent>,
+    name: string,
+    pct: number
+  ) {
+    const rect = containerRef.current?.getBoundingClientRect()
+    setTip({
+      show: true,
+      name,
+      pct,
+      x: e.clientX - (rect?.left ?? 0),
+      y: e.clientY - (rect?.top ?? 0),
+    })
+  }
+  function handleMove(e: React.MouseEvent<SVGCircleElement, MouseEvent>) {
+    if (!tip.show) return
+    const rect = containerRef.current?.getBoundingClientRect()
+    setTip((t) => ({
+      ...t,
+      x: e.clientX - (rect?.left ?? 0),
+      y: e.clientY - (rect?.top ?? 0),
+    }))
+  }
+  function handleLeave() {
+    setTip((t) => ({ ...t, show: false }))
   }
 
   let offsetLen = 0
@@ -379,6 +396,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     const pct100 = pct * 100
     const sliceLen = pct * C
 
+    // fatia (stroke + dasharray)
     slices.push(
       <circle
         key={name}
@@ -390,28 +408,19 @@ function DonutChart({ data }: { data: Record<string, number> }) {
         strokeDashoffset={-offsetLen}
         strokeLinecap="butt"
         transform="rotate(-90)"
-        style={{
-          transition: "stroke-dashoffset 0.6s ease",
-        }}
+        style={{ transition: "stroke-dashoffset 0.6s ease" }}
+        onMouseEnter={(e) => handleEnter(e, name, pct100)}
+        onMouseMove={handleMove}
+        onMouseLeave={handleLeave}
       />
     )
 
+    // label de % sobre o anel (meio da fatia)
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
     const midAngleDeg = midFrac * 360 - 90
-
-    const midPoint = polarToCartesian(
-      0,
-      0,
-      INNER_R + STROKE / 2 - 6,
-      midAngleDeg
-    )
-    const isTopHalf = midPoint.y < 0
-    const cfg = isTopHalf ? TOP_CFG : BOTTOM_CFG
-
-    const labelRadius = INNER_R + STROKE / 2 - cfg.offsetIn
-
+    const labelRadius = INNER_R + STROKE / 2 - 6
     const { x, y } = polarToCartesian(0, 0, labelRadius, midAngleDeg)
 
     const pctText = pct100.toLocaleString("pt-BR", {
@@ -423,10 +432,10 @@ function DonutChart({ data }: { data: Record<string, number> }) {
       <text
         key={name + "-label"}
         x={x}
-        y={y + cfg.yAdjust}
+        y={y}
         fill="#ffffff"
-        fontSize="12px"
-        fontWeight={700}
+        fontSize="14px"
+        fontWeight={800}
         textAnchor="middle"
         dominantBaseline="middle"
         style={{
@@ -443,18 +452,19 @@ function DonutChart({ data }: { data: Record<string, number> }) {
   })
 
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full">
+    <div
+      ref={containerRef}
+      className="relative flex h-full w-full items-center justify-center"
+    >
       <svg
-        width={BOX}
-        height={BOX}
+        width="100%"
+        height="100%"
         viewBox={`0 0 ${BOX} ${BOX}`}
-        className="mb-4"
+        preserveAspectRatio="xMidYMid meet"
+        className="max-w-[520px] max-h-[520px]"
       >
-        <g
-          transform={`translate(${CENTER}, ${CENTER})`}
-          style={{ transition: "all 0.3s ease" }}
-        >
-          {/* fundo base do donut */}
+        <g transform={`translate(${CENTER}, ${CENTER})`}>
+          {/* anel de fundo */}
           <circle
             r={OUTER_R}
             fill="none"
@@ -466,44 +476,21 @@ function DonutChart({ data }: { data: Record<string, number> }) {
         </g>
       </svg>
 
-      {/* legenda */}
-      <div
-        className="
-          flex flex-row flex-wrap
-          items-start justify-center
-          gap-x-6 gap-y-3
-          text-[12px] leading-none
-          text-black/80 dark:text-white/80
-        "
-      >
-        {entries.map(([name, value]) => {
-          const pctNum = total === 0 ? 0 : (value / total) * 100
-          const pctText = pctNum.toLocaleString("pt-BR", {
+      {/* Tooltip (nome da plataforma + %) */}
+      {tip.show && (
+        <div
+          className="pointer-events-none absolute rounded-md px-2 py-1 text-xs font-medium shadow-lg
+                     bg-black/80 text-white whitespace-nowrap"
+          style={{ left: tip.x + 8, top: tip.y + 8 }}
+        >
+          {tip.name || "Outro"} —{" "}
+          {tip.pct.toLocaleString("pt-BR", {
             maximumFractionDigits: 1,
-            minimumFractionDigits: 1,
-          })
-
-          return (
-            <div
-              key={name}
-              className="flex flex-row items-center gap-2 text-black/80 dark:text-white/80 text-[12px] leading-none"
-            >
-              <span
-                className="h-3 w-3 rounded-full inline-block"
-                style={{ backgroundColor: colorForGateway(name) }}
-              />
-              <span className="flex flex-row flex-wrap items-baseline gap-1 leading-none">
-                <span className="text-black dark:text-white text-[13px] font-medium leading-none">
-                  {name || "Outro"}
-                </span>
-                <span className="text-black/50 dark:text-white/50 text-[12px] font-light leading-none">
-                  {pctText}%
-                </span>
-              </span>
-            </div>
-          )
-        })}
-      </div>
+            minimumFractionDigits: 0,
+          })}
+          %
+        </div>
+      )}
     </div>
   )
 }
@@ -548,7 +535,6 @@ type AutoCard = {
   glow?: string
 }
 
-// layout
 const CARDS: AutoCard[] = [
   // KPIs topo
   { id: "top-1", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Receita Total
@@ -587,7 +573,6 @@ const CARDS: AutoCard[] = [
 
 export const CARDS_IDS = CARDS.map((c) => c.id)
 
-// neon card base
 function neonClass(effect?: AutoCard["effect"]) {
   switch (effect) {
     case "neon":
@@ -650,9 +635,7 @@ function makeRange(
 ) {
   const now = new Date()
 
-  if (preset === "maximo") {
-    return { from: undefined, to: undefined }
-  }
+  if (preset === "maximo") return { from: undefined, to: undefined }
 
   if (preset === "hoje") {
     const start = new Date(now)
@@ -680,14 +663,9 @@ function makeRange(
     return { from: start.toISOString(), to: end.toISOString() }
   }
 
-  const startDate = customStart
-    ? new Date(customStart + "T00:00:00")
-    : undefined
+  const startDate = customStart ? new Date(customStart + "T00:00:00") : undefined
   const endDateExclusive = customEnd
-    ? new Date(
-        new Date(customEnd + "T00:00:00").getTime() +
-          24 * 60 * 60 * 1000
-      )
+    ? new Date(new Date(customEnd + "T00:00:00").getTime() + 24 * 60 * 60 * 1000)
     : undefined
 
   return {
@@ -715,13 +693,12 @@ export default function DashboardView({
   const [customEnd, setCustomEnd] = useState<string>("")
 
   const [isRefreshing, setIsRefreshing] = useState(false)
-
-  // 🔑 CHAVE GLOBAL DE ATUALIZAÇÃO (usada só dentro do conteúdo)
   const [refreshKey, setRefreshKey] = useState(0)
 
-  const { from, to } = useMemo(() => {
-    return makeRange(preset, customStart, customEnd)
-  }, [preset, customStart, customEnd])
+  const { from, to } = useMemo(
+    () => makeRange(preset, customStart, customEnd),
+    [preset, customStart, customEnd]
+  )
 
   const data = useGatewayKpis({
     search: kpiFilter?.search,
@@ -730,19 +707,13 @@ export default function DashboardView({
   })
 
   function brl(n: number) {
-    return n.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    })
+    return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
   }
-
-  function greenPct(p: string) {
-    return (
-      <span className="text-green-600 dark:text-green-400 text-2xl font-semibold">
-        {p}
-      </span>
-    )
-  }
+  const greenPct = (p: string) => (
+    <span className="text-green-600 dark:text-green-400 text-2xl font-semibold">
+      {p}
+    </span>
+  )
 
   // conteúdo padrão dos cards
   const defaultContent: CardContentMap = {
@@ -755,7 +726,11 @@ export default function DashboardView({
             Receita Total
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(value)}
+            {loading ? (
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(value)
+            )}
           </div>
         </div>
       )
@@ -770,7 +745,11 @@ export default function DashboardView({
             Vendas
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : value.toLocaleString("pt-BR")}
+            {loading ? (
+              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              value.toLocaleString("pt-BR")
+            )}
           </div>
         </div>
       )
@@ -785,7 +764,11 @@ export default function DashboardView({
             Reembolsos
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(value)}
+            {loading ? (
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(value)
+            )}
           </div>
         </div>
       )
@@ -800,7 +783,11 @@ export default function DashboardView({
             Chargebacks
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(value)}
+            {loading ? (
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(value)
+            )}
           </div>
         </div>
       )
@@ -808,14 +795,17 @@ export default function DashboardView({
 
     r1: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
-      const valText = brl(0)
       return (
         <div key={`r1-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Gastos com anúncios
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(0)
+            )}
           </div>
         </div>
       )
@@ -823,14 +813,15 @@ export default function DashboardView({
 
     r2: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
-      const valText = "0"
       return (
         <div key={`r2-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            ROAS
-          </div>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">ROAS</div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+            {loading ? (
+              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              "0"
+            )}
           </div>
         </div>
       )
@@ -838,14 +829,17 @@ export default function DashboardView({
 
     r3: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
-      const valText = brl(0)
       return (
         <div key={`r3-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Vendas Pendentes
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(0)
+            )}
           </div>
         </div>
       )
@@ -853,14 +847,15 @@ export default function DashboardView({
 
     r4: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
-      const valText = brl(0)
       return (
         <div key={`r4-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            Lucro
-          </div>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Lucro</div>
           <div className="text-2xl font-semibold text-green-600 dark:text-green-400">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(0)
+            )}
           </div>
         </div>
       )
@@ -870,9 +865,7 @@ export default function DashboardView({
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`r5-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            ROI
-          </div>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">ROI</div>
           {loading ? (
             <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
           ) : (
@@ -890,7 +883,7 @@ export default function DashboardView({
             Margem de Lucro
           </div>
           {loading ? (
-            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg白/10 animate-pulse" />
+            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
           ) : (
             greenPct("0.0%")
           )}
@@ -901,14 +894,17 @@ export default function DashboardView({
     // custo / conversa / imposto
     b1: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
-      const valText = brl(0)
       return (
         <div key={`b1-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Custo por conversa
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(0)
+            )}
           </div>
         </div>
       )
@@ -916,14 +912,15 @@ export default function DashboardView({
 
     b2: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
-      const valText = "0"
       return (
         <div key={`b2-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            Conversa
-          </div>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Conversa</div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+            {loading ? (
+              <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              "0"
+            )}
           </div>
         </div>
       )
@@ -931,14 +928,15 @@ export default function DashboardView({
 
     b3: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
-      const valText = brl(0)
       return (
         <div key={`b3-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            Imposto
-          </div>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Imposto</div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(0)
+            )}
           </div>
         </div>
       )
@@ -947,7 +945,6 @@ export default function DashboardView({
     // plataformas
     b4: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
-      const valText = brl(0)
       return (
         <div key={`b4-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
@@ -955,7 +952,11 @@ export default function DashboardView({
             <span className="leading-none">Meta ADS</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(0)
+            )}
           </div>
         </div>
       )
@@ -963,7 +964,6 @@ export default function DashboardView({
 
     b5: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
-      const valText = brl(0)
       return (
         <div key={`b5-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
@@ -971,7 +971,11 @@ export default function DashboardView({
             <span className="leading-none">Google ADS</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(0)
+            )}
           </div>
         </div>
       )
@@ -979,7 +983,6 @@ export default function DashboardView({
 
     b6: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
-      const valText = brl(0)
       return (
         <div key={`b6-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
@@ -987,7 +990,11 @@ export default function DashboardView({
             <span className="leading-none">Analytics</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(0)
+            )}
           </div>
         </div>
       )
@@ -995,7 +1002,6 @@ export default function DashboardView({
 
     b7: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
-      const valText = brl(0)
       return (
         <div key={`b7-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
@@ -1003,7 +1009,11 @@ export default function DashboardView({
             <span className="leading-none">TikTok ADS</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(0)
+            )}
           </div>
         </div>
       )
@@ -1011,7 +1021,6 @@ export default function DashboardView({
 
     b8: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
-      const valText = brl(0)
       return (
         <div key={`b8-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
@@ -1019,7 +1028,11 @@ export default function DashboardView({
             <span className="leading-none">Kwai ADS</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(0)
+            )}
           </div>
         </div>
       )
@@ -1054,19 +1067,14 @@ export default function DashboardView({
   const doRefresh = useCallback(async () => {
     try {
       setIsRefreshing(true)
-      // 1) Atualiza dados
       await data.refetch()
-
-      // 2) Se o pai tiver um onRefresh assíncrono, roda também
       if (onRefresh) {
         await onRefresh()
       } else if ("refresh" in router) {
         // @ts-ignore
         router.refresh?.()
       }
-
-      // 3) 🔑 Força remontagem de TODO o conteúdo (não o card/neon)
-      setRefreshKey((k) => k + 1)
+      setRefreshKey((k) => k + 1) // remonta só o conteúdo interno
     } finally {
       setIsRefreshing(false)
     }
@@ -1075,7 +1083,6 @@ export default function DashboardView({
   function PeriodSelector() {
     return (
       <div className="flex flex-col gap-2">
-        {/* label + select */}
         <div className="flex flex-wrap items-center gap-2">
           <label
             htmlFor="preset"
@@ -1087,10 +1094,7 @@ export default function DashboardView({
           <select
             id="preset"
             value={preset}
-            onChange={(e) => {
-              const next = e.target.value as RangePreset
-              setPreset(next)
-            }}
+            onChange={(e) => setPreset(e.target.value as RangePreset)}
             className={[
               "bg-black/5 text-black/90 border-black/20",
               "dark:bg-black/40 dark:text-white/90 dark:border-white/20",
@@ -1217,18 +1221,24 @@ export default function DashboardView({
 
           return (
             <Block
-              key={`${card.id}-${idx}`} // NÃO usa refreshKey aqui (não reinicia o neon)
+              key={`${card.id}-${idx}`} // não reinicia o neon
               className={cls}
               style={style}
             >
-              {/* Wrapper para overlay de atualização */}
               <div className="relative">
                 {/* conteúdo interno (remontado a cada refresh) */}
-                <div className={isRefreshing ? "opacity-60 transition-opacity" : "transition-opacity"} key={`content-${refreshKey}`}>
+                <div
+                  className={
+                    isRefreshing
+                      ? "opacity-60 transition-opacity"
+                      : "transition-opacity"
+                  }
+                  key={`content-${refreshKey}`}
+                >
                   {content ?? fallback}
                 </div>
 
-                {/* canto superior direito: só o spinner (sem timestamp) */}
+                {/* spinner no canto (sem timestamp) */}
                 {isRefreshing && (
                   <div className="absolute top-2 right-2 text-black/60 dark:text-white/60">
                     <span

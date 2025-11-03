@@ -297,7 +297,7 @@ export function useGatewayKpis(filter: KpiFilter) {
       )
       .subscribe()
 
-    channelRef.current = channel
+  channelRef.current = channel
 
     return () => {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
@@ -314,11 +314,15 @@ export function useGatewayKpis(filter: KpiFilter) {
 }
 
 // =============================
-// DONUT CHART
+// DONUT CHART (NOVA VERSÃO COM HOVER ANIMADO)
 // =============================
 function DonutChart({ data }: { data: Record<string, number> }) {
+  // transforma o objeto { gateway: valor } em lista e soma total
   const entries = Object.entries(data).filter(([, v]) => v > 0)
   const total = entries.reduce((s, [, v]) => s + v, 0)
+
+  // qual fatia tá em hover
+  const [hoverKey, setHoverKey] = useState<string | null>(null)
 
   if (total === 0) {
     return (
@@ -328,17 +332,20 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     )
   }
 
-  const OUTER_R = 70
-  const STROKE = 28
+  // geometria do donut
+  const OUTER_R = 70            // raio externo
+  const STROKE = 28             // espessura da “grossura” do donut
   const INNER_R = OUTER_R - STROKE
   const C = 2 * Math.PI * OUTER_R
-  const BOX = OUTER_R * 2 + STROKE * 2
-  const CENTER = OUTER_R + STROKE
+  const BOX = OUTER_R * 2 + STROKE * 2 // viewBox width/height
+  const CENTER = OUTER_R + STROKE      // centro em x/y
 
+  // posição dos % internos
   const TOP_CFG = { offsetIn: 2, yAdjust: -14 }
   const BOTTOM_CFG = { offsetIn: 10, yAdjust: 24 }
 
   function colorForGateway(name: string) {
+    // paleta determinística
     const palette = [
       "#00c2ff",
       "#8b5cf6",
@@ -356,6 +363,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     return palette[hash]
   }
 
+  // util polar -> xy
   function polarToCartesian(
     cx: number,
     cy: number,
@@ -371,34 +379,57 @@ function DonutChart({ data }: { data: Record<string, number> }) {
 
   let offsetLen = 0
   const slices: React.ReactNode[] = []
-  const labels: React.ReactNode[] = []
+  const innerPctLabels: React.ReactNode[] = []
+
+  // info pra desenhar a "callout" do hover
+  let hoverVisual: {
+    startXY: { x: number; y: number }
+    midXY: { x: number; y: number }
+    endXY: { x: number; y: number }
+    textXY: { x: number; y: number }
+    name: string
+    pctText: string
+  } | null = null
 
   entries.forEach(([name, value]) => {
     const pct = value / total
     const pct100 = pct * 100
     const sliceLen = pct * C
 
+    const strokeColor = colorForGateway(name)
+
+    // fatia
     slices.push(
       <circle
         key={name}
         r={OUTER_R}
         fill="none"
-        stroke={colorForGateway(name)}
+        stroke={strokeColor}
         strokeWidth={STROKE}
         strokeDasharray={`${sliceLen} ${C - sliceLen}`}
         strokeDashoffset={-offsetLen}
         strokeLinecap="butt"
         transform="rotate(-90)"
         style={{
-          transition: "stroke-dashoffset 0.6s ease",
+          transition:
+            "stroke-dashoffset 0.6s ease, opacity 0.2s ease, filter 0.2s ease",
+          cursor: "pointer",
+          opacity: hoverKey && hoverKey !== name ? 0.3 : 1,
+          filter:
+            hoverKey === name
+              ? "drop-shadow(0 0 6px rgba(255,255,255,0.6))"
+              : "none",
         }}
+        onMouseEnter={() => setHoverKey(name)}
+        onMouseLeave={() => setHoverKey(null)}
       />
     )
 
+    // ângulo da fatia pra colocar os % dentro
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
-    const midAngleDeg = midFrac * 360 - 90
+    const midAngleDeg = midFrac * 360 - 90 // gira pra começar no topo
 
     const midPoint = polarToCartesian(
       0,
@@ -409,16 +440,16 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     const isTopHalf = midPoint.y < 0
     const cfg = isTopHalf ? TOP_CFG : BOTTOM_CFG
 
+    // label interno
     const labelRadius = INNER_R + STROKE / 2 - cfg.offsetIn
-
     const { x, y } = polarToCartesian(0, 0, labelRadius, midAngleDeg)
 
-    const pctText = pct100.toLocaleString("pt-BR", {
+    const pctTextInside = pct100.toLocaleString("pt-BR", {
       maximumFractionDigits: 0,
       minimumFractionDigits: 0,
     })
 
-    labels.push(
+    innerPctLabels.push(
       <text
         key={name + "-label"}
         x={x}
@@ -432,15 +463,63 @@ function DonutChart({ data }: { data: Record<string, number> }) {
           paintOrder: "stroke",
           stroke: "rgba(0,0,0,0.75)",
           strokeWidth: 3,
+          pointerEvents: "none",
         }}
       >
-        {pctText}%
+        {pctTextInside}%
       </text>
     )
+
+    // se essa fatia está em hover → gera linha e texto
+    if (hoverKey === name) {
+      // ponto na borda da fatia
+      const start = polarToCartesian(
+        0,
+        0,
+        OUTER_R,
+        midAngleDeg
+      )
+
+      // primeiro segmento pra fora do círculo
+      const mid = polarToCartesian(
+        0,
+        0,
+        OUTER_R + 15,
+        midAngleDeg
+      )
+
+      // depois um segmento horizontal (esquerda ou direita)
+      const horizontalDir = mid.x >= 0 ? 1 : -1
+      const end = {
+        x: mid.x + horizontalDir * 40,
+        y: mid.y,
+      }
+
+      // ponto de texto
+      const textPoint = {
+        x: end.x + (horizontalDir === 1 ? 6 : -6),
+        y: end.y - 4,
+      }
+
+      const pctText = pct100.toLocaleString("pt-BR", {
+        maximumFractionDigits: 0,
+        minimumFractionDigits: 0,
+      })
+
+      hoverVisual = {
+        startXY: start,
+        midXY: mid,
+        endXY: end,
+        textXY: textPoint,
+        name,
+        pctText,
+      }
+    }
 
     offsetLen += sliceLen
   })
 
+  // render final
   return (
     <div className="flex flex-col items-center justify-center h-full w-full">
       <svg
@@ -448,59 +527,87 @@ function DonutChart({ data }: { data: Record<string, number> }) {
         height={BOX}
         viewBox={`0 0 ${BOX} ${BOX}`}
         className="mb-4"
+        style={{ overflow: "visible" }}
       >
         <g
           transform={`translate(${CENTER}, ${CENTER})`}
           style={{ transition: "all 0.3s ease" }}
         >
+          {/* fundo cinza atrás das fatias */}
           <circle
             r={OUTER_R}
             fill="none"
             stroke="rgba(255,255,255,0.07)"
             strokeWidth={STROKE}
           />
+
+          {/* fatias */}
           {slices}
-          {labels}
+
+          {/* % dentro da fatia */}
+          {innerPctLabels}
+
+          {/* callout hover (linha branca animada + nome + %) */}
+          {hoverVisual && (
+            <>
+              {/* trecho radial */}
+              <line
+                x1={hoverVisual.startXY.x}
+                y1={hoverVisual.startXY.y}
+                x2={hoverVisual.midXY.x}
+                y2={hoverVisual.midXY.y}
+                stroke="#fff"
+                strokeWidth={2}
+                strokeLinecap="round"
+                style={{
+                  transition: "all 0.15s ease",
+                }}
+              />
+              {/* trecho horizontal */}
+              <line
+                x1={hoverVisual.midXY.x}
+                y1={hoverVisual.midXY.y}
+                x2={hoverVisual.endXY.x}
+                y2={hoverVisual.endXY.y}
+                stroke="#fff"
+                strokeWidth={2}
+                strokeLinecap="round"
+                style={{
+                  transition: "all 0.15s ease 0.05s",
+                }}
+              />
+
+              {/* bolinha branca no final */}
+              <circle
+                cx={hoverVisual.endXY.x}
+                cy={hoverVisual.endXY.y}
+                r={3}
+                fill="#fff"
+                style={{
+                  transition: "all 0.15s ease 0.1s",
+                }}
+              />
+
+              {/* texto plataforma + % */}
+              <text
+                x={hoverVisual.textXY.x}
+                y={hoverVisual.textXY.y}
+                fill="#ffffff"
+                fontSize="12px"
+                fontWeight={600}
+                textAnchor={hoverVisual.endXY.x >= 0 ? "start" : "end"}
+                dominantBaseline="middle"
+                style={{
+                  filter: "drop-shadow(0 0 4px rgba(0,0,0,0.8))",
+                  transition: "all 0.15s ease 0.1s",
+                }}
+              >
+                {hoverVisual.name} {hoverVisual.pctText}%
+              </text>
+            </>
+          )}
         </g>
       </svg>
-
-      <div
-        className="
-          flex flex-row flex-wrap
-          items-start justify-center
-          gap-x-6 gap-y-3
-          text-[12px] leading-none
-          text-white/80
-        "
-      >
-        {entries.map(([name, value]) => {
-          const pctNum = total === 0 ? 0 : (value / total) * 100
-          const pctText = pctNum.toLocaleString("pt-BR", {
-            maximumFractionDigits: 1,
-            minimumFractionDigits: 1,
-          })
-
-          return (
-            <div
-              key={name}
-              className="flex flex-row items-center gap-2 text-white/80 text-[12px] leading-none"
-            >
-              <span
-                className="h-3 w-3 rounded-full inline-block"
-                style={{ backgroundColor: colorForGateway(name) }}
-              />
-              <span className="flex flex-row flex-wrap items-baseline gap-1 leading-none">
-                <span className="text-white text-[13px] font-medium leading-none">
-                  {name || "Outro"}
-                </span>
-                <span className="text-white/50 text-[12px] font-light leading-none">
-                  {pctText}%
-                </span>
-              </span>
-            </div>
-          )
-        })}
-      </div>
     </div>
   )
 }
@@ -541,9 +648,7 @@ type AutoCard = {
   glow?: string
 }
 
-// >>>>>>> AQUI É O SEGREDO <<<<<<
-// 1. a ordem fica lógica (topos, métricas, depois trio custo/conversa/imposto)
-// 2. b1/b2/b3 cada um ocupa w:4 pra ficarem lado a lado na MESMA linha
+// layout dos cards
 const CARDS: AutoCard[] = [
   // linha de KPIs principais
   { id: "top-1", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Receita Total
@@ -554,7 +659,7 @@ const CARDS: AutoCard[] = [
   // donut grande (painel da esquerda)
   { id: "big-donut", w: 4, h: 6, kind: "donut", effect: "neonTop", glow: "#0d2de3ff" },
 
-  // métricas operacionais (gastos / roas / lucro / etc)
+  // métricas operacionais
   { id: "r1", w: 3, h: 2, effect: "neonTop", glow: "#22d3ee" },   // Gastos com anúncios
   { id: "r2", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" }, // ROAS
   { id: "r4", w: 3, h: 2, effect: "neonTop", glow: "#60a5fa" },   // Lucro
@@ -562,8 +667,7 @@ const CARDS: AutoCard[] = [
   { id: "r5", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" }, // ROI
   { id: "r6", w: 3, h: 2, effect: "neonTop", glow: "#00bbffff" }, // Margem de Lucro
 
-  // >>> linha que você quer ajustar visualmente <<<
-  // agora os três com w:4 cada (4+4+4 = 12 colunas).
+  // linha custo -> conversa -> imposto
   { id: "b1", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },   // Custo por conversa
   { id: "b2", w: 2, h: 2, effect: "neonTop", glow: "#34d399" },   // Conversa
   { id: "b3", w: 3, h: 2, effect: "neonTop", glow: "#f59e0b" },   // Imposto
@@ -596,6 +700,7 @@ function neonClass(effect?: AutoCard["effect"]) {
   }
 }
 
+// bloco visual do card
 function Block({
   className = "",
   style,
@@ -849,9 +954,7 @@ export default function DashboardView({
       )
     },
 
-    // =====================
-    // AQUI: linha custo -> conversa -> imposto
-    // =====================
+    // custo -> conversa -> imposto
     b1: () => {
       const valText = brl(0)
       return (
@@ -972,6 +1075,7 @@ export default function DashboardView({
       )
     },
 
+    // donut grande
     "big-donut": (_slotId, ctx) => {
       const split = calcGatewaySplit(ctx.rows)
       return <DonutChart data={split} />
@@ -1005,7 +1109,7 @@ export default function DashboardView({
       if (onRefresh) {
         await onRefresh()
       } else if ("refresh" in router) {
-        // @ts-ignore
+        // @ts-ignore next/navigation refresh
         router.refresh()
       } else {
         setTickState((t) => t + 1)

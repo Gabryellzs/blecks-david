@@ -297,7 +297,7 @@ export function useGatewayKpis(filter: KpiFilter) {
       )
       .subscribe()
 
-  channelRef.current = channel
+    channelRef.current = channel
 
     return () => {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
@@ -314,38 +314,33 @@ export function useGatewayKpis(filter: KpiFilter) {
 }
 
 // =============================
-// DONUT CHART (NOVA VERSÃO COM HOVER ANIMADO)
+// DONUT CHART
 // =============================
 function DonutChart({ data }: { data: Record<string, number> }) {
-  // transforma o objeto { gateway: valor } em lista e soma total
   const entries = Object.entries(data).filter(([, v]) => v > 0)
   const total = entries.reduce((s, [, v]) => s + v, 0)
-
-  // qual fatia tá em hover
-  const [hoverKey, setHoverKey] = useState<string | null>(null)
 
   if (total === 0) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <div className="text-white/55 text-sm">Aguardando vendas...</div>
+        <div className="text-black/55 dark:text-white/55 text-sm">
+          Aguardando vendas...
+        </div>
       </div>
     )
   }
 
-  // geometria do donut
-  const OUTER_R = 70            // raio externo
-  const STROKE = 28             // espessura da “grossura” do donut
+  const OUTER_R = 70
+  const STROKE = 28
   const INNER_R = OUTER_R - STROKE
   const C = 2 * Math.PI * OUTER_R
-  const BOX = OUTER_R * 2 + STROKE * 2 // viewBox width/height
-  const CENTER = OUTER_R + STROKE      // centro em x/y
+  const BOX = OUTER_R * 2 + STROKE * 2
+  const CENTER = OUTER_R + STROKE
 
-  // posição dos % internos
   const TOP_CFG = { offsetIn: 2, yAdjust: -14 }
   const BOTTOM_CFG = { offsetIn: 10, yAdjust: 24 }
 
   function colorForGateway(name: string) {
-    // paleta determinística
     const palette = [
       "#00c2ff",
       "#8b5cf6",
@@ -363,7 +358,6 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     return palette[hash]
   }
 
-  // util polar -> xy
   function polarToCartesian(
     cx: number,
     cy: number,
@@ -379,57 +373,34 @@ function DonutChart({ data }: { data: Record<string, number> }) {
 
   let offsetLen = 0
   const slices: React.ReactNode[] = []
-  const innerPctLabels: React.ReactNode[] = []
-
-  // info pra desenhar a "callout" do hover
-  let hoverVisual: {
-    startXY: { x: number; y: number }
-    midXY: { x: number; y: number }
-    endXY: { x: number; y: number }
-    textXY: { x: number; y: number }
-    name: string
-    pctText: string
-  } | null = null
+  const labels: React.ReactNode[] = []
 
   entries.forEach(([name, value]) => {
     const pct = value / total
     const pct100 = pct * 100
     const sliceLen = pct * C
 
-    const strokeColor = colorForGateway(name)
-
-    // fatia
     slices.push(
       <circle
         key={name}
         r={OUTER_R}
         fill="none"
-        stroke={strokeColor}
+        stroke={colorForGateway(name)}
         strokeWidth={STROKE}
         strokeDasharray={`${sliceLen} ${C - sliceLen}`}
         strokeDashoffset={-offsetLen}
         strokeLinecap="butt"
         transform="rotate(-90)"
         style={{
-          transition:
-            "stroke-dashoffset 0.6s ease, opacity 0.2s ease, filter 0.2s ease",
-          cursor: "pointer",
-          opacity: hoverKey && hoverKey !== name ? 0.3 : 1,
-          filter:
-            hoverKey === name
-              ? "drop-shadow(0 0 6px rgba(255,255,255,0.6))"
-              : "none",
+          transition: "stroke-dashoffset 0.6s ease",
         }}
-        onMouseEnter={() => setHoverKey(name)}
-        onMouseLeave={() => setHoverKey(null)}
       />
     )
 
-    // ângulo da fatia pra colocar os % dentro
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
-    const midAngleDeg = midFrac * 360 - 90 // gira pra começar no topo
+    const midAngleDeg = midFrac * 360 - 90
 
     const midPoint = polarToCartesian(
       0,
@@ -440,16 +411,16 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     const isTopHalf = midPoint.y < 0
     const cfg = isTopHalf ? TOP_CFG : BOTTOM_CFG
 
-    // label interno
     const labelRadius = INNER_R + STROKE / 2 - cfg.offsetIn
+
     const { x, y } = polarToCartesian(0, 0, labelRadius, midAngleDeg)
 
-    const pctTextInside = pct100.toLocaleString("pt-BR", {
+    const pctText = pct100.toLocaleString("pt-BR", {
       maximumFractionDigits: 0,
       minimumFractionDigits: 0,
     })
 
-    innerPctLabels.push(
+    labels.push(
       <text
         key={name + "-label"}
         x={x}
@@ -463,63 +434,15 @@ function DonutChart({ data }: { data: Record<string, number> }) {
           paintOrder: "stroke",
           stroke: "rgba(0,0,0,0.75)",
           strokeWidth: 3,
-          pointerEvents: "none",
         }}
       >
-        {pctTextInside}%
+        {pctText}%
       </text>
     )
-
-    // se essa fatia está em hover → gera linha e texto
-    if (hoverKey === name) {
-      // ponto na borda da fatia
-      const start = polarToCartesian(
-        0,
-        0,
-        OUTER_R,
-        midAngleDeg
-      )
-
-      // primeiro segmento pra fora do círculo
-      const mid = polarToCartesian(
-        0,
-        0,
-        OUTER_R + 15,
-        midAngleDeg
-      )
-
-      // depois um segmento horizontal (esquerda ou direita)
-      const horizontalDir = mid.x >= 0 ? 1 : -1
-      const end = {
-        x: mid.x + horizontalDir * 40,
-        y: mid.y,
-      }
-
-      // ponto de texto
-      const textPoint = {
-        x: end.x + (horizontalDir === 1 ? 6 : -6),
-        y: end.y - 4,
-      }
-
-      const pctText = pct100.toLocaleString("pt-BR", {
-        maximumFractionDigits: 0,
-        minimumFractionDigits: 0,
-      })
-
-      hoverVisual = {
-        startXY: start,
-        midXY: mid,
-        endXY: end,
-        textXY: textPoint,
-        name,
-        pctText,
-      }
-    }
 
     offsetLen += sliceLen
   })
 
-  // render final
   return (
     <div className="flex flex-col items-center justify-center h-full w-full">
       <svg
@@ -527,87 +450,61 @@ function DonutChart({ data }: { data: Record<string, number> }) {
         height={BOX}
         viewBox={`0 0 ${BOX} ${BOX}`}
         className="mb-4"
-        style={{ overflow: "visible" }}
       >
         <g
           transform={`translate(${CENTER}, ${CENTER})`}
           style={{ transition: "all 0.3s ease" }}
         >
-          {/* fundo cinza atrás das fatias */}
+          {/* fundo base do donut (continua o mesmo do dark, ok no light também) */}
           <circle
             r={OUTER_R}
             fill="none"
             stroke="rgba(255,255,255,0.07)"
             strokeWidth={STROKE}
           />
-
-          {/* fatias */}
           {slices}
-
-          {/* % dentro da fatia */}
-          {innerPctLabels}
-
-          {/* callout hover (linha branca animada + nome + %) */}
-          {hoverVisual && (
-            <>
-              {/* trecho radial */}
-              <line
-                x1={hoverVisual.startXY.x}
-                y1={hoverVisual.startXY.y}
-                x2={hoverVisual.midXY.x}
-                y2={hoverVisual.midXY.y}
-                stroke="#fff"
-                strokeWidth={2}
-                strokeLinecap="round"
-                style={{
-                  transition: "all 0.15s ease",
-                }}
-              />
-              {/* trecho horizontal */}
-              <line
-                x1={hoverVisual.midXY.x}
-                y1={hoverVisual.midXY.y}
-                x2={hoverVisual.endXY.x}
-                y2={hoverVisual.endXY.y}
-                stroke="#fff"
-                strokeWidth={2}
-                strokeLinecap="round"
-                style={{
-                  transition: "all 0.15s ease 0.05s",
-                }}
-              />
-
-              {/* bolinha branca no final */}
-              <circle
-                cx={hoverVisual.endXY.x}
-                cy={hoverVisual.endXY.y}
-                r={3}
-                fill="#fff"
-                style={{
-                  transition: "all 0.15s ease 0.1s",
-                }}
-              />
-
-              {/* texto plataforma + % */}
-              <text
-                x={hoverVisual.textXY.x}
-                y={hoverVisual.textXY.y}
-                fill="#ffffff"
-                fontSize="12px"
-                fontWeight={600}
-                textAnchor={hoverVisual.endXY.x >= 0 ? "start" : "end"}
-                dominantBaseline="middle"
-                style={{
-                  filter: "drop-shadow(0 0 4px rgba(0,0,0,0.8))",
-                  transition: "all 0.15s ease 0.1s",
-                }}
-              >
-                {hoverVisual.name} {hoverVisual.pctText}%
-              </text>
-            </>
-          )}
+          {labels}
         </g>
       </svg>
+
+      {/* legenda */}
+      <div
+        className="
+          flex flex-row flex-wrap
+          items-start justify-center
+          gap-x-6 gap-y-3
+          text-[12px] leading-none
+          text-black/80 dark:text-white/80
+        "
+      >
+        {entries.map(([name, value]) => {
+          const pctNum = total === 0 ? 0 : (value / total) * 100
+          const pctText = pctNum.toLocaleString("pt-BR", {
+            maximumFractionDigits: 1,
+            minimumFractionDigits: 1,
+          })
+
+          return (
+            <div
+              key={name}
+              className="flex flex-row items-center gap-2 text-black/80 dark:text-white/80 text-[12px] leading-none"
+            >
+              <span
+                className="h-3 w-3 rounded-full inline-block"
+                style={{ backgroundColor: colorForGateway(name) }}
+              />
+              <span className="flex flex-row flex-wrap items-baseline gap-1 leading-none">
+                <span className="text-black dark:text-white text-[13px] font-medium leading-none">
+                  {name || "Outro"}
+                </span>
+                <span className="text-black/50 dark:text-white/50 text-[12px] font-light leading-none">
+                  {pctText}%
+                </span>
+              </span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -648,15 +545,15 @@ type AutoCard = {
   glow?: string
 }
 
-// layout dos cards
+// layout atual (mantido)
 const CARDS: AutoCard[] = [
-  // linha de KPIs principais
+  // KPIs topo
   { id: "top-1", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Receita Total
   { id: "top-2", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Vendas
   { id: "top-3", w: 3, h: 2, effect: "neonTop", glow: "rgba(3,144,245,1)" }, // Reembolsos
   { id: "top-4", w: 3, h: 2, effect: "neonTop", glow: "#008ffcff" }, // Chargebacks
 
-  // donut grande (painel da esquerda)
+  // donut grande
   { id: "big-donut", w: 4, h: 6, kind: "donut", effect: "neonTop", glow: "#0d2de3ff" },
 
   // métricas operacionais
@@ -667,7 +564,7 @@ const CARDS: AutoCard[] = [
   { id: "r5", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" }, // ROI
   { id: "r6", w: 3, h: 2, effect: "neonTop", glow: "#00bbffff" }, // Margem de Lucro
 
-  // linha custo -> conversa -> imposto
+  // custo / conversa / imposto
   { id: "b1", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },   // Custo por conversa
   { id: "b2", w: 2, h: 2, effect: "neonTop", glow: "#34d399" },   // Conversa
   { id: "b3", w: 3, h: 2, effect: "neonTop", glow: "#f59e0b" },   // Imposto
@@ -680,13 +577,14 @@ const CARDS: AutoCard[] = [
   { id: "b8", w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" }, // Kwai ADS
 
   // slots livres
-  { id: "b9", w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },
+  { id: "b9",  w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },
   { id: "b10", w: 3, h: 2, effect: "neonTop", glow: "#10b981" },
   { id: "b11", w: 3, h: 2, effect: "neonTop", glow: "#c81331ff" },
 ]
 
 export const CARDS_IDS = CARDS.map((c) => c.id)
 
+// neon card base
 function neonClass(effect?: AutoCard["effect"]) {
   switch (effect) {
     case "neon":
@@ -700,7 +598,7 @@ function neonClass(effect?: AutoCard["effect"]) {
   }
 }
 
-// bloco visual do card
+// container de cada card
 function Block({
   className = "",
   style,
@@ -710,7 +608,10 @@ function Block({
     <div
       className={[
         `rounded-[${CARD_RADIUS_PX}px]`,
-        "border border-white/15 bg-transparent",
+        // borda no dark continua igual; no light fica borda preta leve
+        ":border-white/20",
+        // fundo transparente continua, então o glow neon que vc já tem continua igual
+        "bg-transparent",
         "outline-none focus:outline-none focus:ring-0",
         className,
       ].join(" ")}
@@ -723,7 +624,7 @@ function Block({
 
 function Placeholder({ slotId }: { slotId: string }) {
   return (
-    <div className="h-full w-full flex items-center justify-center text-xs text-white/60 select-none">
+    <div className="h-full w-full flex items-center justify-center text-xs text-black/60 dark:text-white/60 select-none">
       {slotId}
     </div>
   )
@@ -835,16 +736,21 @@ export default function DashboardView({
 
   function greenPct(p: string) {
     return (
-      <span className="text-green-400 text-2xl font-semibold">{p}</span>
+      <span className="text-green-600 dark:text-green-400 text-2xl font-semibold">
+        {p}
+      </span>
     )
   }
 
+  // conteúdo padrão dos cards
   const defaultContent: CardContentMap = {
     "top-1": (_slotId, ctx) => {
       const value = ctx.kpis.receitaTotal ?? 0
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">Receita Total</div>
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+            Receita Total
+          </div>
           <div className="text-2xl font-semibold">
             {ctx.loading ? brl(0) : brl(value)}
           </div>
@@ -855,8 +761,10 @@ export default function DashboardView({
     "top-2": (_slotId, ctx) => {
       const value = ctx.kpis.vendas ?? 0
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">Vendas</div>
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+            Vendas
+          </div>
           <div className="text-2xl font-semibold">
             {ctx.loading ? "0" : value.toLocaleString("pt-BR")}
           </div>
@@ -867,8 +775,10 @@ export default function DashboardView({
     "top-3": (_slotId, ctx) => {
       const value = ctx.kpis.reembolsosTotal ?? 0
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">Reembolsos</div>
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+            Reembolsos
+          </div>
           <div className="text-2xl font-semibold">
             {ctx.loading ? brl(0) : brl(value)}
           </div>
@@ -879,8 +789,10 @@ export default function DashboardView({
     "top-4": (_slotId, ctx) => {
       const value = ctx.kpis.chargebacksTotal ?? 0
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">Chargebacks</div>
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+            Chargebacks
+          </div>
           <div className="text-2xl font-semibold">
             {ctx.loading ? brl(0) : brl(value)}
           </div>
@@ -891,8 +803,8 @@ export default function DashboardView({
     r1: () => {
       const valText = brl(0)
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Gastos com anúncios
           </div>
           <div className="text-2xl font-semibold">{valText}</div>
@@ -903,8 +815,10 @@ export default function DashboardView({
     r2: () => {
       const valText = "0"
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">ROAS</div>
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+            ROAS
+          </div>
           <div className="text-2xl font-semibold">{valText}</div>
         </div>
       )
@@ -913,8 +827,8 @@ export default function DashboardView({
     r3: () => {
       const valText = brl(0)
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Vendas Pendentes
           </div>
           <div className="text-2xl font-semibold">{valText}</div>
@@ -925,9 +839,11 @@ export default function DashboardView({
     r4: () => {
       const valText = brl(0)
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">Lucro</div>
-          <div className="text-2xl font-semibold text-green-400">
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+            Lucro
+          </div>
+          <div className="text-2xl font-semibold text-green-600 dark:text-green-400">
             {valText}
           </div>
         </div>
@@ -936,8 +852,10 @@ export default function DashboardView({
 
     r5: () => {
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">ROI</div>
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+            ROI
+          </div>
           {greenPct("0.0%")}
         </div>
       )
@@ -945,8 +863,8 @@ export default function DashboardView({
 
     r6: () => {
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Margem de Lucro
           </div>
           {greenPct("0.0%")}
@@ -954,12 +872,12 @@ export default function DashboardView({
       )
     },
 
-    // custo -> conversa -> imposto
+    // custo / conversa / imposto
     b1: () => {
       const valText = brl(0)
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Custo por conversa
           </div>
           <div className="text-2xl font-semibold">{valText}</div>
@@ -970,8 +888,8 @@ export default function DashboardView({
     b2: () => {
       const valText = "0"
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Conversa
           </div>
           <div className="text-2xl font-semibold">{valText}</div>
@@ -982,8 +900,10 @@ export default function DashboardView({
     b3: () => {
       const valText = brl(0)
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2">Imposto</div>
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+            Imposto
+          </div>
           <div className="text-2xl font-semibold">{valText}</div>
         </div>
       )
@@ -993,8 +913,8 @@ export default function DashboardView({
     b4: () => {
       const valText = brl(0)
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2 flex items-center gap-2">
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/meta-ads.png"
               alt=""
@@ -1010,8 +930,8 @@ export default function DashboardView({
     b5: () => {
       const valText = brl(0)
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2 flex items-center gap-2">
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/google-ads.png"
               alt=""
@@ -1027,8 +947,8 @@ export default function DashboardView({
     b6: () => {
       const valText = brl(0)
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2 flex items-center gap-2">
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/google-analytics.png"
               alt=""
@@ -1044,8 +964,8 @@ export default function DashboardView({
     b7: () => {
       const valText = brl(0)
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2 flex items-center gap-2">
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/tiktok-ads.png"
               alt=""
@@ -1061,8 +981,8 @@ export default function DashboardView({
     b8: () => {
       const valText = brl(0)
       return (
-        <div className="p-3 text-white">
-          <div className="text-xs text-white/70 mb-2 flex items-center gap-2">
+        <div className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/kwai-ads.png"
               alt=""
@@ -1075,7 +995,6 @@ export default function DashboardView({
       )
     },
 
-    // donut grande
     "big-donut": (_slotId, ctx) => {
       const split = calcGatewaySplit(ctx.rows)
       return <DonutChart data={split} />
@@ -1109,7 +1028,7 @@ export default function DashboardView({
       if (onRefresh) {
         await onRefresh()
       } else if ("refresh" in router) {
-        // @ts-ignore next/navigation refresh
+        // @ts-ignore
         router.refresh()
       } else {
         setTickState((t) => t + 1)
@@ -1122,10 +1041,11 @@ export default function DashboardView({
   function PeriodSelector() {
     return (
       <div className="flex flex-col gap-2">
+        {/* label + select */}
         <div className="flex flex-wrap items-center gap-2">
           <label
             htmlFor="preset"
-            className="text-white/70 text-xs font-medium"
+            className="text-black/70 dark:text-white/70 text-xs font-medium"
           >
             Período
           </label>
@@ -1138,9 +1058,11 @@ export default function DashboardView({
               setPreset(next)
             }}
             className={[
-              "bg-black/40 text-white/90 text-xs px-2 py-1 rounded-md",
-              "border border-white/20 outline-none focus:ring-0 focus:border-white/40",
-              "cursor-pointer",
+              // light
+              "bg-black/5 text-black/90 border-black/20",
+              // dark override
+              "dark:bg-black/40 dark:text-white/90 dark:border-white/20",
+              "text-xs px-2 py-1 rounded-md border outline-none focus:ring-0 focus:border-black/40 dark:focus:border-white/40 cursor-pointer",
             ].join(" ")}
             style={{ minWidth: "140px" }}
           >
@@ -1155,14 +1077,18 @@ export default function DashboardView({
         </div>
 
         {preset === "custom" && (
-          <div className="flex flex-wrap items-center gap-2 text-[10px] text-white/70">
+          <div className="flex flex-wrap items-center gap-2 text-[10px] text-black/70 dark:text-white/70">
             <div className="flex items-center gap-1">
               <span>De</span>
               <input
                 type="date"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
-                className="bg-black/40 text-white/90 text-[10px] px-2 py-1 rounded-md border border-white/20 outline-none focus:ring-0 focus:border-white/40"
+                className={[
+                  "bg-black/5 text-black/90 border-black/20",
+                  "dark:bg-black/40 dark:text-white/90 dark:border-white/20",
+                  "text-[10px] px-2 py-1 rounded-md border outline-none focus:ring-0 focus:border-black/40 dark:focus:border-white/40",
+                ].join(" ")}
               />
             </div>
 
@@ -1172,7 +1098,11 @@ export default function DashboardView({
                 type="date"
                 value={customEnd}
                 onChange={(e) => setCustomEnd(e.target.value)}
-                className="bg-black/40 text-white/90 text-[10px] px-2 py-1 rounded-md border border-white/20 outline-none focus:ring-0 focus:border-white/40"
+                className={[
+                  "bg-black/5 text-black/90 border-black/20",
+                  "dark:bg-black/40 dark:text-white/90 dark:border-white/20",
+                  "text-[10px] px-2 py-1 rounded-md border outline-none focus:ring-0 focus:border-black/40 dark:focus:border-white/40",
+                ].join(" ")}
               />
             </div>
           </div>
@@ -1186,6 +1116,7 @@ export default function DashboardView({
       className="px-4 md:px-8 pt-2 md:pt-3 pb-0 overflow-hidden"
       style={{ height: `calc(100vh - ${HEADER_H}px)` }}
     >
+      {/* HEADER */}
       <div className="mb-2 flex items-start justify-between gap-2 flex-wrap">
         <PeriodSelector />
 
@@ -1193,14 +1124,14 @@ export default function DashboardView({
           onClick={doRefresh}
           disabled={isRefreshing}
           className={[
-            "relative inline-flex items-center justify-center px-4 py-2 rounded-md",
-            "border border-white/25 text-white/90 font-medium",
-            "hover:bg:white/5 active:scale-[0.99]",
-            "transition-all disabled:opacity-60",
+            "relative inline-flex items-center justify-center px-4 py-2 rounded-md border font-medium transition-all disabled:opacity-60 active:scale-[0.99]",
+            // light
+            "border-black/25 text-black/90 bg-black/5 hover:bg-black/10",
+            // dark override
+            "dark:border-white/25 dark:text-white/90 dark:bg-black/40 dark:hover:bg-white/5",
             "neon-card neon-top no-glow",
           ].join(" ")}
           style={{
-            backgroundColor: "rgba(0,0,0,0.4)" as any,
             ["--gw" as any]: "#505555ff",
           }}
         >
@@ -1208,6 +1139,7 @@ export default function DashboardView({
         </button>
       </div>
 
+      {/* GRID */}
       <div
         className="grid h-[calc(100%-40px)]"
         style={{
@@ -1229,6 +1161,7 @@ export default function DashboardView({
             ...(card.glow ? { ["--gw"]: card.glow } : {}),
           }
 
+          // escolhe o conteúdo daquele slot
           const sourceMap = {
             ...(defaultContent || {}),
             ...(cardContent || {}),
@@ -1245,7 +1178,7 @@ export default function DashboardView({
 
           const fallback =
             card.kind === "donut" && !hideDefaultDonut ? (
-              <div className="flex h-full w-full items-center justify-center text-white/55 text-sm">
+              <div className="flex h-full w-full items-center justify-center text-black/55 dark:text-white/55 text-sm">
                 Aguardando vendas...
               </div>
             ) : (

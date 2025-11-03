@@ -133,7 +133,6 @@ const BLOCK_STATUS_PARTIAL = [
 function isApprovedSale(row: GatewayTransaction) {
   const st = norm(row.status)
   const ev = norm(row.event_type)
-
   const okStatus = APPROVED_STATUS.includes(st)
   if (!okStatus) return false
 
@@ -455,7 +454,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
           transform={`translate(${CENTER}, ${CENTER})`}
           style={{ transition: "all 0.3s ease" }}
         >
-          {/* fundo base do donut (continua o mesmo do dark, ok no light também) */}
+          {/* fundo base do donut */}
           <circle
             r={OUTER_R}
             fill="none"
@@ -514,7 +513,11 @@ function DonutChart({ data }: { data: Record<string, number> }) {
 // =============================
 export type CardRenderer =
   | React.ReactNode
-  | ((slotId: string, ctx: ReturnType<typeof useGatewayKpis>) => React.ReactNode)
+  | ((
+      slotId: string,
+      ctx: ReturnType<typeof useGatewayKpis>,
+      refreshKey: number
+    ) => React.ReactNode)
 
 export type CardContentMap = Record<string, CardRenderer>
 export type VisibleSlotsMap = Record<string, boolean>
@@ -545,7 +548,7 @@ type AutoCard = {
   glow?: string
 }
 
-// layout atual (mantido)
+// layout
 const CARDS: AutoCard[] = [
   // KPIs topo
   { id: "top-1", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Receita Total
@@ -608,9 +611,7 @@ function Block({
     <div
       className={[
         `rounded-[${CARD_RADIUS_PX}px]`,
-        // borda no dark continua igual; no light fica borda preta leve
         ":border-white/20",
-        // fundo transparente continua, então o glow neon que vc já tem continua igual
         "bg-transparent",
         "outline-none focus:outline-none focus:ring-0",
         className,
@@ -714,8 +715,9 @@ export default function DashboardView({
   const [customEnd, setCustomEnd] = useState<string>("")
 
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [tickState, setTickState] = useState(0)
-  const _tick = tickState
+
+  // 🔑 CHAVE GLOBAL DE ATUALIZAÇÃO (usada só dentro do conteúdo)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const { from, to } = useMemo(() => {
     return makeRange(preset, customStart, customEnd)
@@ -744,260 +746,288 @@ export default function DashboardView({
 
   // conteúdo padrão dos cards
   const defaultContent: CardContentMap = {
-    "top-1": (_slotId, ctx) => {
+    "top-1": (_slotId, ctx, key) => {
       const value = ctx.kpis.receitaTotal ?? 0
+      const loading = ctx.loading || isRefreshing
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`kpi-top1-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Receita Total
           </div>
           <div className="text-2xl font-semibold">
-            {ctx.loading ? brl(0) : brl(value)}
+            {loading ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(value)}
           </div>
         </div>
       )
     },
 
-    "top-2": (_slotId, ctx) => {
+    "top-2": (_slotId, ctx, key) => {
       const value = ctx.kpis.vendas ?? 0
+      const loading = ctx.loading || isRefreshing
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`kpi-top2-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Vendas
           </div>
           <div className="text-2xl font-semibold">
-            {ctx.loading ? "0" : value.toLocaleString("pt-BR")}
+            {loading ? <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : value.toLocaleString("pt-BR")}
           </div>
         </div>
       )
     },
 
-    "top-3": (_slotId, ctx) => {
+    "top-3": (_slotId, ctx, key) => {
       const value = ctx.kpis.reembolsosTotal ?? 0
+      const loading = ctx.loading || isRefreshing
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`kpi-top3-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Reembolsos
           </div>
           <div className="text-2xl font-semibold">
-            {ctx.loading ? brl(0) : brl(value)}
+            {loading ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(value)}
           </div>
         </div>
       )
     },
 
-    "top-4": (_slotId, ctx) => {
+    "top-4": (_slotId, ctx, key) => {
       const value = ctx.kpis.chargebacksTotal ?? 0
+      const loading = ctx.loading || isRefreshing
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Chargebacks
           </div>
           <div className="text-2xl font-semibold">
-            {ctx.loading ? brl(0) : brl(value)}
+            {loading ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(value)}
           </div>
         </div>
       )
     },
 
-    r1: () => {
+    r1: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       const valText = brl(0)
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`r1-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Gastos com anúncios
           </div>
-          <div className="text-2xl font-semibold">{valText}</div>
+          <div className="text-2xl font-semibold">
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+          </div>
         </div>
       )
     },
 
-    r2: () => {
+    r2: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       const valText = "0"
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`r2-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             ROAS
           </div>
-          <div className="text-2xl font-semibold">{valText}</div>
+          <div className="text-2xl font-semibold">
+            {loading ? <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+          </div>
         </div>
       )
     },
 
-    r3: () => {
+    r3: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       const valText = brl(0)
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`r3-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Vendas Pendentes
           </div>
-          <div className="text-2xl font-semibold">{valText}</div>
+          <div className="text-2xl font-semibold">
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+          </div>
         </div>
       )
     },
 
-    r4: () => {
+    r4: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       const valText = brl(0)
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`r4-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Lucro
           </div>
           <div className="text-2xl font-semibold text-green-600 dark:text-green-400">
-            {valText}
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
           </div>
         </div>
       )
     },
 
-    r5: () => {
+    r5: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`r5-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             ROI
           </div>
-          {greenPct("0.0%")}
+          {loading ? (
+            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+          ) : (
+            greenPct("0.0%")
+          )}
         </div>
       )
     },
 
-    r6: () => {
+    r6: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`r6-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Margem de Lucro
           </div>
-          {greenPct("0.0%")}
+          {loading ? (
+            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg白/10 animate-pulse" />
+          ) : (
+            greenPct("0.0%")
+          )}
         </div>
       )
     },
 
     // custo / conversa / imposto
-    b1: () => {
+    b1: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       const valText = brl(0)
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`b1-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Custo por conversa
           </div>
-          <div className="text-2xl font-semibold">{valText}</div>
+          <div className="text-2xl font-semibold">
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+          </div>
         </div>
       )
     },
 
-    b2: () => {
+    b2: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       const valText = "0"
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`b2-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Conversa
           </div>
-          <div className="text-2xl font-semibold">{valText}</div>
+          <div className="text-2xl font-semibold">
+            {loading ? <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+          </div>
         </div>
       )
     },
 
-    b3: () => {
+    b3: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       const valText = brl(0)
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`b3-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Imposto
           </div>
-          <div className="text-2xl font-semibold">{valText}</div>
+          <div className="text-2xl font-semibold">
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+          </div>
         </div>
       )
     },
 
-    // plataformas de anúncio
-    b4: () => {
+    // plataformas
+    b4: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       const valText = brl(0)
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`b4-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
-            <img
-              src="/ads-logos/meta-ads.png"
-              alt=""
-              className="w-4 h-4 object-contain"
-            />
+            <img src="/ads-logos/meta-ads.png" alt="" className="w-4 h-4 object-contain" />
             <span className="leading-none">Meta ADS</span>
           </div>
-          <div className="text-2xl font-semibold">{valText}</div>
+          <div className="text-2xl font-semibold">
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+          </div>
         </div>
       )
     },
 
-    b5: () => {
+    b5: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       const valText = brl(0)
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`b5-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
-            <img
-              src="/ads-logos/google-ads.png"
-              alt=""
-              className="w-4 h-4 object-contain"
-            />
+            <img src="/ads-logos/google-ads.png" alt="" className="w-4 h-4 object-contain" />
             <span className="leading-none">Google ADS</span>
           </div>
-          <div className="text-2xl font-semibold">{valText}</div>
+          <div className="text-2xl font-semibold">
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+          </div>
         </div>
       )
     },
 
-    b6: () => {
+    b6: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       const valText = brl(0)
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`b6-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
-            <img
-              src="/ads-logos/google-analytics.png"
-              alt=""
-              className="w-4 h-4 object-contain"
-            />
+            <img src="/ads-logos/google-analytics.png" alt="" className="w-4 h-4 object-contain" />
             <span className="leading-none">Analytics</span>
           </div>
-          <div className="text-2xl font-semibold">{valText}</div>
+          <div className="text-2xl font-semibold">
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+          </div>
         </div>
       )
     },
 
-    b7: () => {
+    b7: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       const valText = brl(0)
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`b7-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
-            <img
-              src="/ads-logos/tiktok-ads.png"
-              alt=""
-              className="w-4 h-4 object-contain"
-            />
+            <img src="/ads-logos/tiktok-ads.png" alt="" className="w-4 h-4 object-contain" />
             <span className="leading-none">TikTok ADS</span>
           </div>
-          <div className="text-2xl font-semibold">{valText}</div>
+          <div className="text-2xl font-semibold">
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+          </div>
         </div>
       )
     },
 
-    b8: () => {
+    b8: (_slot, ctx, key) => {
+      const loading = ctx.loading || isRefreshing
       const valText = brl(0)
       return (
-        <div className="p-3 text-black dark:text-white">
+        <div key={`b8-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
-            <img
-              src="/ads-logos/kwai-ads.png"
-              alt=""
-              className="w-4 h-4 object-contain"
-            />
+            <img src="/ads-logos/kwai-ads.png" alt="" className="w-4 h-4 object-contain" />
             <span className="leading-none">Kwai ADS</span>
           </div>
-          <div className="text-2xl font-semibold">{valText}</div>
+          <div className="text-2xl font-semibold">
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : valText}
+          </div>
         </div>
       )
     },
 
-    "big-donut": (_slotId, ctx) => {
+    "big-donut": (_slotId, ctx, key) => {
       const split = calcGatewaySplit(ctx.rows)
-      return <DonutChart data={split} />
+      return <DonutChart key={`donut-${key}`} data={split} />
     },
   }
 
@@ -1024,15 +1054,19 @@ export default function DashboardView({
   const doRefresh = useCallback(async () => {
     try {
       setIsRefreshing(true)
+      // 1) Atualiza dados
       await data.refetch()
+
+      // 2) Se o pai tiver um onRefresh assíncrono, roda também
       if (onRefresh) {
         await onRefresh()
       } else if ("refresh" in router) {
         // @ts-ignore
-        router.refresh()
-      } else {
-        setTickState((t) => t + 1)
+        router.refresh?.()
       }
+
+      // 3) 🔑 Força remontagem de TODO o conteúdo (não o card/neon)
+      setRefreshKey((k) => k + 1)
     } finally {
       setIsRefreshing(false)
     }
@@ -1058,9 +1092,7 @@ export default function DashboardView({
               setPreset(next)
             }}
             className={[
-              // light
               "bg-black/5 text-black/90 border-black/20",
-              // dark override
               "dark:bg-black/40 dark:text-white/90 dark:border-white/20",
               "text-xs px-2 py-1 rounded-md border outline-none focus:ring-0 focus:border-black/40 dark:focus:border-white/40 cursor-pointer",
             ].join(" ")}
@@ -1125,9 +1157,7 @@ export default function DashboardView({
           disabled={isRefreshing}
           className={[
             "relative inline-flex items-center justify-center px-4 py-2 rounded-md border font-medium transition-all disabled:opacity-60 active:scale-[0.99]",
-            // light
             "border-black/25 text-black/90 bg-black/5 hover:bg-black/10",
-            // dark override
             "dark:border-white/25 dark:text-white/90 dark:bg-black/40 dark:hover:bg-white/5",
             "neon-card neon-top no-glow",
           ].join(" ")}
@@ -1170,8 +1200,8 @@ export default function DashboardView({
 
           let content: React.ReactNode | null = null
           if (typeof plug === "function") {
-            // @ts-ignore
-            content = plug(card.id, data)
+            // @ts-ignore – 3º arg é o refreshKey global
+            content = plug(card.id, data, refreshKey)
           } else {
             content = plug ?? null
           }
@@ -1187,11 +1217,27 @@ export default function DashboardView({
 
           return (
             <Block
-              key={`${card.id}-${idx}`}
+              key={`${card.id}-${idx}`} // NÃO usa refreshKey aqui (não reinicia o neon)
               className={cls}
               style={style}
             >
-              {content ?? fallback}
+              {/* Wrapper para overlay de atualização */}
+              <div className="relative">
+                {/* conteúdo interno (remontado a cada refresh) */}
+                <div className={isRefreshing ? "opacity-60 transition-opacity" : "transition-opacity"} key={`content-${refreshKey}`}>
+                  {content ?? fallback}
+                </div>
+
+                {/* canto superior direito: só o spinner (sem timestamp) */}
+                {isRefreshing && (
+                  <div className="absolute top-2 right-2 text-black/60 dark:text-white/60">
+                    <span
+                      aria-label="atualizando"
+                      className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin inline-block"
+                    />
+                  </div>
+                )}
+              </div>
             </Block>
           )
         })}

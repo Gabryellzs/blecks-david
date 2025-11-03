@@ -48,7 +48,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/components/ui/use-toast"
 import { calculateNewEventTime } from "@/lib/calendar-utils"
 
+// ===============================
 // Tipos
+// ===============================
 interface CalendarEvent {
   id: string
   title: string
@@ -61,7 +63,9 @@ interface CalendarEvent {
 }
 type ViewMode = "day" | "week" | "month"
 
+// ===============================
 // Constantes
+// ===============================
 const eventColors = [
   "bg-blue-500",
   "bg-green-500",
@@ -72,7 +76,7 @@ const eventColors = [
   "bg-teal-500",
 ]
 const backgroundImage = "/mountain-clouds-sunset.jpeg"
-const HOUR_ROW_PX = 60
+const HOUR_ROW_PX = 60 // altura de 1 hora
 
 const ensureDateObjects = (events: any[]): CalendarEvent[] =>
   events.map((e) => ({
@@ -82,7 +86,7 @@ const ensureDateObjects = (events: any[]): CalendarEvent[] =>
   }))
 
 export default function CalendarView() {
-  // storage de eventos
+  // Eventos em localStorage (sem notificações)
   const useCalendarEvents = () => {
     const [storedEvents, setStoredEvents] = useLocalStorage<any[]>("calendar-events", [])
     const events = ensureDateObjects(storedEvents)
@@ -91,7 +95,7 @@ export default function CalendarView() {
   }
   const [events, setEvents] = useCalendarEvents()
 
-  // estados
+  // Estados
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<ViewMode>("month")
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false)
@@ -112,7 +116,6 @@ export default function CalendarView() {
     endHour: "10",
     endMinute: "00",
   })
-
   const [searchQuery, setSearchQuery] = useState("")
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -129,11 +132,12 @@ export default function CalendarView() {
   const [draggedEvent, setDraggedEvent] = useState<CalendarEvent | null>(null)
   const [showConflictAlert, setShowConflictAlert] = useState(false)
   const [conflictingEvents, setConflictingEvents] = useState<CalendarEvent[]>([])
-
   const { toast } = useToast()
+
+  // DnD
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
-  // navegação
+  // Navegação
   const goToToday = () => setCurrentDate(new Date())
   const goToPrevious = () => {
     if (view === "day") setCurrentDate(subDays(currentDate, 1))
@@ -146,7 +150,7 @@ export default function CalendarView() {
     else setCurrentDate(addMonths(currentDate, 1))
   }
 
-  // categorias & busca
+  // Filtro por categoria + busca
   const toggleCalendarCategory = (id: string) =>
     setCalendarCategories(calendarCategories.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c)))
 
@@ -165,19 +169,16 @@ export default function CalendarView() {
 
   // CRUD
   const handleCreateEvent = () => {
-    const start = new Date(currentDate)
-    start.setHours(9, 0, 0)
-    const end = new Date(currentDate)
-    end.setHours(10, 0, 0)
-
+    const s = new Date(currentDate); s.setHours(9, 0, 0)
+    const e = new Date(currentDate); e.setHours(10, 0, 0)
     setNewEvent({
       title: "",
       description: "",
       location: "",
       color: eventColors[Math.floor(Math.random() * eventColors.length)],
       allDay: false,
-      start,
-      end,
+      start: s,
+      end: e,
     })
     setTempTimeRange({ startHour: "09", startMinute: "00", endHour: "10", endMinute: "00" })
     setIsCreatingEvent(true)
@@ -188,26 +189,33 @@ export default function CalendarView() {
   const handleDateClick = (date: Date) => {
     setSelectedDate(date)
     setCurrentDate(date)
-    const s = new Date(date); s.setHours(9,0,0)
-    const e = new Date(date); e.setHours(10,0,0)
+    const s = new Date(date); s.setHours(9, 0, 0)
+    const e = new Date(date); e.setHours(10, 0, 0)
     setNewEvent({
       title: "",
       description: "",
       location: "",
       color: eventColors[Math.floor(Math.random() * eventColors.length)],
       allDay: false,
-      start: s, end: e,
+      start: s,
+      end: e,
     })
     setTempTimeRange({ startHour: "09", startMinute: "00", endHour: "10", endMinute: "00" })
-    setIsCreatingEvent(true); setIsViewingEvent(false); setIsEventDialogOpen(true)
+    setIsCreatingEvent(true)
+    setIsViewingEvent(false)
+    setIsEventDialogOpen(true)
   }
 
   const handleTimeChange = () => {
     const base = selectedDate || currentDate
-    const s = new Date(base); const e = new Date(base)
-    s.setHours(Number(tempTimeRange.startHour)||0, Number(tempTimeRange.startMinute)||0)
-    e.setHours(Number(tempTimeRange.endHour)||0, Number(tempTimeRange.endMinute)||0)
-    if (e < s) { e.setDate(s.getDate()); e.setHours(s.getHours()+1) }
+    const s = new Date(base)
+    const e = new Date(base)
+    s.setHours(Number(tempTimeRange.startHour) || 0, Number(tempTimeRange.startMinute) || 0)
+    e.setHours(Number(tempTimeRange.endHour) || 0, Number(tempTimeRange.endMinute) || 0)
+    if (e < s) {
+      e.setDate(s.getDate())
+      e.setHours(s.getHours() + 1)
+    }
     setNewEvent({ ...newEvent, start: s, end: e })
   }
 
@@ -221,17 +229,22 @@ export default function CalendarView() {
 
     if (!newEvent.start || !newEvent.end) {
       const base = selectedDate || currentDate
-      s = new Date(base); e = new Date(base)
-      s.setHours(Number(tempTimeRange.startHour)||0, Number(tempTimeRange.startMinute)||0)
-      e.setHours(Number(tempTimeRange.endHour)||0, Number(tempTimeRange.endMinute)||0)
-      if (e < s) { e.setDate(s.getDate()); e.setHours(s.getHours()+1) }
+      s = new Date(base)
+      e = new Date(base)
+      s.setHours(Number(tempTimeRange.startHour) || 0, Number(tempTimeRange.startMinute) || 0)
+      e.setHours(Number(tempTimeRange.endHour) || 0, Number(tempTimeRange.endMinute) || 0)
+      if (e < s) {
+        e.setDate(s.getDate())
+        e.setHours(s.getHours() + 1)
+      }
     }
 
     if (isCreatingEvent) {
       const ev: CalendarEvent = {
         id: Date.now().toString(),
         title: newEvent.title || "Novo Evento",
-        start: s, end: e,
+        start: s,
+        end: e,
         description: newEvent.description,
         location: newEvent.location,
         color: newEvent.color || eventColors[0],
@@ -240,20 +253,25 @@ export default function CalendarView() {
       setEvents([...events, ev])
       toast({ title: "Evento criado", description: "O evento foi criado com sucesso" })
     } else if (selectedEvent) {
-      setEvents(events.map((ev) =>
-        ev.id === selectedEvent.id
-          ? {
-              ...ev,
-              title: newEvent.title || ev.title,
-              start: s, end: e,
-              description: newEvent.description,
-              location: newEvent.location,
-              color: newEvent.color || ev.color,
-              allDay: newEvent.allDay,
-            }
-          : ev))
+      setEvents(
+        events.map((ev) =>
+          ev.id === selectedEvent.id
+            ? {
+                ...ev,
+                title: newEvent.title || ev.title,
+                start: s,
+                end: e,
+                description: newEvent.description,
+                location: newEvent.location,
+                color: newEvent.color || ev.color,
+                allDay: newEvent.allDay,
+              }
+            : ev,
+        ),
+      )
       toast({ title: "Evento atualizado", description: "O evento foi atualizado com sucesso" })
     }
+
     setIsEventDialogOpen(false)
     setNewEvent({ title: "", description: "", location: "", color: eventColors[0], allDay: false })
   }
@@ -277,15 +295,17 @@ export default function CalendarView() {
       end: ev.end,
     })
     setTempTimeRange({
-      startHour: ev.start.getHours().toString().padStart(2,"0"),
-      startMinute: ev.start.getMinutes().toString().padStart(2,"0"),
-      endHour: ev.end.getHours().toString().padStart(2,"0"),
-      endMinute: ev.end.getMinutes().toString().padStart(2,"0"),
+      startHour: ev.start.getHours().toString().padStart(2, "0"),
+      startMinute: ev.start.getMinutes().toString().padStart(2, "0"),
+      endHour: ev.end.getHours().toString().padStart(2, "0"),
+      endMinute: ev.end.getMinutes().toString().padStart(2, "0"),
     })
-    setIsCreatingEvent(false); setIsViewingEvent(true); setIsEventDialogOpen(true)
+    setIsCreatingEvent(false)
+    setIsViewingEvent(true)
+    setIsEventDialogOpen(true)
   }
 
-  // DnD
+  // Drag & Drop
   const handleDragStart = (evt: DragStartEvent) => {
     const id = evt.active.id as string
     const found = events.find((e) => e.id === id)
@@ -294,7 +314,10 @@ export default function CalendarView() {
   const handleDragEnd = (evt: DragEndEvent) => {
     if (!draggedEvent) return
     const { over } = evt
-    if (!over) { setDraggedEvent(null); return }
+    if (!over) {
+      setDraggedEvent(null)
+      return
+    }
     const [type, dateStr, hourStr, minuteStr] = (over.id as string).split("-")
     if (type === "cell") {
       const date = new Date(dateStr)
@@ -302,28 +325,39 @@ export default function CalendarView() {
       const minute = minuteStr ? Number.parseInt(minuteStr) : undefined
       const { start: ns, end: ne } = calculateNewEventTime(draggedEvent, { date, hour, minute })
       const upd = { ...draggedEvent, start: ns, end: ne }
+
       const conflicts = events
         .filter((e) => e.id !== draggedEvent.id)
         .filter((e) => {
-          const s = new Date(e.start), en = new Date(e.end)
+          const s = new Date(e.start)
+          const en = new Date(e.end)
           return isSameDay(s, ns) && s < ne && en > ns
         })
       if (conflicts.length > 0) {
         setConflictingEvents(conflicts)
         setShowConflictAlert(true)
-        toast({ title: "Conflito de horário", description: `Este horário conflita com ${conflicts.length} evento(s).`, variant: "destructive" })
+        toast({
+          title: "Conflito de horário",
+          description: `Este horário conflita com ${conflicts.length} evento(s).`,
+          variant: "destructive",
+        })
       }
       setEvents(events.map((e) => (e.id === draggedEvent.id ? upd : e)))
     }
     setDraggedEvent(null)
   }
 
-  // Views
+  // ===============================
+  // VIEWS
+  // ===============================
+
+  // DIA — overlay de linhas acima dos cards
   const renderDayView = () => {
     const hours = Array.from({ length: 24 }, (_, i) => i)
     const dayEvents = filterEventsBySearch(
       events.filter((e) => isSameDay(e.start instanceof Date ? e.start : new Date(e.start), currentDate)),
     )
+
     const now = new Date()
     const showNow = isSameDay(now, currentDate)
     const topNowPx = (now.getHours() + now.getMinutes() / 60) * HOUR_ROW_PX
@@ -335,16 +369,17 @@ export default function CalendarView() {
         </div>
 
         <div className="relative flex-1 overflow-auto min-h-0">
-          {/* linhas de hora atravessando o gutter */}
+          {/* overlay de linhas por cima dos cards */}
           <div
-            className="absolute inset-0 pointer-events-none z-20"
+            className="absolute inset-0 pointer-events-none z-[60]"
             style={{
               background:
-                "repeating-linear-gradient(to bottom, rgba(255,255,255,0.18), rgba(255,255,255,0.18) 1px, transparent 1px, transparent 60px)",
+                "repeating-linear-gradient(to bottom, rgba(255,255,255,0.18) 0, rgba(255,255,255,0.18) 1px, transparent 1px, transparent 60px)",
             }}
           />
+          {/* linha do agora */}
           {showNow && (
-            <div className="absolute left-0 right-0 z-30 pointer-events-none" style={{ top: `${topNowPx}px` }}>
+            <div className="absolute left-0 right-0 z-[70] pointer-events-none" style={{ top: `${topNowPx}px` }}>
               <div className="h-0.5 bg-red-500 w-full" />
             </div>
           )}
@@ -356,11 +391,12 @@ export default function CalendarView() {
             })
             return (
               <div key={hour} className="relative flex min-h-[60px]">
-                {/* gutter sem fundo/blur para não tapar linhas */}
-                <div className="w-16 py-2 text-right pr-2 text-sm text-muted-foreground border-r border-white/15 z-40">
+                {/* gutter sem fundo para não tapar a linha */}
+                <div className="w-16 py-2 text-right pr-2 text-sm text-muted-foreground border-r border-white/15 z-[80]">
                   {hour}:00
                 </div>
-                <div className="flex-1 p-1 relative overflow-visible z-50">
+
+                <div className="flex-1 p-1 relative overflow-visible z-[50]">
                   {hourEvents.map((e) => {
                     const s = e.start instanceof Date ? e.start : new Date(e.start)
                     const en = e.end instanceof Date ? e.end : new Date(e.end)
@@ -376,11 +412,20 @@ export default function CalendarView() {
                           e.color,
                           draggedEvent?.id === e.id && "opacity-50",
                         )}
-                        style={{ top: `${(s.getMinutes()/60)*100}%`, height: `${hPct}%`, width: "calc(100% - 8px)" }}
-                        onClick={(ev) => { ev.stopPropagation(); handleEventClick(e) }}
+                        style={{
+                          top: `${(s.getMinutes() / 60) * 100}%`,
+                          height: `${hPct}%`,
+                          width: "calc(100% - 8px)",
+                        }}
+                        onClick={(ev) => {
+                          ev.stopPropagation()
+                          handleEventClick(e)
+                        }}
                       >
                         <div className="font-medium truncate">{e.title}</div>
-                        <div className="text-xs opacity-90 truncate">{format(s,"HH:mm")} - {format(en,"HH:mm")}</div>
+                        <div className="text-xs opacity-90 truncate">
+                          {format(s, "HH:mm")} - {format(en, "HH:mm")}
+                        </div>
                       </div>
                     )
                   })}
@@ -393,30 +438,52 @@ export default function CalendarView() {
     )
   }
 
+  // SEMANA — overlay (horizontais + verticais) acima dos cards
   const renderWeekView = () => {
     const startDate = startOfWeek(currentDate, { weekStartsOn: 0 })
     const endDate = endOfWeek(currentDate, { weekStartsOn: 0 })
     const days = eachDayOfInterval({ start: startDate, end: endDate })
     const hours = Array.from({ length: 24 }, (_, i) => i)
+
     const now = new Date()
     const minutePct = (now.getMinutes() / 60) * 100
 
     return (
-      <div className="flex flex-col h-full overflow-hidden border-x border-white/10">
-        <div className="grid grid-cols-8 border-b border-white/10">
+      <div className="relative flex flex-col h-full overflow-hidden border-x border-white/10">
+        <div className="grid grid-cols-8 border-b border-white/10 relative z-[80] bg-background/80 backdrop-blur-sm">
           <div className="p-2 border-r border-white/10"></div>
           {days.map((day) => (
-            <div key={day.toString()} className={cn("p-2 text-center border-r border-white/10 last:border-r-0", isDateToday(day) && "bg-primary/10")}>
+            <div
+              key={day.toString()}
+              className={cn(
+                "p-2 text-center border-r border-white/10 last:border-r-0",
+                isDateToday(day) && "bg-primary/10",
+              )}
+            >
               <div className="font-medium">{format(day, "EEE", { locale: ptBR })}</div>
-              <div className={cn("text-2xl", isDateToday(day) && "text-primary font-bold")}>{format(day,"d")}</div>
+              <div className={cn("text-2xl", isDateToday(day) && "text-primary font-bold")}>{format(day, "d")}</div>
             </div>
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="relative flex-1 overflow-y-auto min-h-0">
+          {/* overlay geral: horizontais (60px) + verticais (7 colunas) */}
+          <div
+            className="absolute inset-0 z-[60] pointer-events-none"
+            style={{
+              left: "4rem", // deixa o gutter limpo
+              background:
+                "repeating-linear-gradient(to bottom, rgba(255,255,255,0.16) 0, rgba(255,255,255,0.16) 1px, transparent 1px, transparent 60px), " +
+                "repeating-linear-gradient(to right, rgba(255,255,255,0.10) 0, rgba(255,255,255,0.10) 1px, transparent 1px, transparent calc(100% / 7))",
+            }}
+          />
+
           {hours.map((hour) => (
-            <div key={hour} className="grid grid-cols-8 min-h-[60px] border-b border-white/10">
-              <div className="py-2 text-right pr-2 text-sm text-muted-foreground border-r border-white/10">{hour}:00</div>
+            <div key={hour} className="grid grid-cols-8 min-h-[60px]">
+              <div className="py-2 text-right pr-2 text-sm text-muted-foreground border-r border-white/10 z-[80]">
+                {hour}:00
+              </div>
+
               {days.map((day) => {
                 const dayEvents = filterEventsBySearch(
                   events.filter((e) => {
@@ -425,19 +492,45 @@ export default function CalendarView() {
                   }),
                 )
                 const isNow = isDateToday(day) && now.getHours() === hour
+
                 return (
-                  <div key={day.toString()} className="relative p-1 border-r border-white/10 last:border-r-0 overflow-hidden" id={`cell-${day.toISOString().split("T")[0]}-${hour}-0`}>
-                    {isNow && <div className="absolute left-0 right-0 h-0.5 bg-red-500 z-20 pointer-events-none" style={{ top: `${minutePct}%` }} />}
+                  <div
+                    key={day.toString()}
+                    className="relative p-1 overflow-visible border-r border-white/10 last:border-r-0"
+                    id={`cell-${day.toISOString().split("T")[0]}-${hour}-0`}
+                  >
+                    {isNow && (
+                      <div
+                        className="absolute left-0 right-0 h-0.5 bg-red-500 z-[70] pointer-events-none"
+                        style={{ top: `${minutePct}%` }}
+                      />
+                    )}
+
                     {dayEvents.map((e) => {
-                      const s = new Date(e.start), en = new Date(e.end)
+                      const s = e.start instanceof Date ? e.start : new Date(e.start)
+                      const en = e.end instanceof Date ? e.end : new Date(e.end)
                       const startMin = s.getMinutes()
-                      const durMin = Math.min((en.getTime()-s.getTime())/60000, 60-startMin)
-                      const hPct = (durMin/60)*100
+                      const durMin = Math.min((en.getTime() - s.getTime()) / 60000, 60 - startMin)
+                      const hPct = (durMin / 60) * 100
+
                       return (
-                        <div key={e.id} id={e.id}
-                          className={cn("absolute rounded p-1 text-white text-xs cursor-move hover:brightness-90 transition-all shadow-sm overflow-hidden", e.color, draggedEvent?.id===e.id && "opacity-50")}
-                          style={{ top:`${(s.getMinutes()/60)*100}%`, height:`${hPct}%`, width:"calc(100% - 8px)", zIndex:10 }}
-                          onClick={(ev)=>{ev.stopPropagation(); handleEventClick(e)}}
+                        <div
+                          key={e.id}
+                          id={e.id}
+                          className={cn(
+                            "absolute rounded p-1 text-white text-xs cursor-move hover:brightness-90 transition-all shadow-sm overflow-hidden z-[50]",
+                            e.color,
+                            draggedEvent?.id === e.id && "opacity-50",
+                          )}
+                          style={{
+                            top: `${(s.getMinutes() / 60) * 100}%`,
+                            height: `${hPct}%`,
+                            width: "calc(100% - 8px)",
+                          }}
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            handleEventClick(e)
+                          }}
                         >
                           <div className="font-medium truncate">{e.title}</div>
                         </div>
@@ -453,6 +546,7 @@ export default function CalendarView() {
     )
   }
 
+  // MÊS — overlay de grade acima dos cards
   const renderMonthView = () => {
     const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
     const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
@@ -473,76 +567,93 @@ export default function CalendarView() {
           ))}
         </div>
 
-        <div className="flex-1 overflow-hidden min-h-0">
-          {/* fecha direita/baixo */}
-          <div className="h-full w-full border-r border-b border-white/15">
-            <div
-              className="grid h-full"
-              style={{
-                gridTemplateRows: "repeat(6, minmax(0, 1fr))",
-                gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-              }}
-            >
-              {weeks.map((week, wi) =>
-                week.map((day, di) => {
-                  const isCurrentMonth = day.getMonth() === currentDate.getMonth()
-                  const isToday = isDateToday(day)
-                  const dayEvents = filterEventsBySearch(
-                    events.filter((e) => isSameDay(e.start instanceof Date ? e.start : new Date(e.start), day)),
-                  )
+        <div className="relative flex-1 overflow-hidden min-h-0">
+          {/* overlay de grade por cima dos cards */}
+          <div
+            className="absolute inset-0 z-[60] pointer-events-none"
+            style={{
+              background:
+                "repeating-linear-gradient(to bottom, rgba(255,255,255,0.16) 0, rgba(255,255,255,0.16) 1px, transparent 1px, transparent calc(100% / 6))," +
+                "repeating-linear-gradient(to right, rgba(255,255,255,0.16) 0, rgba(255,255,255,0.16) 1px, transparent 1px, transparent calc(100% / 7))",
+            }}
+          />
 
-                  return (
-                    <div
-                      key={`${wi}-${di}`}
-                      className={cn(
-                        // bordas internas
-                        "border-t border-l border-white/15 p-1 h-full min-h-0 flex flex-col",
-                        !isCurrentMonth && "bg-muted/20 text-muted-foreground",
-                        isToday && "bg-primary/10",
-                      )}
-                      onClick={() => handleDateClick(day)}
-                    >
-                      <div className={cn("text-right font-medium", isToday && "text-primary font-bold")}>
-                        {format(day, "d")}
-                      </div>
+          <div
+            className="grid h-full"
+            style={{
+              gridTemplateRows: "repeat(6, minmax(0, 1fr))",
+              gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+            }}
+          >
+            {weeks.flatMap((week, wi) =>
+              week.map((day, di) => {
+                const isCurrentMonth = day.getMonth() === currentDate.getMonth()
+                const isToday = isDateToday(day)
+                const dayEvents = filterEventsBySearch(
+                  events.filter((e) => isSameDay(e.start instanceof Date ? e.start : new Date(e.start), day)),
+                )
 
-                      <div className="mt-1 space-y-1 overflow-auto min-h-0">
-                        {dayEvents.slice(0, 6).map((e) => {
-                          const s = e.start instanceof Date ? e.start : new Date(e.start)
-                          return (
-                            <div
-                              key={e.id}
-                              className={cn("rounded px-1 py-0.5 text-white text-xs cursor-pointer hover:brightness-90 transition-all shadow-sm", e.color)}
-                              onClick={(ev) => { ev.stopPropagation(); handleEventClick(e) }}
-                            >
-                              <div className="flex items-center gap-1">
-                                <span>{format(s, "HH:mm")}</span>
-                                <span className="truncate">{e.title}</span>
-                              </div>
-                            </div>
-                          )
-                        })}
-                        {dayEvents.length > 6 && (
-                          <div
-                            className="text-[11px] text-muted-foreground text-center cursor-pointer hover:bg-muted/30 rounded py-0.5"
-                            onClick={(ev) => { ev.stopPropagation(); setSelectedDate(day); setCurrentDate(day); setView("day") }}
-                          >
-                            +{dayEvents.length - 6} mais
-                          </div>
-                        )}
-                      </div>
+                return (
+                  <div
+                    key={`${wi}-${di}`}
+                    className={cn(
+                      "p-1 h-full min-h-0 flex flex-col relative z-[50]",
+                      !isCurrentMonth && "bg-muted/20 text-muted-foreground",
+                      isToday && "bg-primary/10",
+                    )}
+                    onClick={() => handleDateClick(day)}
+                  >
+                    <div className={cn("text-right font-medium", isToday && "text-primary font-bold")}>
+                      {format(day, "d")}
                     </div>
-                  )
-                }),
-              )}
-            </div>
+
+                    <div className="mt-1 space-y-1 overflow-auto min-h-0">
+                      {dayEvents.slice(0, 6).map((e) => {
+                        const s = e.start instanceof Date ? e.start : new Date(e.start)
+                        return (
+                          <div
+                            key={e.id}
+                            className={cn(
+                              "rounded px-1 py-0.5 text-white text-xs cursor-pointer hover:brightness-90 transition-all shadow-sm",
+                              e.color,
+                            )}
+                            onClick={(ev) => {
+                              ev.stopPropagation()
+                              handleEventClick(e)
+                            }}
+                          >
+                            <div className="flex items-center gap-1">
+                              <span>{format(s, "HH:mm")}</span>
+                              <span className="truncate">{e.title}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                      {dayEvents.length > 6 && (
+                        <div
+                          className="text-[11px] text-muted-foreground text-center cursor-pointer hover:bg-muted/30 rounded py-0.5"
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            setSelectedDate(day)
+                            setCurrentDate(day)
+                            setView("day")
+                          }}
+                        >
+                          +{dayEvents.length - 6} mais
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              }),
+            )}
           </div>
         </div>
       </div>
     )
   }
 
-  // Mini calendário
+  // Mini calendário (sidebar)
   const renderMiniCalendar = () => {
     const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
     const daysInMonth = getDaysInMonth(currentDate)
@@ -557,7 +668,14 @@ export default function CalendarView() {
       const hasEvents = events.some((e) => isSameDay(e.start instanceof Date ? e.start : new Date(e.start), date))
 
       cells.push(
-        <div key={`day-${i}`} className="flex items-center justify-center" onClick={() => { setSelectedDate(date); setCurrentDate(date) }}>
+        <div
+          key={`day-${i}`}
+          className="flex items-center justify-center"
+          onClick={() => {
+            setSelectedDate(date)
+            setCurrentDate(date)
+          }}
+        >
           <div
             className={cn(
               "h-8 w-8 rounded-full flex items-center justify-center text-sm cursor-pointer",
@@ -595,7 +713,7 @@ export default function CalendarView() {
     )
   }
 
-  // bg
+  // Fundo
   const backgroundStyles = {
     backgroundImage: `url(${backgroundImage})`,
     backgroundSize: "cover",
@@ -603,11 +721,12 @@ export default function CalendarView() {
     backgroundAttachment: "fixed" as const,
   }
 
-  // UI
+  // Render
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} modifiers={[restrictToWindowEdges]}>
       <div className="h-full flex flex-col w-full" style={backgroundStyles}>
-        <div className="absolute inset-0 bg-black/30 z-0" />
+        <div className="absolute inset-0 bg-black/30 z-0"></div>
+
         <div className="flex flex-col h-full w-full relative z-10">
           {/* Topbar */}
           <div className="flex items-center justify-between p-2 sm:p-4 border-b border-white/10 bg-background/80 backdrop-blur-sm w-full">
@@ -628,7 +747,12 @@ export default function CalendarView() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 {searchQuery && (
-                  <Button variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0" onClick={() => setSearchQuery("")}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                    onClick={() => setSearchQuery("")}
+                  >
                     <X className="h-4 w-4" />
                   </Button>
                 )}
@@ -671,7 +795,10 @@ export default function CalendarView() {
                           onCheckedChange={() => toggleCalendarCategory(category.id)}
                           className={cn("rounded-full border-0", category.color, !category.enabled && "opacity-50")}
                         />
-                        <label htmlFor={`calendar-${category.id}`} className={cn("text-sm cursor-pointer", !category.enabled && "text-muted-foreground")}>
+                        <label
+                          htmlFor={`calendar-${category.id}`}
+                          className={cn("text-sm cursor-pointer", !category.enabled && "text-muted-foreground")}
+                        >
                           {category.name}
                         </label>
                       </div>
@@ -685,31 +812,60 @@ export default function CalendarView() {
               </div>
             )}
 
-            {/* Main */}
+            {/* Área principal */}
             <div className="flex-1 flex flex-col overflow-hidden w-full min-h-0">
               <div className="flex flex-wrap items-center gap-2 md:gap-3 justify-between p-2 border-b border-white/10 bg-background/80 backdrop-blur-sm">
                 <div className="flex items-center gap-2 md:gap-3 order-1">
-                  <Button variant="outline" onClick={goToToday} className="bg-background">Hoje</Button>
-                  <Button variant="ghost" size="icon" onClick={goToPrevious}><ChevronLeft className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={goToNext}><ChevronRight className="h-4 w-4" /></Button>
+                  <Button variant="outline" onClick={goToToday} className="bg-background">
+                    Hoje
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={goToPrevious}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={goToNext}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                   <h2 className="text-base sm:text-xl font-semibold ml-1 sm:ml-2 whitespace-nowrap">
                     {view === "day"
                       ? format(currentDate, "d 'de' MMM", { locale: ptBR })
                       : view === "week"
-                        ? `${format(startOfWeek(currentDate, { weekStartsOn: 0 }), "d/MM", { locale: ptBR })} - ${format(endOfWeek(currentDate, { weekStartsOn: 0 }), "d/MM", { locale: ptBR })}`
+                        ? `${format(startOfWeek(currentDate, { weekStartsOn: 0 }), "d/MM", { locale: ptBR })} - ${format(
+                            endOfWeek(currentDate, { weekStartsOn: 0 }),
+                            "d/MM",
+                            { locale: ptBR },
+                          )}`
                         : format(currentDate, "MMM yyyy", { locale: ptBR })}
                   </h2>
                 </div>
 
                 <div className="w-full sm:w-auto order-3 sm:order-2 flex justify-center sm:justify-end">
                   <div className="flex border rounded-md overflow-hidden bg-background whitespace-nowrap shrink-0 shadow-sm">
-                    <Button variant={view === "day" ? "default" : "ghost"} className="rounded-none px-4 py-2 text-sm sm:text-base" onClick={() => setView("day")}>Dia</Button>
-                    <Button variant={view === "week" ? "default" : "ghost"} className="rounded-none px-4 py-2 text-sm sm:text-base" onClick={() => setView("week")}>Semana</Button>
-                    <Button variant={view === "month" ? "default" : "ghost"} className="rounded-none px-4 py-2 text-sm sm:text-base" onClick={() => setView("month")}>Mês</Button>
+                    <Button
+                      variant={view === "day" ? "default" : "ghost"}
+                      className="rounded-none px-4 py-2 text-sm sm:text-base"
+                      onClick={() => setView("day")}
+                    >
+                      Dia
+                    </Button>
+                    <Button
+                      variant={view === "week" ? "default" : "ghost"}
+                      className="rounded-none px-4 py-2 text-sm sm:text-base"
+                      onClick={() => setView("week")}
+                    >
+                      Semana
+                    </Button>
+                    <Button
+                      variant={view === "month" ? "default" : "ghost"}
+                      className="rounded-none px-4 py-2 text-sm sm:text-base"
+                      onClick={() => setView("month")}
+                    >
+                      Mês
+                    </Button>
                   </div>
                 </div>
               </div>
 
+              {/* Conteúdo */}
               <div className="flex-1 overflow-hidden w-full bg-background/80 backdrop-blur-sm relative min-h-0">
                 {view === "day" && renderDayView()}
                 {view === "week" && renderWeekView()}
@@ -719,73 +875,169 @@ export default function CalendarView() {
           </div>
         </div>
 
-        {/* Dialog */}
+        {/* Dialog criar/editar */}
         <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
           <DialogContent className="sm:max-w-[500px] max-w-[95vw]">
             <DialogHeader>
-              <DialogTitle>{isCreatingEvent ? "Criar Evento" : isViewingEvent ? "Detalhes do Evento" : "Editar Evento"}</DialogTitle>
+              <DialogTitle>
+                {isCreatingEvent ? "Criar Evento" : isViewingEvent ? "Detalhes do Evento" : "Editar Evento"}
+              </DialogTitle>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
               {isViewingEvent ? (
                 <div className="space-y-4">
                   <h2 className="text-xl font-semibold">{selectedEvent?.title}</h2>
+
                   <div className="flex items-start gap-2">
                     <CalendarIcon className="h-5 w-5 text-muted-foreground mt-0.5" />
                     <div>
                       <div>
-                        {selectedEvent?.start && format(selectedEvent.start instanceof Date ? selectedEvent.start : new Date(selectedEvent.start), "EEEE, d 'de' MMMM", { locale: ptBR })}
+                        {selectedEvent?.start &&
+                          format(
+                            selectedEvent.start instanceof Date ? selectedEvent.start : new Date(selectedEvent.start),
+                            "EEEE, d 'de' MMMM",
+                            { locale: ptBR },
+                          )}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {selectedEvent?.start && format(selectedEvent.start instanceof Date ? selectedEvent.start : new Date(selectedEvent.start), "HH:mm")} - {selectedEvent?.end && format(selectedEvent.end instanceof Date ? selectedEvent.end : new Date(selectedEvent.end), "HH:mm")}
+                        {selectedEvent?.start &&
+                          format(
+                            selectedEvent.start instanceof Date ? selectedEvent.start : new Date(selectedEvent.start),
+                            "HH:mm",
+                          )}{" "}
+                        -{" "}
+                        {selectedEvent?.end &&
+                          format(
+                            selectedEvent.end instanceof Date ? selectedEvent.end : new Date(selectedEvent.end),
+                            "HH:mm",
+                          )}
                       </div>
                     </div>
                   </div>
-                  {selectedEvent?.location && (<div className="flex items-start gap-2"><MapPin className="h-5 w-5 text-muted-foreground mt-0.5" /><div>{selectedEvent.location}</div></div>)}
-                  {selectedEvent?.description && (<div className="flex items-start gap-2"><div className="whitespace-pre-wrap">{selectedEvent.description}</div></div>)}
+
+                  {selectedEvent?.location && (
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div>{selectedEvent.location}</div>
+                    </div>
+                  )}
+
+                  {selectedEvent?.description && (
+                    <div className="flex items-start gap-2">
+                      <div className="whitespace-pre-wrap">{selectedEvent.description}</div>
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap justify-end gap-2 pt-4">
-                    <Button variant="outline" onClick={() => { setIsViewingEvent(false); setIsEventDialogOpen(false) }}>Fechar</Button>
-                    <Button variant="outline" onClick={() => setIsViewingEvent(false)}>Editar</Button>
-                    <Button variant="destructive" onClick={handleDeleteEvent}>Excluir</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsViewingEvent(false)
+                        setIsEventDialogOpen(false)
+                      }}
+                    >
+                      Fechar
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsViewingEvent(false)}>
+                      Editar
+                    </Button>
+                    <Button variant="destructive" onClick={handleDeleteEvent}>
+                      Excluir
+                    </Button>
                   </div>
                 </div>
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Input placeholder="Adicionar título" value={newEvent.title || ""} onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })} className="text-lg font-medium border-0 border-b rounded-none focus-visible:ring-0 px-0 h-auto py-1" />
+                    <Input
+                      placeholder="Adicionar título"
+                      value={newEvent.title || ""}
+                      onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                      className="text-lg font-medium border-0 border-b rounded-none focus-visible:ring-0 px-0 h-auto py-1"
+                    />
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                     <div className="grid grid-cols-2 gap-2 flex-1">
                       <div className="flex items-center gap-1">
-                        <Input type="text" value={tempTimeRange.startHour} onChange={(e) => { setTempTimeRange({ ...tempTimeRange, startHour: e.target.value }); handleTimeChange() }} className="w-12" />
+                        <Input
+                          type="text"
+                          value={tempTimeRange.startHour}
+                          onChange={(e) => {
+                            setTempTimeRange({ ...tempTimeRange, startHour: e.target.value })
+                            handleTimeChange()
+                          }}
+                          className="w-12"
+                        />
                         <span>:</span>
-                        <Input type="text" value={tempTimeRange.startMinute} onChange={(e) => { setTempTimeRange({ ...tempTimeRange, startMinute: e.target.value }); handleTimeChange() }} className="w-12" />
+                        <Input
+                          type="text"
+                          value={tempTimeRange.startMinute}
+                          onChange={(e) => {
+                            setTempTimeRange({ ...tempTimeRange, startMinute: e.target.value })
+                            handleTimeChange()
+                          }}
+                          className="w-12"
+                        />
                       </div>
                       <div className="flex items-center gap-1">
-                        <Input type="text" value={tempTimeRange.endHour} onChange={(e) => { setTempTimeRange({ ...tempTimeRange, endHour: e.target.value }); handleTimeChange() }} className="w-12" />
+                        <Input
+                          type="text"
+                          value={tempTimeRange.endHour}
+                          onChange={(e) => {
+                            setTempTimeRange({ ...tempTimeRange, endHour: e.target.value })
+                            handleTimeChange()
+                          }}
+                          className="w-12"
+                        />
                         <span>:</span>
-                        <Input type="text" value={tempTimeRange.endMinute} onChange={(e) => { setTempTimeRange({ ...tempTimeRange, endMinute: e.target.value }); handleTimeChange() }} className="w-12" />
+                        <Input
+                          type="text"
+                          value={tempTimeRange.endMinute}
+                          onChange={(e) => {
+                            setTempTimeRange({ ...tempTimeRange, endMinute: e.target.value })
+                            handleTimeChange()
+                          }}
+                          className="w-12"
+                        />
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <MapPin className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                    <Input placeholder="Adicionar local" value={newEvent.location || ""} onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })} />
+                    <Input
+                      placeholder="Adicionar local"
+                      value={newEvent.location || ""}
+                      onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
+                    />
                   </div>
 
                   <div className="flex items-start gap-2">
                     <Users className="h-5 w-5 text-muted-foreground mt-2 flex-shrink-0" />
-                    <Textarea placeholder="Adicionar descrição" value={newEvent.description || ""} onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })} className="min-h-[100px]" />
+                    <Textarea
+                      placeholder="Adicionar descrição"
+                      value={newEvent.description || ""}
+                      onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                      className="min-h-[100px]"
+                    />
                   </div>
 
                   <div className="flex items-center gap-2">
                     <div className="font-medium text-sm">Cor:</div>
                     <div className="flex gap-1 flex-wrap">
                       {eventColors.map((color) => (
-                        <div key={color} className={cn("w-6 h-6 rounded-full cursor-pointer border-2", color, newEvent.color === color ? "border-black dark:border-white" : "border-transparent")} onClick={() => setNewEvent({ ...newEvent, color })} />
+                        <div
+                          key={color}
+                          className={cn(
+                            "w-6 h-6 rounded-full cursor-pointer border-2",
+                            color,
+                            newEvent.color === color ? "border-black dark:border-white" : "border-transparent",
+                          )}
+                          onClick={() => setNewEvent({ ...newEvent, color })}
+                        />
                       ))}
                     </div>
                   </div>
@@ -795,8 +1047,12 @@ export default function CalendarView() {
 
             {!isViewingEvent && (
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsEventDialogOpen(false)}>Cancelar</Button>
-                <Button onClick={handleSaveEvent} className="bg-blue-600 hover:bg-blue-700">{isCreatingEvent ? "Criar" : "Salvar"}</Button>
+                <Button variant="outline" onClick={() => setIsEventDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveEvent} className="bg-blue-600 hover:bg-blue-700">
+                  {isCreatingEvent ? "Criar" : "Salvar"}
+                </Button>
               </DialogFooter>
             )}
           </DialogContent>

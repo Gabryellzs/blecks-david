@@ -414,7 +414,7 @@ function DonutChart({
         x={x}
         y={y}
         fill="#fff"
-        fontSize="14px"
+        fontSize="10px"
         fontWeight={800}
         textAnchor="middle"
         dominantBaseline="middle"

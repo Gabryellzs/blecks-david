@@ -79,7 +79,7 @@ export interface GatewayTransaction {
 export type KpiFilter = {
   userId?: string
   from?: string // ISO start inclusive
-  to?: string // ISO end exclusive
+  to?: string   // ISO end exclusive
   search?: string
 }
 
@@ -133,7 +133,6 @@ const BLOCK_STATUS_PARTIAL = [
 function isApprovedSale(row: GatewayTransaction) {
   const st = norm(row.status)
   const ev = norm(row.event_type)
-
   if (!APPROVED_STATUS.includes(st)) return false
   for (const bad of BLOCK_STATUS_PARTIAL) {
     if (st.includes(bad) || ev.includes(bad)) return false
@@ -293,9 +292,19 @@ export function useGatewayKpis(filter: KpiFilter) {
 }
 
 // =============================
-// DONUT CHART (labels no anel + tooltip + responsivo)
+// DONUT CHART (labels no anel + tooltip + responsivo + size)
 // =============================
-function DonutChart({ data }: { data: Record<string, number> }) {
+function DonutChart({
+  data,
+  size = 220,  // <= controle de tamanho (px)
+  radius = 60, // <= raio externo
+  stroke = 20, // <= espessura do anel
+}: {
+  data: Record<string, number>
+  size: number
+  radius?: number
+  stroke?: number
+}) {
   const entries = useMemo(
     () => Object.entries(data).filter(([, v]) => v > 0),
     [data]
@@ -306,13 +315,13 @@ function DonutChart({ data }: { data: Record<string, number> }) {
   )
 
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const [tip, setTip] = useState<{
-    show: boolean
-    name: string
-    pct: number
-    x: number
-    y: number
-  }>({ show: false, name: "", pct: 0, x: 0, y: 0 })
+  const [tip, setTip] = useState({
+    show: false,
+    name: "",
+    pct: 0,
+    x: 0,
+    y: 0,
+  })
 
   if (total === 0) {
     return (
@@ -324,9 +333,9 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     )
   }
 
-  // ViewBox fixo + width/height 100% => responsivo e centralizado
-  const OUTER_R = 70
-  const STROKE = 28
+  // ViewBox + métricas
+  const OUTER_R = radius
+  const STROKE = stroke
   const INNER_R = OUTER_R - STROKE
   const C = 2 * Math.PI * OUTER_R
   const BOX = OUTER_R * 2 + STROKE * 2
@@ -334,14 +343,14 @@ function DonutChart({ data }: { data: Record<string, number> }) {
 
   function colorForGateway(name: string) {
     const palette = [
-      "#ef4444", // vermelho
-      "#22c55e", // verde
-      "#3b82f6", // azul
-      "#eab308", // amarelo
-      "#a855f7", // roxo
-      "#06b6d4", // ciano
-      "#fb923c", // laranja
-      "#ec4899", // rosa
+      "#8b5cf6",
+      "#22c55e",
+      "#3b82f6",
+      "#eab308",
+      "#ec4899",
+      "#06b6d4",
+      "#fb923c",
+      "#ef4444",
     ]
     let hash = 0
     for (let i = 0; i < name.length; i++) {
@@ -356,35 +365,8 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     r: number,
     angleDeg: number
   ) {
-    const angleRad = (angleDeg * Math.PI) / 180
-    return { x: cx + r * Math.cos(angleRad), y: cy + r * Math.sin(angleRad) }
-  }
-
-  function handleEnter(
-    e: React.MouseEvent<SVGCircleElement, MouseEvent>,
-    name: string,
-    pct: number
-  ) {
-    const rect = containerRef.current?.getBoundingClientRect()
-    setTip({
-      show: true,
-      name,
-      pct,
-      x: e.clientX - (rect?.left ?? 0),
-      y: e.clientY - (rect?.top ?? 0),
-    })
-  }
-  function handleMove(e: React.MouseEvent<SVGCircleElement, MouseEvent>) {
-    if (!tip.show) return
-    const rect = containerRef.current?.getBoundingClientRect()
-    setTip((t) => ({
-      ...t,
-      x: e.clientX - (rect?.left ?? 0),
-      y: e.clientY - (rect?.top ?? 0),
-    }))
-  }
-  function handleLeave() {
-    setTip((t) => ({ ...t, show: false }))
+    const a = (angleDeg * Math.PI) / 180
+    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }
   }
 
   let offsetLen = 0
@@ -396,7 +378,7 @@ function DonutChart({ data }: { data: Record<string, number> }) {
     const pct100 = pct * 100
     const sliceLen = pct * C
 
-    // fatia (stroke + dasharray)
+    // fatia
     slices.push(
       <circle
         key={name}
@@ -409,22 +391,20 @@ function DonutChart({ data }: { data: Record<string, number> }) {
         strokeLinecap="butt"
         transform="rotate(-90)"
         style={{ transition: "stroke-dashoffset 0.6s ease" }}
-        onMouseEnter={(e) => handleEnter(e, name, pct100)}
-        onMouseMove={handleMove}
-        onMouseLeave={handleLeave}
+        className="cursor-pointer"
       />
     )
 
-    // label de % sobre o anel (meio da fatia)
+    // label percentual sobre o anel
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
     const midAngleDeg = midFrac * 360 - 90
-    const labelRadius = INNER_R + STROKE / 2 - 6
-    const { x, y } = polarToCartesian(0, 0, labelRadius, midAngleDeg)
+    const labelRadius = INNER_R + STROKE / 1 -1
+    const { x, y } = polarToCartesian(1, 1, labelRadius, midAngleDeg)
 
     const pctText = pct100.toLocaleString("pt-BR", {
-      maximumFractionDigits: 0,
+      maximumFractionDigits: 1,
       minimumFractionDigits: 0,
     })
 
@@ -433,16 +413,12 @@ function DonutChart({ data }: { data: Record<string, number> }) {
         key={name + "-label"}
         x={x}
         y={y}
-        fill="#ffffff"
+        fill="#fff"
         fontSize="14px"
         fontWeight={800}
         textAnchor="middle"
         dominantBaseline="middle"
-        style={{
-          paintOrder: "stroke",
-          stroke: "rgba(0,0,0,0.75)",
-          strokeWidth: 3,
-        }}
+        style={{ paintOrder: "stroke", stroke: "rgba(0,0,0,0.75)", strokeWidth: 3 }}
       >
         {pctText}%
       </text>
@@ -457,11 +433,12 @@ function DonutChart({ data }: { data: Record<string, number> }) {
       className="relative flex h-full w-full items-center justify-center"
     >
       <svg
+        className="block mx-auto my-auto"     // centraliza no wrapper
         width="100%"
         height="100%"
         viewBox={`0 0 ${BOX} ${BOX}`}
         preserveAspectRatio="xMidYMid meet"
-        className="max-w-[520px] max-h-[520px]"
+        style={{ maxWidth: size, maxHeight: size }} // controle de tamanho
       >
         <g transform={`translate(${CENTER}, ${CENTER})`}>
           {/* anel de fundo */}
@@ -476,18 +453,14 @@ function DonutChart({ data }: { data: Record<string, number> }) {
         </g>
       </svg>
 
-      {/* Tooltip (nome da plataforma + %) */}
+      {/* tooltip (se quiser ativar, já tem base pronta) */}
       {tip.show && (
         <div
-          className="pointer-events-none absolute rounded-md px-2 py-1 text-xs font-medium shadow-lg
-                     bg-black/80 text-white whitespace-nowrap"
+          className="pointer-events-none absolute rounded-md px-2 py-1 text-xs font-medium shadow-lg bg-black/80 text-white whitespace-nowrap"
           style={{ left: tip.x + 8, top: tip.y + 8 }}
         >
           {tip.name || "Outro"} —{" "}
-          {tip.pct.toLocaleString("pt-BR", {
-            maximumFractionDigits: 1,
-            minimumFractionDigits: 0,
-          })}
+          {tip.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
           %
         </div>
       )}
@@ -536,43 +509,33 @@ type AutoCard = {
 }
 
 const CARDS: AutoCard[] = [
-  // KPIs topo
-  { id: "top-1", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Receita Total
-  { id: "top-2", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" }, // Vendas
-  { id: "top-3", w: 3, h: 2, effect: "neonTop", glow: "rgba(3,144,245,1)" }, // Reembolsos
-  { id: "top-4", w: 3, h: 2, effect: "neonTop", glow: "#008ffcff" }, // Chargebacks
-
-  // donut grande
+  { id: "top-1", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" },
+  { id: "top-2", w: 3, h: 2, effect: "neonTop", glow: "#00f7ff" },
+  { id: "top-3", w: 3, h: 2, effect: "neonTop", glow: "rgba(3,144,245,1)" },
+  { id: "top-4", w: 3, h: 2, effect: "neonTop", glow: "#008ffcff" },
   { id: "big-donut", w: 4, h: 6, kind: "donut", effect: "neonTop", glow: "#0d2de3ff" },
-
-  // métricas operacionais
-  { id: "r1", w: 3, h: 2, effect: "neonTop", glow: "#22d3ee" },   // Gastos com anúncios
-  { id: "r2", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" }, // ROAS
-  { id: "r4", w: 3, h: 2, effect: "neonTop", glow: "#60a5fa" },   // Lucro
-  { id: "r3", w: 3, h: 2, effect: "neonTop", glow: "#00e5ffff" }, // Vendas Pendentes
-  { id: "r5", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" }, // ROI
-  { id: "r6", w: 3, h: 2, effect: "neonTop", glow: "#00bbffff" }, // Margem de Lucro
-
-  // custo / conversa / imposto
-  { id: "b1", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },   // Custo por conversa
-  { id: "b2", w: 2, h: 2, effect: "neonTop", glow: "#34d399" },   // Conversa
-  { id: "b3", w: 3, h: 2, effect: "neonTop", glow: "#f59e0b" },   // Imposto
-
-  // plataformas de anúncio
-  { id: "b4", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },   // Meta ADS
-  { id: "b5", w: 3, h: 2, effect: "neonTop", glow: "#ee5706ff" }, // Google ADS
-  { id: "b6", w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },   // Analytics
-  { id: "b7", w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },   // TikTok ADS
-  { id: "b8", w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" }, // Kwai ADS
-
-  // slots livres
-  { id: "b9",  w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },
+  { id: "r1", w: 3, h: 2, effect: "neonTop", glow: "#22d3ee" },
+  { id: "r2", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" },
+  { id: "r4", w: 3, h: 2, effect: "neonTop", glow: "#60a5fa" },
+  { id: "r3", w: 3, h: 2, effect: "neonTop", glow: "#00e5ffff" },
+  { id: "r5", w: 2, h: 2, effect: "neonTop", glow: "#0014f3ff" },
+  { id: "r6", w: 3, h: 2, effect: "neonTop", glow: "#00bbffff" },
+  { id: "b1", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },
+  { id: "b2", w: 2, h: 2, effect: "neonTop", glow: "#34d399" },
+  { id: "b3", w: 3, h: 2, effect: "neonTop", glow: "#f59e0b" },
+  { id: "b4", w: 3, h: 2, effect: "neonTop", glow: "#34d399" },
+  { id: "b5", w: 3, h: 2, effect: "neonTop", glow: "#ee5706ff" },
+  { id: "b6", w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },
+  { id: "b7", w: 3, h: 2, effect: "neonTop", glow: "#a855f7" },
+  { id: "b8", w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },
+  { id: "b9", w: 3, h: 2, effect: "neonTop", glow: "#0014f3ff" },
   { id: "b10", w: 3, h: 2, effect: "neonTop", glow: "#10b981" },
   { id: "b11", w: 3, h: 2, effect: "neonTop", glow: "#c81331ff" },
 ]
 
 export const CARDS_IDS = CARDS.map((c) => c.id)
 
+// neon card base
 function neonClass(effect?: AutoCard["effect"]) {
   switch (effect) {
     case "neon":
@@ -722,72 +685,45 @@ export default function DashboardView({
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`kpi-top1-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            Receita Total
-          </div>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Receita Total</div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(value)
-            )}
+            {loading ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(value)}
           </div>
         </div>
       )
     },
-
     "top-2": (_slotId, ctx, key) => {
       const value = ctx.kpis.vendas ?? 0
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`kpi-top2-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            Vendas
-          </div>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Vendas</div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              value.toLocaleString("pt-BR")
-            )}
+            {loading ? <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : value.toLocaleString("pt-BR")}
           </div>
         </div>
       )
     },
-
     "top-3": (_slotId, ctx, key) => {
       const value = ctx.kpis.reembolsosTotal ?? 0
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`kpi-top3-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            Reembolsos
-          </div>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Reembolsos</div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(value)
-            )}
+            {loading ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(value)}
           </div>
         </div>
       )
     },
-
     "top-4": (_slotId, ctx, key) => {
       const value = ctx.kpis.chargebacksTotal ?? 0
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            Chargebacks
-          </div>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Chargebacks</div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(value)
-            )}
+            {loading ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(value)}
           </div>
         </div>
       )
@@ -797,96 +733,61 @@ export default function DashboardView({
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`r1-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            Gastos com anúncios
-          </div>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Gastos com anúncios</div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(0)
-            )}
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
           </div>
         </div>
       )
     },
-
     r2: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`r2-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">ROAS</div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              "0"
-            )}
+            {loading ? <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : "0"}
           </div>
         </div>
       )
     },
-
     r3: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`r3-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            Vendas Pendentes
-          </div>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Vendas Pendentes</div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(0)
-            )}
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
           </div>
         </div>
       )
     },
-
     r4: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`r4-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">Lucro</div>
           <div className="text-2xl font-semibold text-green-600 dark:text-green-400">
-            {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(0)
-            )}
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
           </div>
         </div>
       )
     },
-
     r5: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`r5-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">ROI</div>
-          {loading ? (
-            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-          ) : (
-            greenPct("0.0%")
-          )}
+          {loading ? <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : greenPct("0.0%")}
         </div>
       )
     },
-
     r6: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`r6-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            Margem de Lucro
-          </div>
-          {loading ? (
-            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-          ) : (
-            greenPct("0.0%")
-          )}
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Margem de Lucro</div>
+          {loading ? <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : greenPct("0.0%")}
         </div>
       )
     },
@@ -896,47 +797,31 @@ export default function DashboardView({
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`b1-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            Custo por conversa
-          </div>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Custo por conversa</div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(0)
-            )}
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
           </div>
         </div>
       )
     },
-
     b2: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`b2-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">Conversa</div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              "0"
-            )}
+            {loading ? <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : "0"}
           </div>
         </div>
       )
     },
-
     b3: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`b3-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">Imposto</div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(0)
-            )}
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
           </div>
         </div>
       )
@@ -952,16 +837,11 @@ export default function DashboardView({
             <span className="leading-none">Meta ADS</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(0)
-            )}
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
           </div>
         </div>
       )
     },
-
     b5: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
       return (
@@ -971,16 +851,11 @@ export default function DashboardView({
             <span className="leading-none">Google ADS</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(0)
-            )}
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
           </div>
         </div>
       )
     },
-
     b6: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
       return (
@@ -990,16 +865,11 @@ export default function DashboardView({
             <span className="leading-none">Analytics</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(0)
-            )}
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
           </div>
         </div>
       )
     },
-
     b7: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
       return (
@@ -1009,16 +879,11 @@ export default function DashboardView({
             <span className="leading-none">TikTok ADS</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(0)
-            )}
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
           </div>
         </div>
       )
     },
-
     b8: (_slot, ctx, key) => {
       const loading = ctx.loading || isRefreshing
       return (
@@ -1028,37 +893,35 @@ export default function DashboardView({
             <span className="leading-none">Kwai ADS</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(0)
-            )}
+            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
           </div>
         </div>
       )
     },
 
+    // DONUT CARD — centralizado
     "big-donut": (_slotId, ctx, key) => {
       const split = calcGatewaySplit(ctx.rows)
-      return <DonutChart key={`donut-${key}`} data={split} />
+      return (
+        <div
+          key={`donut-${key}`}
+          className="h-full w-full flex items-center justify-center"
+        >
+          <DonutChart data={split} size={220} radius={60} stroke={20} />
+        </div>
+      )
     },
   }
 
   const effectiveCards = useMemo(() => {
     const v = visibleSlots ?? {}
     const o = layoutOverrides ?? {}
-    return CARDS.filter((c) => v[c.id] !== false).map((c) => ({
-      ...c,
-      ...o[c.id],
-    }))
+    return CARDS.filter((c) => v[c.id] !== false).map((c) => ({ ...c, ...o[c.id] }))
   }, [visibleSlots, layoutOverrides])
 
   const rowsNeeded = useMemo(() => {
     const units = effectiveCards.reduce(
-      (sum, c) =>
-        sum +
-        Math.max(1, Math.min(12, c.w)) *
-          Math.max(1, c.h),
+      (sum, c) => sum + Math.max(1, Math.min(12, c.w)) * Math.max(1, c.h),
       0
     )
     return Math.max(6, Math.ceil(units / 12) + 1)
@@ -1068,13 +931,12 @@ export default function DashboardView({
     try {
       setIsRefreshing(true)
       await data.refetch()
-      if (onRefresh) {
-        await onRefresh()
-      } else if ("refresh" in router) {
+      if (onRefresh) await onRefresh()
+      else if ("refresh" in router) {
         // @ts-ignore
         router.refresh?.()
       }
-      setRefreshKey((k) => k + 1) // remonta só o conteúdo interno
+      setRefreshKey((k) => k + 1)
     } finally {
       setIsRefreshing(false)
     }
@@ -1084,10 +946,7 @@ export default function DashboardView({
     return (
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <label
-            htmlFor="preset"
-            className="text-black/70 dark:text-white/70 text-xs font-medium"
-          >
+          <label htmlFor="preset" className="text-black/70 dark:text-white/70 text-xs font-medium">
             Período
           </label>
 
@@ -1165,9 +1024,7 @@ export default function DashboardView({
             "dark:border-white/25 dark:text-white/90 dark:bg-black/40 dark:hover:bg-white/5",
             "neon-card neon-top no-glow",
           ].join(" ")}
-          style={{
-            ["--gw" as any]: "#505555ff",
-          }}
+          style={{ ["--gw" as any]: "#505555ff" }}
         >
           {isRefreshing ? "Atualizando..." : "Atualizar"}
         </button>
@@ -1185,21 +1042,13 @@ export default function DashboardView({
       >
         {effectiveCards.map((card, idx) => {
           const cls = neonClass(card.effect)
-
           const style: CSSProperties & { ["--gw"]?: string } = {
-            gridColumn: `auto / span ${Math.max(
-              1,
-              Math.min(12, card.w)
-            )}`,
+            gridColumn: `auto / span ${Math.max(1, Math.min(12, card.w))}`,
             gridRow: `auto / span ${Math.max(1, card.h)}`,
             ...(card.glow ? { ["--gw"]: card.glow } : {}),
           }
 
-          // escolhe o conteúdo daquele slot
-          const sourceMap = {
-            ...(defaultContent || {}),
-            ...(cardContent || {}),
-          }
+          const sourceMap = { ...(defaultContent || {}), ...(cardContent || {}) }
           const plug = sourceMap[card.id]
 
           let content: React.ReactNode | null = null
@@ -1220,31 +1069,19 @@ export default function DashboardView({
             )
 
           return (
-            <Block
-              key={`${card.id}-${idx}`} // não reinicia o neon
-              className={cls}
-              style={style}
-            >
-              <div className="relative">
-                {/* conteúdo interno (remontado a cada refresh) */}
+            <Block key={`${card.id}-${idx}`} className={cls} style={style}>
+              {/* IMPORTANTE: ocupar 100% do card para centralizar o donut */}
+              <div className="relative h-full">
                 <div
-                  className={
-                    isRefreshing
-                      ? "opacity-60 transition-opacity"
-                      : "transition-opacity"
-                  }
+                  className={(isRefreshing ? "opacity-60 " : "") + "transition-opacity h-full"}
                   key={`content-${refreshKey}`}
                 >
                   {content ?? fallback}
                 </div>
 
-                {/* spinner no canto (sem timestamp) */}
                 {isRefreshing && (
                   <div className="absolute top-2 right-2 text-black/60 dark:text-white/60">
-                    <span
-                      aria-label="atualizando"
-                      className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin inline-block"
-                    />
+                    <span className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin inline-block" />
                   </div>
                 )}
               </div>

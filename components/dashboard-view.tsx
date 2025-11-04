@@ -418,7 +418,6 @@ function DonutChart({
         fontWeight={800}
         textAnchor="middle"
         dominantBaseline="middle"
-        style={{ paintOrder: "stroke", stroke: "rgba(0,0,0,0.75)", strokeWidth: 3 }}
       >
         {pctText}%
       </text>

@@ -1,90 +1,141 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useRef } from "react"
-import Image from "next/image"
+import { useEffect, useState, useRef } from "react";
+import Image from "next/image";
 
-interface Offer {
-  id: number
-  title: string
-  description: string
-  imageUrl: string
-  category: string
-  adCount: number
-  level: "low" | "medium" | "high"
-  niche: string
-  country: string
-  link?: string
-}
+type Offer = {
+  id: number;
+  title: string;
+  description: string;
+  imageUrl: string;
+  category: string;
+  adCount: number;
+  level: "low" | "medium" | "high";
+  niche: string;
+  country: string;
+  link: string; // agora exigido
+};
 
 const ALL_COUNTRIES = [
   "Afeganistão","África do Sul","Albânia","Alemanha","Andorra","Angola","Antígua e Barbuda","Arábia Saudita","Argélia","Argentina","Armênia","Austrália","Áustria","Azerbaijão","Bahamas","Bangladesh","Barbados","Bahrein","Bélgica","Belize","Benin","Bielorrússia","Bolívia","Bósnia e Herzegovina","Botsuana","Brasil","Brunei","Bulgária","Burkina Faso","Burundi","Butão","Cabo Verde","Camarões","Camboja","Canadá","Catar","Cazaquistão","Chade","Chile","China","Chipre","Colômbia","Comores","Congo","Coreia do Norte","Coreia do Sul","Costa do Marfim","Costa Rica","Croácia","Cuba","Dinamarca","Djibuti","Dominica","Egito","El Salvador","Emirados Árabes Unidos","Equador","Eritreia","Eslováquia","Eslovênia","Espanha","Estados Unidos","Estônia","Eswatini","Etiópia","Fiji","Filipinas","Finlândia","França","Gabão","Gâmbia","Gana","Geórgia","Granada","Grécia","Guatemala","Guiana","Guiné","Guiné-Bissau","Guiné Equatorial","Haiti","Honduras","Hungria","Iêmen","Ilhas Marshall","Ilhas Salomão","Índia","Indonésia","Irã","Iraque","Irlanda","Islândia","Israel","Itália","Jamaica","Japão","Jordânia","Kiribati","Kosovo","Kuwait","Laos","Lesoto","Letônia","Líbano","Libéria","Líbia","Liechtenstein","Lituânia","Luxemburgo","Macedônia do Norte","Madagascar","Malásia","Malawi","Maldivas","Mali","Malta","Marrocos","Maurícia","Mauritânia","México","Mianmar","Micronésia","Moçambique","Moldávia","Mônaco","Mongólia","Montenegro","Namíbia","Nauru","Nepal","Nicarágua","Níger","Nigéria","Noruega","Nova Zelândia","Omã","Países Baixos","Palau","Panamá","Papua-Nova Guiné","Paquistão","Paraguai","Peru","Polônia","Portugal","Quênia","Quirguistão","Reino Unido","República Centro-Africana","República Democrática do Congo","República Dominicana","República Tcheca","Romênia","Ruanda","Rússia","Samoa","San Marino","Santa Lúcia","São Cristóvão e Névis","São Tomé e Príncipe","São Vicente e Granadinas","Senegal","Serra Leoa","Sérvia","Seychelles","Singapura","Síria","Somália","Sri Lanka","Sudão","Sudão do Sul","Suécia","Suíça","Suriname","Tailândia","Taiwan","Tajiquistão","Tanzânia","Timor-Leste","Togo","Tonga","Trinidad e Tobago","Tunísia","Turcomenistão","Turquia","Tuvalu","Ucrânia","Uganda","Uruguai","Uzbequistão","Vanuatu","Vaticano","Venezuela","Vietnã","Zâmbia","Zimbábue",
-]
+];
+
+// mapa mínimo Nome → ISO2 para o parâmetro ad_reached_countries
+const COUNTRY_TO_ISO2: Record<string, string> = {
+  Brasil: "BR",
+  "Estados Unidos": "US",
+  Portugal: "PT",
+  México: "MX",
+  Argentina: "AR",
+  Chile: "CL",
+  Colômbia: "CO",
+  Peru: "PE",
+  Espanha: "ES",
+  França: "FR",
+  Alemanha: "DE",
+  "Reino Unido": "GB",
+  Itália: "IT",
+  Canadá: "CA",
+  Austrália: "AU",
+};
 
 export default function HomePage() {
-  const [offers, setOffers] = useState<Offer[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedCountry, setSelectedCountry] = useState<string>("all")
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<string>("all");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [after, setAfter] = useState<string | null>(null); // paginação opcional
+
+  async function fetchOffers(cursor?: string) {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const params = new URLSearchParams();
+      params.set("q", "oferta"); // termo padrão; ajuste se quiser
+      params.set("ad_type", "ALL");
+      params.set("limit", "25");
+      if (cursor) params.set("after", cursor);
+
+      // filtro por país
+      if (selectedCountry !== "all") {
+        const iso2 = COUNTRY_TO_ISO2[selectedCountry];
+        if (iso2) {
+          params.set("countries", JSON.stringify([iso2])); // ex: ["BR"]
+        }
+      }
+
+      // chama a rota server-side que consulta a Ad Library
+      const response = await fetch(`/api/ads?${params.toString()}`);
+      if (!response.ok) throw new Error(`Erro na API: ${response.status} ${response.statusText}`);
+
+      const json = await response.json();
+
+      // o formato esperado da rota é { data: [...], paging: {...} }
+      const rows = Array.isArray(json) ? json : json?.data;
+      const nextAfter: string | null = json?.paging?.cursors?.after ?? null;
+
+      if (!Array.isArray(rows)) throw new Error("Formato de dados inválido");
+
+      // mapeia anúncios -> Offer do seu grid
+      const mapped: Offer[] = rows.map((ad: any) => ({
+        id: Number(ad.id ?? Date.now()),
+        title: ad.page_name ? `Anúncio de ${ad.page_name}` : `Anúncio ${ad.id}`,
+        description: "", // se quiser, popular com ad_creative_body (se sua rota retornar)
+        imageUrl: "", // a Ad Library não retorna imagem direta; usamos placeholder
+        category: "Meta",
+        adCount: 1, // sem contagem por oferta, definimos 1
+        level: "low", // heurística simples; ajuste se quiser
+        niche: "", // pode preencher com inferências depois
+        country: selectedCountry === "all" ? "Todos" : selectedCountry,
+        link: `https://www.facebook.com/ads/library/?id=${ad.id}`, // URL pública segura
+      }));
+
+      setOffers(cursor ? (prev) => [...prev, ...mapped] : mapped);
+      setAfter(nextAfter);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido ao carregar ofertas");
+      setOffers([]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    const fetchOffers = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        const url =
-          selectedCountry === "all" ? "/api/offers" : `/api/offers?country=${encodeURIComponent(selectedCountry)}`
-        const response = await fetch(url)
-
-        if (!response.ok) {
-          throw new Error(`Erro na API: ${response.status} ${response.statusText}`)
-        }
-
-        const data = await response.json()
-        if (!Array.isArray(data)) throw new Error("Formato de dados inválido")
-
-        setOffers(data)
-      } catch (error) {
-        setError(error instanceof Error ? error.message : "Erro desconhecido ao carregar ofertas")
-        setOffers([])
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchOffers()
-  }, [selectedCountry])
+    fetchOffers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCountry]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false)
+        setIsDropdownOpen(false);
       }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleOfferClick = (offer: Offer) => {
-    if (offer.link) window.open(offer.link, "_blank")
-  }
+    if (offer.link) window.open(offer.link, "_blank");
+  };
 
   const organizeIntoColumns = () => {
-    const columns: Offer[][] = [[], [], [], [], []]
+    const columns: Offer[][] = [[], [], [], [], []];
     offers.forEach((offer, index) => {
-      columns[index % 5].push(offer)
-    })
-    return columns
-  }
+      columns[index % 5].push(offer);
+    });
+    return columns;
+  };
 
-  const getFireFillPercentage = (adCount: number) => Math.min((adCount / 50) * 100, 100)
+  const getFireFillPercentage = (adCount: number) => Math.min((adCount / 50) * 100, 100);
 
   const filteredCountries = ["Todos", ...ALL_COUNTRIES].filter((country) =>
-    country.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+    country.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -94,7 +145,7 @@ export default function HomePage() {
           <p className="text-2xl font-semibold text-foreground">Carregando ofertas...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -104,14 +155,14 @@ export default function HomePage() {
           <p className="mb-4 text-2xl font-semibold text-destructive">Erro ao carregar ofertas</p>
           <p className="text-muted-foreground">{error}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => fetchOffers()}
             className="mt-6 rounded-lg bg-destructive px-6 py-3 font-semibold text-destructive-foreground transition-colors hover:opacity-90"
           >
             Tentar novamente
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   if (offers.length === 0) {
@@ -122,10 +173,10 @@ export default function HomePage() {
           <p className="mt-2 text-muted-foreground">Tente selecionar outro país</p>
         </div>
       </div>
-    )
+    );
   }
 
-  const columns = organizeIntoColumns()
+  const columns = organizeIntoColumns();
 
   return (
     <div className="min-h-screen bg-background p-4 sm:p-6 lg:p-8 text-foreground">
@@ -178,9 +229,9 @@ export default function HomePage() {
                         <button
                           key={country}
                           onClick={() => {
-                            setSelectedCountry(country === "Todos" ? "all" : country)
-                            setIsDropdownOpen(false)
-                            setSearchTerm("")
+                            setSelectedCountry(country === "Todos" ? "all" : country);
+                            setIsDropdownOpen(false);
+                            setSearchTerm("");
                           }}
                           className={`w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-muted ${
                             (selectedCountry === "all" && country === "Todos") || selectedCountry === country
@@ -239,7 +290,7 @@ export default function HomePage() {
                   <div className="flex items-center justify-between border-t border-border bg-card/60 px-4 sm:px-5 py-3 sm:py-4">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-xs sm:text-sm font-medium">{offer.adCount} anúncios</span>
-                      <span className="text-[11px] sm:text-xs text-muted-foreground">Nicho: {offer.niche}</span>
+                      <span className="text-[11px] sm:text-xs text-muted-foreground">Nicho: {offer.niche || "-"}</span>
                     </div>
 
                     {/* Termômetro (fogo) */}
@@ -284,7 +335,18 @@ export default function HomePage() {
             </div>
           ))}
         </div>
+
+        {/* Paginação: carregar mais (opcional) */}
+        <div className="mt-8 flex justify-center">
+          <button
+            onClick={() => after && fetchOffers(after)}
+            disabled={!after || loading}
+            className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+          >
+            {after ? (loading ? "Carregando..." : "Carregar mais") : "Sem mais resultados"}
+          </button>
+        </div>
       </div>
     </div>
-  )
+  );
 }

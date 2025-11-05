@@ -101,7 +101,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
     },
     {
       id: "mindmap",
-      title: "Mapa Mental",
+      title: "funil de vendas",
       iconPath: `${ICON_BASE}/mapa-mental.png`,
       href: "/dashboard/mindmap",
       size: 40,
@@ -117,17 +117,17 @@ export function AppSidebar({ children }: AppSidebarProps) {
     },
     {
       id: "Copywriting",
-      title: "Copywriting's",
+      title: "Copywriting",
       iconPath: `${ICON_BASE}/copywriting.png`,
       href: "/dashboard/Copywriting",
       size: 32,
       offsetX: 1,
     },
     {
-      id: "oferta-escalada",
+      id: "Oferta-escalada",
       title: "Oferta Escalada",
       iconPath: `${ICON_BASE}/Oferta-Escalada.png`, 
-      href: "/dashboard/oferta-escalada",
+      href: "/dashboard/Oferta-escalada",
       size: 30,
     },
     {

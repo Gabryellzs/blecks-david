@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import puppeteer from "puppeteer";
+// 1. Importar puppeteer-core e o pacote de chromium
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium-min";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { existsSync, mkdirSync } from "node:fs";
@@ -10,6 +12,8 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+// Aumentar o tempo limite da função (opcional, mas recomendado para puppeteer)
+export const maxDuration = 120; // 2 minutos
 
 const TTL = Number(process.env.AD_IMAGE_TTL_SECONDS || 60 * 60 * 24 * 7); // 7 dias
 const USE_SUPABASE =
@@ -23,19 +27,15 @@ function nowSec() {
 // paths de cache local
 function getLocalCacheDir() {
   // em produção (Vercel) só é gravável /tmp
+  // Seu código já estava correto aqui
   if (process.env.VERCEL) return "/tmp/ad-cache";
-  return path.join(process.cwd(), "public", "ad-cache");
+  return path.join(process.cwd(), ".ad-cache"); // Melhor usar .ad-cache localmente
 }
 function localFilePath(id: string) {
   return path.join(getLocalCacheDir(), `${id}.png`);
 }
-function localPublicUrl(req: Request, id: string) {
-  // arquivos em public/ são servidos em /ad-cache/*.png
-  const base = new URL(req.url).origin;
-  return `${base}/ad-cache/${id}.png`;
-}
 
-// --------- captura do criativo (mesmo código base que já funcionava) ----------
+// --------- captura do criativo (com puppeteer-core) ----------
 async function renderCreativePng(adId: string): Promise<Buffer> {
   const token =
     process.env.META_ACCESS_TOKEN || process.env.FB_USER_TOKEN_LONG || "";
@@ -47,14 +47,14 @@ async function renderCreativePng(adId: string): Promise<Buffer> {
   let browser: puppeteer.Browser | null = null;
 
   try {
+    // 2. Configurar o puppeteer para Vercel
+    const executablePath = await chromium.executablePath();
+
     browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-      ],
+      args: chromium.args,
+      executablePath,
+      headless: chromium.headless,
+      ignoreHTTPSErrors: true,
       defaultViewport: { width: 1360, height: 1000 },
     });
 
@@ -85,7 +85,9 @@ async function renderCreativePng(adId: string): Promise<Buffer> {
       } catch {}
     };
 
-    // tenta a página render_ad primeiro
+    // ... (o resto da sua lógica de renderização é a mesma) ...
+    // ... (ela parece robusta, então mantive) ...
+
     let useRender = true;
     try {
       await openAndPrep(renderUrl);
@@ -104,11 +106,9 @@ async function renderCreativePng(adId: string): Promise<Buffer> {
     }
 
     if (!useRender) {
-      // fallback para library (raríssimo)
       await openAndPrep(`https://www.facebook.com/ads/library/?id=${adId}`);
     }
 
-    // escolhe o maior elemento de mídia e recorta (mesma lógica)
     const candidates = await page.$$(
       [
         'img[src*="scontent"][src*="fbcdn"]',
@@ -153,7 +153,6 @@ async function renderCreativePng(adId: string): Promise<Buffer> {
 
     return png;
   } finally {
-    // fecha browser
     try {
       await browser?.close();
     } catch {}
@@ -161,6 +160,7 @@ async function renderCreativePng(adId: string): Promise<Buffer> {
 }
 
 // ------------------------------- Supabase ------------------------------------
+// (Sua lógica do Supabase está perfeita, sem alterações)
 async function getSupabase() {
   if (!USE_SUPABASE) return null;
   return createClient(
@@ -196,51 +196,54 @@ export async function GET(req: Request) {
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing ad id" }, { status: 400 });
 
-  // 1) Tenta Supabase (se configurado)
+  // 1) Tenta Supabase (se configurado) - Perfeito
   if (USE_SUPABASE) {
     const signed = await supabaseGetSignedUrl(id);
     if (signed) {
-      // já existe no bucket → redireciona pro URL assinado
       return NextResponse.redirect(signed, { status: 302 });
     }
-    // não existe → renderiza, sobe e redireciona
     const png = await renderCreativePng(id);
     await supabaseUpload(id, png);
     const url = await supabaseGetSignedUrl(id);
     if (url) return NextResponse.redirect(url, { status: 302 });
 
-    // se por algum motivo falhou, devolve o PNG direto
+    // Fallback se o Supabase falhar
     return new NextResponse(png, {
       status: 200,
       headers: { "Content-Type": "image/png", "Cache-Control": `public, max-age=${TTL}` },
     });
   }
 
-  // 2) Fallback: cache local
+  // 2) Fallback: cache local (em /tmp)
   const dir = getLocalCacheDir();
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
   const file = localFilePath(id);
-  const exists = existsSync(file);
-  if (exists) {
-    try {
-      const stat = await fs.stat(file);
-      const age = nowSec() - Math.floor(stat.mtimeMs / 1000);
-      if (age < TTL) {
-        // está fresco → redireciona para o arquivo estático (CDN pega em prod que não seja Vercel)
-        return NextResponse.redirect(localPublicUrl(req, id), { status: 302 });
-      }
-    } catch {}
-  }
 
-  // renderiza e salva
+  try {
+    const stat = await fs.stat(file);
+    const age = nowSec() - Math.floor(stat.mtimeMs / 1000);
+    if (age < TTL) {
+      // 3. MUDANÇA: Ler o arquivo e retornar, em vez de redirecionar
+      const pngBuffer = await fs.readFile(file);
+      return new NextResponse(pngBuffer, {
+        status: 200,
+        headers: { "Content-Type": "image/png", "Cache-Control": `public, max-age=${TTL}` },
+      });
+    }
+  } catch {}
+
+  // Renderiza, salva em /tmp
   const png = await renderCreativePng(id);
   try {
     await fs.writeFile(file, png);
-  } catch {
-    // em prod (Vercel) /public não é gravável; mas /tmp é — já usamos /tmp quando VERCEL=1
+  } catch (e) {
+    console.error("Failed to write to /tmp", e);
   }
 
-  // redireciona para o arquivo
-  return NextResponse.redirect(localPublicUrl(req, id), { status: 302 });
+  // 3. MUDANÇA: Retorna o PNG que acabamos de renderizar
+  return new NextResponse(png, {
+    status: 200,
+    headers: { "Content-Type": "image/png", "Cache-Control": `public, max-age=${TTL}` },
+  });
 }

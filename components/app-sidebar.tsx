@@ -67,7 +67,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
       title: "Dashboard ADS",
       iconPath: `${ICON_BASE}/Dashboard ADS.png`,
       href: "/dashboard/ads",
-      size: 31,
+      size: 35,
       offsetX: 1,
     },
     {
@@ -75,7 +75,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
       title: "Dashboard",
       iconPath: `${ICON_BASE}/dashboard.png`,
       href: "/dashboard",
-      size: 37,
+      size: 35,
     },
     {
       id: "diary",
@@ -116,12 +116,12 @@ export function AppSidebar({ children }: AppSidebarProps) {
       offsetX: 1,
     },
     {
-      id: "copywriting",
-      title: "Copywriting",
-      icon: PenTool,
-      href: "/dashboard/copywriting",
-      size: 24,
-      offsetX: 2,
+      id: "Copywriting",
+      title: "Copywriting's",
+      iconPath: `${ICON_BASE}/copywriting.png`,
+      href: "/dashboard/Copywriting",
+      size: 32,
+      offsetX: 1,
     },
     {
       id: "oferta-escalada",

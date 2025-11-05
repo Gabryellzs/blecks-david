@@ -46,7 +46,7 @@ import {
 import { ConnectAccountsPage } from "@/components/connect-accounts-page"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PlusCircle, RefreshCw, ExternalLinkIcon, PlayIcon, Pause, Trash2 } from "lucide-react"
+import { MoreHorizontal, PlusCircle, RefreshCw, ExternalLink as ExternalLinkIcon, PlayIcon, Pause, Trash2 } from "lucide-react"
 import Image from "next/image"
 import { useToast } from "@/components/ui/use-toast"
 import {
@@ -58,6 +58,9 @@ import {
 import type { FacebookAdAccount, FacebookCampaign } from "@/lib/types/facebook-ads"
 import { Skeleton } from "@/components/ui/skeleton"
 console.log("✅ RENDER AdsDashboardView atualizado")
+import { getFacebookAdSets } from "@/lib/facebook-ads-service" 
+import { createClient } from "@supabase/supabase-js"
+
 
 
 
@@ -115,6 +118,12 @@ const platformLogos: Record<AdPlatform, string> = {
   kwai: "/icons/kwai-logo.png",
 }
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
+)
+
+
 export default function AdsDashboardView() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<AdPlatform>("facebook")
@@ -127,7 +136,8 @@ export default function AdsDashboardView() {
   const [dateRange, setDateRange] = useState("7d")
   const [isMenuOpen, setIsMenuOpen] = useLocalStorage("ads-menu-open", true)
   const isMobile = useMediaQuery("(max-width: 768px)")
-
+  const [adSets, setAdSets] = useState<any[]>([])
+  const [loadingAdSets, setLoadingAdSets] = useState(false)
   const [activeSubTab, setActiveSubTab] = useState("graficos")
   const [selectedAccount, setSelectedAccountInternal] = useState("") // Renamed to avoid conflict
   const [hasError, setHasError] = useState(false)
@@ -220,17 +230,78 @@ const handleSelectAccount = useCallback((accId: string) => {
     }
   }
 
-  useEffect(() => {
-    if (activeTab === "facebook") {
-      fetchAdAccounts()
+  const fetchAdSets = async (accountId: string) => {
+  setLoadingAdSets(true)
+  try {
+    // pega o uuid do usuário logado no client
+    const { data: userData, error: userErr } = await supabase.auth.getUser()
+    const uuid = userData?.user?.id || undefined
+    if (userErr) {
+      console.warn("Não foi possível obter o usuário via Supabase auth:", userErr)
     }
-  }, [activeTab])
 
-  useEffect(() => {
-    if (selectedAccountId) {
-      fetchCampaigns(selectedAccountId)
-    }
-  }, [selectedAccountId])
+    const fetched = await getFacebookAdSets(accountId, uuid) // <-- passa o uuid
+    setAdSets(fetched || [])
+
+    toast({
+      title: "Conjuntos Carregados",
+      description: `Foram encontrados ${fetched?.length ?? 0} conjuntos para a conta ${accountId}.`,
+    })
+  } catch (error) {
+    console.error(`Erro ao buscar conjuntos para a conta ${accountId}:`, error)
+    toast({
+      title: "Erro",
+      description: `Não foi possível carregar os conjuntos para a conta ${accountId}.`,
+      variant: "destructive",
+    })
+  } finally {
+    setLoadingAdSets(false)
+  }
+}
+
+
+
+  // 1) Carrega contas ao entrar na aba Facebook
+useEffect(() => {
+  if (activeTab === "facebook") {
+    fetchAdAccounts()
+  }
+}, [activeTab]) // se usar useCallback no fetch, coloque-o nas deps também
+
+// 2) Campanhas — só quando a sub-aba "campanhas" estiver ativa
+useEffect(() => {
+  if (
+    activeTab === "facebook" &&
+    activeSubTab === "campanhas" &&
+    selectedAccountId
+  ) {
+    fetchCampaigns(selectedAccountId)
+  }
+}, [activeTab, activeSubTab, selectedAccountId])
+
+// 3) Conjuntos — só quando a sub-aba "conjuntos" estiver ativa
+useEffect(() => {
+  if (
+    activeTab === "facebook" &&
+    activeSubTab === "conjuntos" &&
+    selectedAccountId
+  ) {
+    fetchAdSets(selectedAccountId)
+  }
+}, [activeTab, activeSubTab, selectedAccountId])
+
+// (opcional) Anúncios — se tiver a aba
+useEffect(() => {
+  if (
+    activeTab === "facebook" &&
+    activeSubTab === "anuncios" &&
+    selectedAccountId
+  ) {
+    fetchAds(selectedAccountId)
+  }
+}, [activeTab, activeSubTab, selectedAccountId])
+
+
 
   const handleAccountStatusChange = async (accountId: string, currentStatus: number) => {
     const newStatus = currentStatus === 1 ? "PAUSED" : "ACTIVE"
@@ -3228,11 +3299,79 @@ const handleSelectAccount = useCallback((accId: string) => {
                   </div>
                 ))}
 
-              {activeSubTab === "conjuntos" && (
-                <div className="flex items-center justify-center h-60">
-                  <p className="text-muted-foreground">Conteúdo da aba Conjuntos (em desenvolvimento)</p>
-                </div>
-              )}
+              {activeSubTab === "conjuntos" &&
+  (activeTab === "facebook" && selectedAccountId ? (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">
+          Conjuntos da Conta: {selectedAccountId}
+        </CardTitle>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchAdSets(selectedAccountId)}
+          disabled={loadingAdSets}
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          {loadingAdSets ? "Carregando..." : "Atualizar Conjuntos"}
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {loadingAdSets ? (
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : adSets.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhum conjunto de anúncios encontrado para esta conta.
+          </p>
+        ) : (
+          <Table className="w-full border-collapse">
+            <TableHeader className="border-b border-white/10">
+              <TableRow>
+                <TableHead>Nome do Conjunto</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Campanha</TableHead>
+                <TableHead>Budget Diário</TableHead>
+                <TableHead className="text-right">Início</TableHead>
+                <TableHead className="text-right">Fim</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {adSets.map((set) => (
+                <TableRow key={set.id} className="border-b border-white/10 last:border-b-0 [&>td]:py-3">
+                  <TableCell className="font-medium">{set.name}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        set.status === "ACTIVE"
+                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                          : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                      }`}
+                    >
+                      {set.status}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {set.campaign_id || "-"}
+                  </TableCell>
+                  <TableCell>{set.daily_budget ?? "-"}</TableCell>
+                  <TableCell className="text-right">{set.start_time ?? "-"}</TableCell>
+                  <TableCell className="text-right">{set.end_time ?? "-"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  ) : (
+    <div className="flex items-center justify-center h-60">
+      <p className="text-muted-foreground">Selecione uma conta para ver os conjuntos.</p>
+    </div>
+  ))}
 
               {activeSubTab === "anuncios" && (
                 <div className="flex items-center justify-center h-60">

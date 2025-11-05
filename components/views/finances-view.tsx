@@ -20,10 +20,7 @@ import type { Category } from "./finances/category-manager"
 import { usePaymentGateways } from "@/lib/payment-gateway-service"
 import { AnnualReportView } from "./finances/saved-data-view"
 
-import { Plus, Trash2, FileKey2, Archive } from "lucide-react"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Trash2, FileKey2, Archive } from "lucide-react"
 
 // eventos
 import { eventService, EVENTS } from "@/lib/event-service"
@@ -44,25 +41,10 @@ export default function FinancesView() {
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>("finance-transactions", [])
   const [categories] = useLocalStorage<Category[]>("finance-categories", [])
 
-  const [type, setType] = useState<"income" | "expense">("income")
-  const [amount, setAmount] = useState("")
-  const [description, setDescription] = useState("")
-  const [category, setCategory] = useState("")
-
-  // edição inline
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editType, setEditType] = useState<"income" | "expense">("income")
-  const [editAmount, setEditAmount] = useState("")
-  const [editDescription, setEditDescription] = useState("")
-
-  // diálogos
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-
-  // “abas” no estilo chip
-  const [activeTab, setActiveTab] = useState<"accounting" | "annual">("accounting")
-
   const { importToFinance } = usePaymentGateways()
+
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<"accounting" | "annual">("accounting")
 
   // sync automática ao abrir
   useEffect(() => {
@@ -92,73 +74,6 @@ export default function FinancesView() {
   }, [setTransactions])
 
   // ===================== Ações =====================
-  const addTransaction = () => {
-    if (!amount || !description) return
-
-    const fullDescription = category && category !== "none" ? `${category}: ${description}` : description
-
-    const newTransaction: Transaction = {
-      id: Date.now().toString(),
-      type,
-      amount: Number.parseFloat(amount),
-      description: fullDescription,
-      date: new Date().toLocaleDateString("pt-BR"),
-    }
-
-    setTransactions([newTransaction, ...transactions])
-    setAmount("")
-    setDescription("")
-    setCategory("")
-    setIsAddDialogOpen(false)
-
-    toast({
-      title: "Transação adicionada",
-      description: `${type === "income" ? "Receita" : "Despesa"} de ${formatCurrency(
-        Number.parseFloat(amount),
-      )} adicionada com sucesso.`,
-    })
-  }
-
-  const startEditing = (transaction: Transaction) => {
-    setEditingId(transaction.id)
-    setEditType(transaction.type)
-    setEditAmount(transaction.amount.toString())
-    setEditDescription(transaction.description)
-  }
-
-  const saveEdit = (id: string) => {
-    if (!editAmount || !editDescription) return
-
-    setTransactions(
-      transactions.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              type: editType,
-              amount: Number.parseFloat(editAmount),
-              description: editDescription,
-              date: `${t.date.split("(")[0]} (Editado: ${new Date().toLocaleTimeString()})`,
-            }
-          : t,
-      ),
-    )
-
-    setEditingId(null)
-    toast({ title: "Transação atualizada", description: "Sua transação foi atualizada com sucesso." })
-  }
-
-  const editTransaction = (id: string, updatedFields: Partial<Transaction>) => {
-    setTransactions(transactions.map((t) => (t.id === id ? { ...t, ...updatedFields } : t)))
-    toast({ title: "Transação atualizada", description: "A transação foi atualizada com sucesso." })
-  }
-
-  const cancelEdit = () => setEditingId(null)
-
-  const deleteTransaction = (id: string) => {
-    setTransactions(transactions.filter((t) => t.id !== id))
-    toast({ title: "Transação excluída", description: "A transação foi excluída com sucesso." })
-  }
-
   const clearAllTransactions = () => {
     setTransactions([])
     setIsConfirmDialogOpen(false)
@@ -168,20 +83,6 @@ export default function FinancesView() {
       variant: "destructive",
     })
   }
-
-  // ===================== Helpers =====================
-  const calculateBalance = () =>
-    transactions.reduce((total, t) => (t.type === "income" ? total + t.amount : total - t.amount), 0)
-
-  const calculateIncome = () => transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0)
-
-  const calculateExpenses = () => transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0)
-
-  const formatCurrency = (value: number) =>
-    value.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    })
 
   // ===================== UI =====================
   return (
@@ -219,83 +120,6 @@ export default function FinancesView() {
               </DialogContent>
             </Dialog>
           )}
-
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="text-xs sm:text-sm">
-                <Plus className="h-4 w-4 mr-1 sm:mr-2" />
-                <span className="hidden xs:inline">Adicionar Transação</span>
-                <span className="xs:hidden">Adicionar</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-[95vw] sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Adicionar Transação</DialogTitle>
-                <DialogDescription>Preencha os detalhes da transação abaixo.</DialogDescription>
-              </DialogHeader>
-
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="transaction-type">Tipo</Label>
-                    <Select value={type} onValueChange={(v) => setType(v as "income" | "expense")}>
-                      <SelectTrigger id="transaction-type">
-                        <SelectValue placeholder="Selecione o tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="income">Receita</SelectItem>
-                        <SelectItem value="expense">Despesa</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="transaction-amount">Valor</Label>
-                    <Input
-                      id="transaction-amount"
-                      placeholder="0,00"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="transaction-category">Categoria (opcional)</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger id="transaction-category">
-                      <SelectValue placeholder="Selecione a categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sem categoria</SelectItem>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.name}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="transaction-description">Descrição</Label>
-                  <Input
-                    id="transaction-description"
-                    placeholder="Descrição da transação"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={addTransaction}>Adicionar</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 

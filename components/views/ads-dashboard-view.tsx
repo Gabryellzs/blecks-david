@@ -40,6 +40,7 @@ import {
   Smartphone,
   Monitor,
   Tablet,
+  Settings,
 } from "lucide-react"
 import { ConnectAccountsPage } from "@/components/connect-accounts-page"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -2860,48 +2861,75 @@ export default function AdsDashboardView() {
           ) : (
             <div id="ads-dashboard-container" className="flex-1 space-y-4 p-4 md:p-8">
               <div className="md:flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <h1 className="scroll-m-20 text-2xl font-semibold tracking-tight">
-                    {activeTab === "facebook"
-                      ? "Meta ADS"
-                      : activeTab === "google"
-                        ? "Google ADS"
-                        : activeTab === "analytics"
-                          ? "Analytics"
-                          : activeTab === "tiktok"
-                            ? "TikTok ADS"
-                            : activeTab === "kwai"
-                              ? "Kwai ADS"
-                              : "Visão Geral"}
-                  </h1>
-                  {/* Período de Visualização - Agora sempre visível */}
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground mb-1">Período de Visualização</span>
-                    <Select value={dateRange} onValueChange={setDateRange}>
-                      <SelectTrigger className="h-8 w-[180px] text-sm">
-                        <SelectValue placeholder="Selecionar período" />
-                      </SelectTrigger>
-                      <SelectContent className="z-[200]">
-                        <SelectItem value="max">Máximo</SelectItem>
-                        <SelectItem value="today">Hoje</SelectItem>
-                        <SelectItem value="yesterday">Ontem</SelectItem>
-                        <SelectItem value="7d">Últimos 7 Dias</SelectItem>
-                        <SelectItem value="thisMonth">Esse Mês</SelectItem>
-                        <SelectItem value="lastMonth">Mês passado</SelectItem>
-                        <SelectItem value="custom">Personalizado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                {/* Botão Conectar Contas - Agora sempre visível */}
-                <Button
-                  variant="outline"
-                  className="h-8 px-3 py-1.5 text-xs bg-transparent"
-                  onClick={() => setIsConnectView(true)}
-                >
-                  Conectar Contas
-                </Button>
-              </div>
+  {/* Lado esquerdo: título e seletor de período */}
+  <div className="flex items-center space-x-4">
+    <h1 className="scroll-m-20 text-2xl font-semibold tracking-tight">
+      {activeTab === "facebook"
+        ? "Meta ADS"
+        : activeTab === "google"
+        ? "Google ADS"
+        : activeTab === "analytics"
+        ? "Analytics"
+        : activeTab === "tiktok"
+        ? "TikTok ADS"
+        : activeTab === "kwai"
+        ? "Kwai ADS"
+        : "Visão Geral"}
+    </h1>
+
+    {/* Período de Visualização */}
+    <div className="flex flex-col">
+      <span className="text-xs text-muted-foreground mb-1">
+        Período de Visualização
+      </span>
+      <Select value={dateRange} onValueChange={setDateRange}>
+        <SelectTrigger className="h-8 w-[180px] text-sm">
+          <SelectValue placeholder="Selecionar período" />
+        </SelectTrigger>
+        <SelectContent className="z-[200]">
+          <SelectItem value="max">Máximo</SelectItem>
+          <SelectItem value="today">Hoje</SelectItem>
+          <SelectItem value="yesterday">Ontem</SelectItem>
+          <SelectItem value="7d">Últimos 7 Dias</SelectItem>
+          <SelectItem value="thisMonth">Esse Mês</SelectItem>
+          <SelectItem value="lastMonth">Mês passado</SelectItem>
+          <SelectItem value="custom">Personalizado</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  </div>
+
+  {/* Lado direito: botões */}
+  <div className="flex items-center gap-2">
+    <Button
+      variant="outline"
+      className="h-8 px-3 py-1.5 text-xs bg-transparent"
+      onClick={() => setIsConnectView(true)}
+    >
+      Conectar Contas
+    </Button>
+
+    <Button
+      variant="secondary"
+      className="h-8 px-3 py-1.5 text-xs"
+      onClick={() => {
+        setActiveTab("facebook")
+        setActiveSubTab("contas")
+        setTimeout(() => {
+          document
+            .getElementById("manager-anchor")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" })
+        }, 0)
+      }}
+    >
+      <Settings className="h-3.5 w-3.5 mr-1" />
+      Gerenciar Contas
+    </Button>
+  </div>
+</div>
+
+
+
 
               {/* Mobile: Período de Visualização - Agora sempre visível */}
               <div className="md:hidden mt-2">
@@ -3037,11 +3065,8 @@ export default function AdsDashboardView() {
               {activeSubTab === "contas" &&
                 (activeTab === "facebook" ? (
                   <>
-                    <div className="flex items-center justify-between">
-                      <h1 className="text-2xl font-bold">Gerenciador de Anúncios</h1>
-                      <Button>
-                        <PlusCircle className="h-4 w-4 mr-2" /> Nova Campanha
-                      </Button>
+                    <div id="manager-anchor" className="flex items-center justify-between">
+                      <h1 className="text-2xl font-bold">Gerenciador de Contas</h1>
                     </div>
                     <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

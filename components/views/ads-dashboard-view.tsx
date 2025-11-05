@@ -54,7 +54,6 @@ import {
   updateFacebookAdAccountStatus,
 } from "@/lib/facebook-ads-service"
 import type { FacebookAdAccount, FacebookCampaign } from "@/lib/types/facebook-ads"
-import { useMemo } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 console.log("✅ RENDER AdsDashboardView atualizado")
 
@@ -128,18 +127,17 @@ export default function AdsDashboardView() {
   const isMobile = useMediaQuery("(max-width: 768px)")
 
   const [activeSubTab, setActiveSubTab] = useState("graficos")
-  const [isAllAccounts, setIsAllAccounts] = useState(false)
+  const [selectedAccount, setSelectedAccountInternal] = useState("") // Renamed to avoid conflict
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const [isConnectView, setIsConnectView] = useState(false)
 
+  // Use a separate state for the selected account in the sub-tabs,
+  // distinct from the Facebook Ads Manager's selectedAccountId
   const handleSelectedAccountChange = (value: string) => {
-  setSelectedAccountInternal(value)
-  setIsAllAccounts(value === "all")
-  // se for uma conta específica, já aponta o gerenciador para ela
-  setSelectedAccountId(value === "all" ? null : value)
-  setActiveSubTab("contas")
-}
+    setSelectedAccountInternal(value)
+    setActiveSubTab("contas")
+  }
 
   useEffect(() => {
     const styleId = "scrollbar-hide-style"
@@ -189,42 +187,38 @@ export default function AdsDashboardView() {
     }
   }
 
-  const fetchAllCampaigns = async () => {
-  setLoadingCampaigns(true)
-  try {
-    const results = await Promise.all(
-      adAccounts.map((acc) => getFacebookCampaigns(acc.id))
-    )
-    const merged = results.flat()
-    setCampaigns(merged)
-    toast({
-      title: "Campanhas Carregadas",
-      description: `Foram encontradas ${merged.length} campanhas em ${adAccounts.length} contas.`,
-    })
-  } catch (error) {
-    console.error("Erro ao buscar campanhas (todas as contas):", error)
-    toast({
-      title: "Erro",
-      description: "Não foi possível carregar as campanhas de todas as contas.",
-      variant: "destructive",
-    })
-  } finally {
-    setLoadingCampaigns(false)
+  const fetchCampaigns = async (accountId: string) => {
+    setLoadingCampaigns(true)
+    try {
+      const fetchedCampaigns = await getFacebookCampaigns(accountId)
+      setCampaigns(fetchedCampaigns)
+      toast({
+        title: "Campanhas Carregadas",
+        description: `Foram encontradas ${fetchedCampaigns.length} campanhas para a conta ${accountId}.`,
+      })
+    } catch (error) {
+      console.error(`Erro ao buscar campanhas para a conta ${accountId}:`, error)
+      toast({
+        title: "Erro",
+        description: `Não foi possível carregar as campanhas para a conta ${accountId}.`,
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingCampaigns(false)
+    }
   }
-}
-
 
   useEffect(() => {
-  if (activeTab !== "facebook") return
-  if (isAllAccounts) {
-    if (adAccounts.length) fetchAllCampaigns()
-    return
-  }
-  if (selectedAccountId) {
-    fetchCampaigns(selectedAccountId)
-  }
-}, [activeTab, isAllAccounts, adAccounts, selectedAccountId])
+    if (activeTab === "facebook") {
+      fetchAdAccounts()
+    }
+  }, [activeTab])
 
+  useEffect(() => {
+    if (selectedAccountId) {
+      fetchCampaigns(selectedAccountId)
+    }
+  }, [selectedAccountId])
 
   const handleAccountStatusChange = async (accountId: string, currentStatus: number) => {
     const newStatus = currentStatus === 1 ? "PAUSED" : "ACTIVE"
@@ -2806,13 +2800,33 @@ export default function AdsDashboardView() {
   const metrics = getMetricsForTab()
   const chartData = getChartDataForTab()
 
-const accounts: { id: string; name: string }[] = useMemo(() => {
-  if (activeTab !== "facebook") return []
-  // usa as contas reais carregadas em `adAccounts`
-  const list = adAccounts.map((a) => ({ id: a.id, name: a.name || a.id }))
-  // adiciona "Todas as contas" no topo
-  return list.length ? [{ id: "all", name: "Todas as contas" }, ...list] : []
-}, [activeTab, adAccounts])
+  // Dados simulados para o Select de Contas
+  const accounts: { id: string; name: string }[] = (() => {
+    switch (activeTab) {
+      case "facebook":
+        return [
+          { id: "meta-1", name: "Meta Account 1" },
+          { id: "meta-2", name: "Meta Account 2" },
+          { id: "meta-3", name: "Meta Account 3" },
+        ]
+      case "google":
+        return [
+          { id: "google-1", name: "Google Account A" },
+          { id: "google-2", name: "Google Account B" },
+        ]
+      case "analytics":
+        return [
+          { id: "analytics-1", name: "Analytics Profile X" },
+          { id: "analytics-2", name: "Analytics Profile Y" },
+        ]
+      case "tiktok":
+        return [{ id: "tiktok-1", name: "TikTok Account Alpha" }]
+      case "kwai":
+        return [{ id: "kwai-1", name: "Kwai Account Z" }]
+      default:
+        return []
+    }
+  })()
 
   // Simulate loading for initial render
   useEffect(() => {
@@ -2962,15 +2976,7 @@ const accounts: { id: string; name: string }[] = useMemo(() => {
 
               {/* Sub-tab buttons - Agora sempre visíveis */}
               <div className="flex space-x-1 overflow-x-auto scrollbar-hide mt-4">
-                <Select
-  value={isAllAccounts ? "all" : (selectedAccountId ?? "")}
-  onValueChange={(value) => {
-    setIsAllAccounts(value === "all")
-    setSelectedAccountId(value === "all" ? null : value)
-    setActiveSubTab("contas")
-  }}
->
-
+                <Select value={selectedAccount} onValueChange={handleSelectedAccountChange}>
                   <SelectTrigger
                     className={`gap-2 justify-start ${activeSubTab === "contas" ? "bg-muted text-foreground" : ""} h-8 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 w-fit`}
                   >
@@ -3126,12 +3132,7 @@ const accounts: { id: string; name: string }[] = useMemo(() => {
                 ) : (
                   <div className="flex items-center justify-center h-60">
                     <p className="text-muted-foreground">
-                      Conteúdo da aba Contas para:{" "}
-{isAllAccounts
-  ? "Todas as contas"
-  : selectedAccountId || "Nenhuma conta selecionada"}{" "}
-(em desenvolvimento)
-
+                      Conteúdo da aba Contas para: {selectedAccount || "Nenhuma conta selecionada"} (em desenvolvimento)
                     </p>
                   </div>
                 ))}
@@ -3140,16 +3141,11 @@ const accounts: { id: string; name: string }[] = useMemo(() => {
                 (activeTab === "facebook" && selectedAccountId ? (
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">
-  {isAllAccounts
-    ? "Campanhas — Todas as Contas"
-    : `Campanhas da Conta: ${selectedAccountId ?? "—"}`}
-</CardTitle>
-
+                      <CardTitle className="text-sm font-medium">Campanhas da Conta: {selectedAccountId}</CardTitle>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => (isAllAccounts ? fetchAllCampaigns() : selectedAccountId && fetchCampaigns(selectedAccountId))}
+                        onClick={() => fetchCampaigns(selectedAccountId)}
                         disabled={loadingCampaigns}
                       >
                         <RefreshCw className="h-4 w-4 mr-2" />

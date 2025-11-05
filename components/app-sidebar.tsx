@@ -124,10 +124,10 @@ export function AppSidebar({ children }: AppSidebarProps) {
       offsetX: 1,
     },
     {
-      id: "Oferta-escalada",
+      id: "Oferta",
       title: "Oferta Escalada",
-      iconPath: `${ICON_BASE}/Oferta-Escalada.png`, 
-      href: "/dashboard/Oferta-escalada",
+      iconPath: `${ICON_BASE}/Oferta.png`, 
+      href: "/dashboard/Oferta",
       size: 30,
     },
     {

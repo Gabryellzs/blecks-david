@@ -30,11 +30,11 @@ type MenuItem = {
   id: string
   title: string
   href: string
-  icon?: LucideIcon            // Lucide fallback se quiser
-  iconPath?: string            // PNG/SVG em /public
-  size?: number                // px (largura/altura do ícone)
-  offsetX?: number             // px (direita/esquerda) — só quando expandido
-  offsetY?: number             // px (cima/baixo) — só quando expandido
+  icon?: LucideIcon         // fallback Lucide (se precisar)
+  iconPath?: string         // PNG/SVG em /public
+  size?: number             // px (largura/altura do ícone)
+  offsetX?: number          // px (direita/esquerda) — só quando expandido
+  offsetY?: number          // px (cima/baixo) — só quando expandido
 }
 
 // ---------------- Component ----------------
@@ -67,7 +67,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
       title: "Dashboard ADS",
       iconPath: `${ICON_BASE}/Dashboard ADS.png`,
       href: "/dashboard/ads",
-      size: 31,
+      size: 35,
       offsetX: 1,
     },
     {
@@ -75,7 +75,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
       title: "Dashboard",
       iconPath: `${ICON_BASE}/dashboard.png`,
       href: "/dashboard",
-      size: 31,
+      size: 35,
     },
     {
       id: "diary",
@@ -104,7 +104,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
       title: "Mapa Mental",
       iconPath: `${ICON_BASE}/mapa-mental.png`,
       href: "/dashboard/mindmap",
-      size: 35,
+      size: 40,
       offsetY: -1,
     },
     {
@@ -112,21 +112,21 @@ export function AppSidebar({ children }: AppSidebarProps) {
       title: "IA's",
       iconPath: `${ICON_BASE}/ias.png`,
       href: "/dashboard/ai",
-      size: 35,
+      size: 32,
       offsetX: 1,
     },
     {
-      id: "copywriting",
-      title: "Copywriting",
-      icon: PenTool,
-      href: "/dashboard/copywriting",
-      size: 24,
-      offsetX: 2,
+      id: "Copywriting",
+      title: "Copywriting's",
+      iconPath: `${ICON_BASE}/copywriting.png`,
+      href: "/dashboard/Copywriting",
+      size: 32,
+      offsetX: 1,
     },
     {
-       id: "oferta-escalada",
+      id: "oferta-escalada",
       title: "Oferta Escalada",
-      iconPath: `${ICON_BASE}/Oferta-Escalada.png`,
+      iconPath: `${ICON_BASE}/Oferta-Escalada.png`, // garanta o arquivo em /public/icons-siderbar
       href: "/dashboard/oferta-escalada",
       size: 30,
     },
@@ -150,7 +150,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
   const toggleSidebar = () => setIsExpanded((v) => !v)
 
   const SidebarToggleIcon = () => (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
       {isExpanded ? (
         <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       ) : (
@@ -171,7 +171,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
             flex flex-col
           `}
         >
-          {/* Header (reduzido) */}
+          {/* Header (compacto) */}
           <div className="px-3 pt-2 pb-1">
             <div className="relative h-[56px]">
               <div className="absolute left-[-13px] top-1/2 -translate-y-1/2 w-[70px] h-[67px]">
@@ -197,7 +197,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
             </div>
           </div>
 
-          {/* Menu (aproximado do topo) */}
+          {/* Menu (sem filtros de cor – 3D habilitado) */}
           <div className="px-3 mt-9">
             <div className="space-y-1">
               {menuItems.map((item) => {
@@ -217,13 +217,12 @@ export function AppSidebar({ children }: AppSidebarProps) {
                         ${active ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground text-foreground"}
                       `}
                     >
-                      {/* Ícone */}
+                      {/* Ícone 3D: SEM invert/brightness */}
                       {item.iconPath ? (
                         <span
                           className={`
                             relative inline-flex items-center justify-center shrink-0
-                            transition-[filter,transform] duration-300
-                            ${theme === "dark" ? "invert brightness-0" : "invert-0 brightness-0"}
+                            transition-transform duration-300
                           `}
                           style={{
                             width: size,
@@ -284,7 +283,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           {children}
         </div>
 
-        {/* Toggle (subido) */}
+        {/* Toggle */}
         <Button
           variant="ghost"
           size="sm"

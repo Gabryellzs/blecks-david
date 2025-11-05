@@ -3158,8 +3158,8 @@ const handleSelectAccount = useCallback((accId: string) => {
                       ) : campaigns.length === 0 ? (
                         <p className="text-sm text-muted-foreground">Nenhuma campanha encontrada para esta conta.</p>
                       ) : (
-                        <Table>
-                          <TableHeader>
+                        <Table className="w-full border-collapse">
+                          <TableHeader className="border-b border-white/10">
                             <TableRow>
                               <TableHead>Nome da Campanha</TableHead>
                               <TableHead>Status</TableHead>
@@ -3168,7 +3168,10 @@ const handleSelectAccount = useCallback((accId: string) => {
                           </TableHeader>
                           <TableBody>
                             {campaigns.map((campaign) => (
-                              <TableRow key={campaign.id}>
+                              <TableRow 
+                                key={campaign.id}
+                                className="border-b border-white/10 last:border-b-0 [&>td]:py-3"
+                              >
                                 <TableCell className="font-medium">{campaign.name}</TableCell>
                                 <TableCell>
                                   <span

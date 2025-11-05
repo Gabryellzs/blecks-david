@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
@@ -41,6 +41,7 @@ import {
   Monitor,
   Tablet,
   Settings,
+  ChevronDown,
 } from "lucide-react"
 import { ConnectAccountsPage } from "@/components/connect-accounts-page"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -129,17 +130,27 @@ export default function AdsDashboardView() {
 
   const [activeSubTab, setActiveSubTab] = useState("graficos")
   const [selectedAccount, setSelectedAccountInternal] = useState("") // Renamed to avoid conflict
-  const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const [isConnectView, setIsConnectView] = useState(false)
+  const selectedAccountName = useMemo(() => {
+  if (!selectedAccountId) return "Contas"
+  const acc = adAccounts?.find(a => a.id === selectedAccountId)
+  return acc?.name || "Contas"
+}, [adAccounts, selectedAccountId])
 
-  // Use a separate state for the selected account in the sub-tabs,
-  // distinct from the Facebook Ads Manager's selectedAccountId
-  const handleSelectedAccountChange = (value: string) => {
-    setSelectedAccountInternal(value)
-    setActiveSubTab("contas")
-  }
 
+const handleSelectAccount = useCallback((accId: string) => {
+  setSelectedAccountId(accId)
+
+  // mantém o string interno sincronizado (se você ainda usa em outros lugares)
+  const acc = adAccounts?.find(a => a.id === accId)
+  setSelectedAccountInternal(acc?.name ?? "")
+
+  // se quiser mudar de aba ao selecionar uma conta, descomente:
+  // setActiveSubTab("campanhas")
+}, [adAccounts])
+
+  
   useEffect(() => {
     const styleId = "scrollbar-hide-style"
     if (!document.getElementById(styleId)) {
@@ -2801,60 +2812,16 @@ export default function AdsDashboardView() {
   const metrics = getMetricsForTab()
   const chartData = getChartDataForTab()
 
-  // Dados simulados para o Select de Contas
-  const accounts: { id: string; name: string }[] = (() => {
-    switch (activeTab) {
-      case "facebook":
-        return [
-          { id: "meta-1", name: "Meta Account 1" },
-          { id: "meta-2", name: "Meta Account 2" },
-          { id: "meta-3", name: "Meta Account 3" },
-        ]
-      case "google":
-        return [
-          { id: "google-1", name: "Google Account A" },
-          { id: "google-2", name: "Google Account B" },
-        ]
-      case "analytics":
-        return [
-          { id: "analytics-1", name: "Analytics Profile X" },
-          { id: "analytics-2", name: "Analytics Profile Y" },
-        ]
-      case "tiktok":
-        return [{ id: "tiktok-1", name: "TikTok Account Alpha" }]
-      case "kwai":
-        return [{ id: "kwai-1", name: "Kwai Account Z" }]
-      default:
-        return []
-    }
-  })()
-
-  // Simulate loading for initial render
-  useEffect(() => {
-    setIsLoading(true)
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 500) // Simulate a small loading time
-    return () => clearTimeout(timer)
-  }, [])
 
   return (
-    <>
-      {isLoading && (
-        <div className="flex items-center justify-center h-[80vh]">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          <p className="ml-2">Carregando dashboard...</p>
-        </div>
-      )}
-
-      {hasError && (
+    <>{hasError && (
         <div className="flex flex-col items-center justify-center h-[80vh]">
           <div className="text-red-500 mb-4">Ocorreu um erro ao carregar o dashboard</div>
           <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
         </div>
       )}
 
-      {!isLoading && !hasError && (
+      {!hasError && (
         <>
           {isConnectView ? (
             <ConnectAccountsPage onBack={() => setIsConnectView(false)} />
@@ -3004,26 +2971,30 @@ export default function AdsDashboardView() {
 
               {/* Sub-tab buttons - Agora sempre visíveis */}
               <div className="flex space-x-1 overflow-x-auto scrollbar-hide mt-4">
-                <Select value={selectedAccount} onValueChange={handleSelectedAccountChange}>
-                  <SelectTrigger
-                    className={`gap-2 justify-start ${activeSubTab === "contas" ? "bg-muted text-foreground" : ""} h-8 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 w-fit`}
-                  >
-                    <SelectValue placeholder="Contas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accounts.length > 0 ? (
-                      accounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="no-accounts" disabled>
-                        Nenhuma conta disponível
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+                <DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="secondary" className="h-8 px-3 py-1.5 text-xs">
+      {selectedAccountName}
+      <ChevronDown className="ml-2 h-4 w-4" />
+    </Button>
+  </DropdownMenuTrigger>
+
+  <DropdownMenuContent align="start" className="min-w-[220px]">
+    {adAccounts?.length ? (
+      adAccounts.map((acc) => (
+        <DropdownMenuItem
+          key={acc.id}
+          onClick={() => handleSelectAccount(acc.id)}
+        >
+          {acc.name}
+        </DropdownMenuItem>
+      ))
+    ) : (
+      <DropdownMenuItem disabled>Nenhuma conta encontrada</DropdownMenuItem>
+    )}
+  </DropdownMenuContent>
+</DropdownMenu>
+
                 <Button
                   variant="secondary"
                   className={`gap-2 justify-start ${activeSubTab === "graficos" ? "bg-muted text-foreground" : ""} h-8 px-3 py-1.5 text-xs`}
@@ -3157,7 +3128,7 @@ export default function AdsDashboardView() {
                 ) : (
                   <div className="flex items-center justify-center h-60">
                     <p className="text-muted-foreground">
-                      Conteúdo da aba Contas para: {selectedAccount || "Nenhuma conta selecionada"} (em desenvolvimento)
+                      Conteúdo da aba Contas para: {selectedAccountName}
                     </p>
                   </div>
                 ))}

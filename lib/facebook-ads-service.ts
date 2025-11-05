@@ -47,9 +47,7 @@ export type FacebookAdSet = {
 /**
  * Busca Ad Sets da conta informada.
  * Aceita `accountId` com ou sem prefixo `act_`.
- * A rota aceita `uuid` opcional pra filtrar o token do usuário (platform_tokens.uuid).
- *
- * Ex.: getFacebookAdSets(selectedAccountId, currentUserId)
+ * A rota aceita `uuid` opcional pra filtrar o token do usuário (platform_tokens.user_id).
  */
 export async function getFacebookAdSets(
   accountId: string,
@@ -61,20 +59,17 @@ export async function getFacebookAdSets(
   if (uuid) qs.set("uuid", uuid) // <-- importante pro filtro por usuário logado
 
   const res = await fetch(`/api/facebook-ads/adsets?${qs.toString()}`)
-
   if (!res.ok) {
     const details = await tryJson(res)
     throw new Error(
-      `Erro ao carregar conjuntos de anúncios: ${res.status} ${
-        details ? JSON.stringify(details) : ""
-      }`
+      `Erro ao carregar conjuntos de anúncios: ${res.status} ${details ? JSON.stringify(details) : ""}`
     )
   }
 
   const data = await res.json()
+  const items = Array.isArray(data?.data) ? data.data : []
 
   // Mapeia com campos planos (sem nested campaign{})
-  const items = Array.isArray(data?.data) ? data.data : []
   return items.map((item: any): FacebookAdSet => ({
     id: item.id,
     name: item.name,
@@ -86,6 +81,59 @@ export async function getFacebookAdSets(
     billing_event: item.billing_event ?? null,
     start_time: item.start_time ?? null,
     end_time: item.end_time ?? null,
+  }))
+}
+
+/** ============== ANÚNCIOS (ADS) ============== */
+export type FacebookAd = {
+  id: string
+  name: string
+  status: string
+  effective_status?: string
+  adset_id?: string | null
+  campaign_id?: string | null
+  creative_id?: string | null
+  creative_name?: string | null
+  updated_time?: string | null
+  created_time?: string | null
+}
+
+/**
+ * Busca Ads da conta informada.
+ * Aceita `accountId` com ou sem `act_`.
+ * A rota aceita `uuid` opcional pra filtrar o token do usuário (platform_tokens.user_id).
+ */
+export async function getFacebookAds(
+  accountId: string,
+  uuid?: string
+): Promise<FacebookAd[]> {
+  const cleanId = accountId.replace(/^act_/, "")
+
+  const qs = new URLSearchParams({ accountId: cleanId })
+  if (uuid) qs.set("uuid", uuid)
+
+  const res = await fetch(`/api/facebook-ads/ads?${qs.toString()}`)
+  if (!res.ok) {
+    const details = await tryJson(res)
+    throw new Error(
+      `Erro ao carregar anúncios: ${res.status} ${details ? JSON.stringify(details) : ""}`
+    )
+  }
+
+  const data = await res.json()
+  const items = Array.isArray(data?.data) ? data.data : []
+
+  return items.map((x: any): FacebookAd => ({
+    id: x.id,
+    name: x.name,
+    status: x.status,
+    effective_status: x.effective_status,
+    adset_id: x.adset_id ?? null,
+    campaign_id: x.campaign_id ?? null,
+    creative_id: x.creative?.id ?? x.creative_id ?? null,
+    creative_name: x.creative?.name ?? null,
+    updated_time: x.updated_time ?? null,
+    created_time: x.created_time ?? null,
   }))
 }
 

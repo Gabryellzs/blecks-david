@@ -54,6 +54,7 @@ import {
   getFacebookCampaigns,
   updateFacebookCampaignStatus,
   updateFacebookAdAccountStatus,
+  getFacebookAds,
 } from "@/lib/facebook-ads-service"
 import type { FacebookAdAccount, FacebookCampaign } from "@/lib/types/facebook-ads"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -142,6 +143,8 @@ export default function AdsDashboardView() {
   const [selectedAccount, setSelectedAccountInternal] = useState("") // Renamed to avoid conflict
   const [hasError, setHasError] = useState(false)
   const [isConnectView, setIsConnectView] = useState(false)
+  const [ads, setAds] = useState<any[]>([])
+  const [loadingAds, setLoadingAds] = useState(false)
   const selectedAccountName = useMemo(() => {
   if (!selectedAccountId) return "Contas"
   const acc = adAccounts?.find(a => a.id === selectedAccountId)
@@ -230,6 +233,16 @@ const handleSelectAccount = useCallback((accId: string) => {
     }
   }
 
+  const getCurrentUuid = async (): Promise<string | undefined> => {
+  const { data, error } = await supabase.auth.getUser()
+  if (error) {
+    console.warn("Não foi possível obter o usuário via Supabase auth:", error)
+    return undefined
+  }
+  return data?.user?.id
+}
+
+
   const fetchAdSets = async (accountId: string) => {
   setLoadingAdSets(true)
   try {
@@ -259,6 +272,33 @@ const handleSelectAccount = useCallback((accId: string) => {
   }
 }
 
+const fetchAds = async (accountId: string) => {
+  setLoadingAds(true)
+  try {
+    const uuid = await getCurrentUuid()
+    const fetched = await getFacebookAds(accountId, uuid) // <- precisa importar do service
+    setAds(fetched || [])
+    toast({
+      title: "Anúncios carregados",
+      description: `Foram encontrados ${fetched?.length ?? 0} anúncios para a conta ${accountId}.`,
+    })
+  } catch (err) {
+    console.error(`Erro ao buscar anúncios da conta ${accountId}:`, err)
+    toast({
+      title: "Erro",
+      description: `Não foi possível carregar os anúncios para a conta ${accountId}.`,
+      variant: "destructive",
+    })
+  } finally {
+    setLoadingAds(false)
+  }
+}
+
+useEffect(() => {
+  if (activeTab === "facebook" && activeSubTab === "anuncios" && selectedAccountId) {
+    fetchAds(selectedAccountId)
+  }
+}, [activeTab, activeSubTab, selectedAccountId])
 
 
   // 1) Carrega contas ao entrar na aba Facebook
@@ -2884,47 +2924,97 @@ useEffect(() => {
   const chartData = getChartDataForTab()
 
 
-  return (
-    <>{hasError && (
-        <div className="flex flex-col items-center justify-center h-[80vh]">
-          <div className="text-red-500 mb-4">Ocorreu um erro ao carregar o dashboard</div>
-          <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
+  return hasError ? (
+  /* --- ESTADO DE ERRO --- */
+  <div className="flex flex-col items-center justify-center h-[80vh]">
+    <div className="text-red-500 mb-4">
+      Ocorreu um erro ao carregar o dashboard
+    </div>
+    <Button onClick={() => window.location.reload()}>
+      Tentar novamente
+    </Button>
+  </div>
+) : isConnectView ? (
+  /* --- CONTEÚDO: CONEXÃO DE CONTAS --- */
+  <ConnectAccountsPage onBack={() => setIsConnectView(false)} />
+) : (
+  /* --- CONTEÚDO NORMAL DO DASHBOARD --- */
+  <div id="ads-dashboard-container" className="flex-1 space-y-4 p-4 md:p-8">
+    <div className="md:flex items-center justify-between">
+      {/* Lado esquerdo: título e seletor de período */}
+      <div className="flex items-center space-x-4">
+        <h1 className="scroll-m-20 text-2xl font-semibold tracking-tight">
+          {activeTab === "facebook"
+            ? "Meta ADS"
+            : activeTab === "google"
+            ? "Google ADS"
+            : activeTab === "analytics"
+            ? "Analytics"
+            : activeTab === "tiktok"
+            ? "TikTok ADS"
+            : activeTab === "kwai"
+            ? "Kwai ADS"
+            : "Visão Geral"}
+        </h1>
+
+        {/* Período de Visualização */}
+        <div className="flex flex-col">
+          <span className="text-xs text-muted-foreground mb-1">
+            Período de Visualização
+          </span>
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="h-8 w-[180px] text-sm">
+              <SelectValue placeholder="Selecionar período" />
+            </SelectTrigger>
+            <SelectContent className="z-[200]">
+              <SelectItem value="max">Máximo</SelectItem>
+              <SelectItem value="today">Hoje</SelectItem>
+              <SelectItem value="yesterday">Ontem</SelectItem>
+              <SelectItem value="7d">Últimos 7 Dias</SelectItem>
+              <SelectItem value="thisMonth">Esse Mês</SelectItem>
+              <SelectItem value="lastMonth">Mês passado</SelectItem>
+              <SelectItem value="custom">Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      )}
+      </div>
 
-      {!hasError && (
-        <>
-          {isConnectView ? (
-            <ConnectAccountsPage onBack={() => setIsConnectView(false)} />
-          ) : (
-            <div id="ads-dashboard-container" className="flex-1 space-y-4 p-4 md:p-8">
-              <div className="md:flex items-center justify-between">
-  {/* Lado esquerdo: título e seletor de período */}
-  <div className="flex items-center space-x-4">
-    <h1 className="scroll-m-20 text-2xl font-semibold tracking-tight">
-      {activeTab === "facebook"
-        ? "Meta ADS"
-        : activeTab === "google"
-        ? "Google ADS"
-        : activeTab === "analytics"
-        ? "Analytics"
-        : activeTab === "tiktok"
-        ? "TikTok ADS"
-        : activeTab === "kwai"
-        ? "Kwai ADS"
-        : "Visão Geral"}
-    </h1>
+      {/* Lado direito: botões */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          className="h-8 px-3 py-1.5 text-xs bg-transparent"
+          onClick={() => setIsConnectView(true)}
+        >
+          Conectar Contas
+        </Button>
 
-    {/* Período de Visualização */}
-    <div className="flex flex-col">
-      <span className="text-xs text-muted-foreground mb-1">
-        Período de Visualização
-      </span>
+        <Button
+          variant="secondary"
+          className="h-8 px-3 py-1.5 text-xs"
+          onClick={() => {
+            setActiveTab("facebook")
+            setActiveSubTab("contas")
+            setTimeout(() => {
+              document
+                .getElementById("manager-anchor")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }, 0)
+          }}
+        >
+          <Settings className="h-3.5 w-3.5 mr-1" />
+          Gerenciar Contas
+        </Button>
+      </div>
+    </div>
+
+    {/* Mobile: Período de Visualização - Agora sempre visível */}
+    <div className="md:hidden mt-2">
       <Select value={dateRange} onValueChange={setDateRange}>
-        <SelectTrigger className="h-8 w-[180px] text-sm">
+        <SelectTrigger className="w-[180px]">
           <SelectValue placeholder="Selecionar período" />
         </SelectTrigger>
-        <SelectContent className="z-[200]">
+        <SelectContent>
           <SelectItem value="max">Máximo</SelectItem>
           <SelectItem value="today">Hoje</SelectItem>
           <SelectItem value="yesterday">Ontem</SelectItem>
@@ -2935,453 +3025,534 @@ useEffect(() => {
         </SelectContent>
       </Select>
     </div>
-  </div>
 
-  {/* Lado direito: botões */}
-  <div className="flex items-center gap-2">
-    <Button
-      variant="outline"
-      className="h-8 px-3 py-1.5 text-xs bg-transparent"
-      onClick={() => setIsConnectView(true)}
-    >
-      Conectar Contas
-    </Button>
+    <div className="md:hidden">
+      <Select
+        onValueChange={(value) => setActiveTab(value as AdPlatform)}
+        defaultValue={activeTab}
+      >
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Plataforma" />
+        </SelectTrigger>
+        <SelectContent>
+          {tabs.map((tab) => (
+            <SelectItem key={tab.id} value={tab.id}>
+              {!imageErrors[tab.id] ? (
+                <Image
+                  src={tab.icon || "/placeholder.svg"}
+                  alt={tab.name}
+                  width={tab.size}
+                  height={tab.size}
+                  onError={() => handleImageError(tab.id)}
+                  className="inline-block mr-2"
+                />
+              ) : (
+                <span className="inline-block mr-2">{tab.fallbackIcon}</span>
+              )}
+              {tab.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
 
-    <Button
-      variant="secondary"
-      className="h-8 px-3 py-1.5 text-xs"
-      onClick={() => {
-        setActiveTab("facebook")
-        setActiveSubTab("contas")
-        setTimeout(() => {
-          document
-            .getElementById("manager-anchor")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" })
-        }, 0)
-      }}
-    >
-      <Settings className="h-3.5 w-3.5 mr-1" />
-      Gerenciar Contas
-    </Button>
-  </div>
-</div>
+    <div className="hidden md:block">
+      <div className="flex space-x-1 overflow-x-auto scrollbar-hide">
+        {tabs.map((tab) => (
+          <Button
+            key={tab.id}
+            variant="secondary"
+            className={`gap-2 justify-start ${
+              activeTab === tab.id ? "bg-muted text-foreground" : ""
+            }`}
+            onClick={() => setActiveTab(tab.id as AdPlatform)}
+          >
+            {!imageErrors[tab.id] ? (
+              <Image
+                src={tab.icon || "/placeholder.svg"}
+                alt={tab.name}
+                width={tab.size}
+                height={tab.size}
+                onError={() => handleImageError(tab.id)}
+              />
+            ) : (
+              tab.fallbackIcon
+            )}
+            {!isMobile && tab.name}
+          </Button>
+        ))}
+      </div>
+    </div>
 
+    {/* Sub-tab buttons - Agora sempre visíveis */}
+    <div className="flex space-x-1 overflow-x-auto scrollbar-hide mt-4">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="secondary" className="h-8 px-3 py-1.5 text-xs">
+            {selectedAccountName}
+            <ChevronDown className="ml-2 h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
 
+        <DropdownMenuContent align="start" className="min-w-[220px]">
+          {adAccounts?.length ? (
+            adAccounts.map((acc) => (
+              <DropdownMenuItem
+                key={acc.id}
+                onClick={() => handleSelectAccount(acc.id)}
+              >
+                {acc.name}
+              </DropdownMenuItem>
+            ))
+          ) : (
+            <DropdownMenuItem disabled>
+              Nenhuma conta encontrada
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
+      <Button
+        variant="secondary"
+        className={`gap-2 justify-start ${
+          activeSubTab === "graficos" ? "bg-muted text-foreground" : ""
+        } h-8 px-3 py-1.5 text-xs`}
+        onClick={() => setActiveSubTab("graficos")}
+      >
+        Gráficos
+      </Button>
+      <Button
+        variant="secondary"
+        className={`gap-2 justify-start ${
+          activeSubTab === "campanhas" ? "bg-muted text-foreground" : ""
+        } h-8 px-3 py-1.5 text-xs`}
+        onClick={() => setActiveSubTab("campanhas")}
+      >
+        Campanhas
+      </Button>
+      <Button
+        variant="secondary"
+        className={`gap-2 justify-start ${
+          activeSubTab === "conjuntos" ? "bg-muted text-foreground" : ""
+        } h-8 px-3 py-1.5 text-xs`}
+        onClick={() => setActiveSubTab("conjuntos")}
+      >
+        Conjuntos
+      </Button>
+      <Button
+        variant="secondary"
+        className={`gap-2 justify-start ${
+          activeSubTab === "anuncios" ? "bg-muted text-foreground" : ""
+        } h-8 px-3 py-1.5 text-xs`}
+        onClick={() => setActiveSubTab("anuncios")}
+      >
+        Anúncios
+      </Button>
+    </div>
 
-              {/* Mobile: Período de Visualização - Agora sempre visível */}
-              <div className="md:hidden mt-2">
-                <Select value={dateRange} onValueChange={setDateRange}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Selecionar período" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="max">Máximo</SelectItem>
-                    <SelectItem value="today">Hoje</SelectItem>
-                    <SelectItem value="yesterday">Ontem</SelectItem>
-                    <SelectItem value="7d">Últimos 7 Dias</SelectItem>
-                    <SelectItem value="thisMonth">Esse Mês</SelectItem>
-                    <SelectItem value="lastMonth">Mês passado</SelectItem>
-                    <SelectItem value="custom">Personalizado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+    {/* Conteúdo principal do dashboard de ADS */}
+    {activeSubTab === "graficos" && (
+      <>
+        {renderMetricCards(metrics)}
+        {renderCharts(chartData, activeTab)}
+      </>
+    )}
 
-              <div className="md:hidden">
-                <Select onValueChange={(value) => setActiveTab(value as AdPlatform)} defaultValue={activeTab}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Plataforma" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tabs.map((tab) => (
-                      <SelectItem key={tab.id} value={tab.id}>
-                        {!imageErrors[tab.id] ? (
-                          <Image
-                            src={tab.icon || "/placeholder.svg"}
-                            alt={tab.name}
-                            width={tab.size}
-                            height={tab.size}
-                            onError={() => handleImageError(tab.id)}
-                            className="inline-block mr-2"
-                          />
-                        ) : (
-                          <span className="inline-block mr-2">{tab.fallbackIcon}</span>
-                        )}
-                        {tab.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+    {activeSubTab === "contas" &&
+      (activeTab === "facebook" ? (
+        <>
+          <div
+            id="manager-anchor"
+            className="flex items-center justify-between"
+          >
+            <h1 className="text-2xl font-bold">Gerenciador de Contas</h1>
+          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Contas de Anúncios do Facebook
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchAdAccounts}
+                disabled={loadingAccounts}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {loadingAccounts ? "Carregando..." : "Atualizar Contas"}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {loadingAccounts ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ) : adAccounts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma conta de anúncios encontrada.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {/* Toggle global: Ativar todas */}
+                  <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      Contas de Anúncio (Meta)
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">Ativar todas:</span>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 cursor-pointer accent-primary"
+                        onChange={(e) => {
+                          const newStatus = e.target.checked ? 1 : 0
+                          adAccounts.forEach((acc) =>
+                            handleAccountStatusChange(acc.id, newStatus)
+                          )
+                        }}
+                      />
+                    </div>
+                  </div>
 
-              <div className="hidden md:block">
-                <div className="flex space-x-1 overflow-x-auto scrollbar-hide">
-                  {tabs.map((tab) => (
-                    <Button
-                      key={tab.id}
-                      variant="secondary"
-                      className={`gap-2 justify-start ${activeTab === tab.id ? "bg-muted text-foreground" : ""}`}
-                      onClick={() => setActiveTab(tab.id as AdPlatform)}
+                  {/* Lista de contas individuais */}
+                  {adAccounts.map((account) => (
+                    <div
+                      key={account.id}
+                      className="flex items-center justify-between border border-border/60 rounded-lg px-4 py-3 hover:bg-muted/40 transition"
                     >
-                      {!imageErrors[tab.id] ? (
-                        <Image
-                          src={tab.icon || "/placeholder.svg"}
-                          alt={tab.name}
-                          width={tab.size}
-                          height={tab.size}
-                          onError={() => handleImageError(tab.id)}
+                      <div className="flex flex-col">
+                        <span className="font-medium">{account.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          ID: {account.id} •{" "}
+                          {account.account_status === 1 ? "Ativa" : "Inativa"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {/* botão Selecionar */}
+                        <Button
+                          size="sm"
+                          variant={
+                            selectedAccountId === account.id
+                              ? "default"
+                              : "outline"
+                          }
+                          onClick={() => setSelectedAccountId(account.id)}
+                        >
+                          {selectedAccountId === account.id
+                            ? "Selecionado"
+                            : "Selecionar"}
+                        </Button>
+
+                        {/* toggle individual */}
+                        <input
+                          type="checkbox"
+                          checked={account.account_status === 1}
+                          className="h-4 w-4 cursor-pointer accent-primary"
+                          onChange={() =>
+                            handleAccountStatusChange(
+                              account.id,
+                              account.account_status
+                            )
+                          }
                         />
-                      ) : (
-                        tab.fallbackIcon
-                      )}
-                      {!isMobile && tab.name}
-                    </Button>
+                      </div>
+                    </div>
                   ))}
                 </div>
-              </div>
-
-              {/* Sub-tab buttons - Agora sempre visíveis */}
-              <div className="flex space-x-1 overflow-x-auto scrollbar-hide mt-4">
-                <DropdownMenu>
-  <DropdownMenuTrigger asChild>
-    <Button variant="secondary" className="h-8 px-3 py-1.5 text-xs">
-      {selectedAccountName}
-      <ChevronDown className="ml-2 h-4 w-4" />
-    </Button>
-  </DropdownMenuTrigger>
-
-  <DropdownMenuContent align="start" className="min-w-[220px]">
-    {adAccounts?.length ? (
-      adAccounts.map((acc) => (
-        <DropdownMenuItem
-          key={acc.id}
-          onClick={() => handleSelectAccount(acc.id)}
-        >
-          {acc.name}
-        </DropdownMenuItem>
-      ))
-    ) : (
-      <DropdownMenuItem disabled>Nenhuma conta encontrada</DropdownMenuItem>
-    )}
-  </DropdownMenuContent>
-</DropdownMenu>
-
-                <Button
-                  variant="secondary"
-                  className={`gap-2 justify-start ${activeSubTab === "graficos" ? "bg-muted text-foreground" : ""} h-8 px-3 py-1.5 text-xs`}
-                  onClick={() => setActiveSubTab("graficos")}
-                >
-                  Gráficos
-                </Button>
-                <Button
-                  variant="secondary"
-                  className={`gap-2 justify-start ${activeSubTab === "campanhas" ? "bg-muted text-foreground" : ""} h-8 px-3 py-1.5 text-xs`}
-                  onClick={() => setActiveSubTab("campanhas")}
-                >
-                  Campanhas
-                </Button>
-                <Button
-                  variant="secondary"
-                  className={`gap-2 justify-start ${activeSubTab === "conjuntos" ? "bg-muted text-foreground" : ""} h-8 px-3 py-1.5 text-xs`}
-                  onClick={() => setActiveSubTab("conjuntos")}
-                >
-                  Conjuntos
-                </Button>
-                <Button
-                  variant="secondary"
-                  className={`gap-2 justify-start ${activeSubTab === "anuncios" ? "bg-muted text-foreground" : ""} h-8 px-3 py-1.5 text-xs`}
-                  onClick={() => setActiveSubTab("anuncios")}
-                >
-                  Anúncios
-                </Button>
-              </div>
-
-              {/* Conteúdo principal do dashboard de ADS */}
-              {activeSubTab === "graficos" && (
-                <>
-                  {renderMetricCards(metrics)}
-                  {renderCharts(chartData, activeTab)}
-                </>
               )}
-
-              {activeSubTab === "contas" &&
-                (activeTab === "facebook" ? (
-                  <>
-                    <div id="manager-anchor" className="flex items-center justify-between">
-                      <h1 className="text-2xl font-bold">Gerenciador de Contas</h1>
-                    </div>
-                    <Card>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Contas de Anúncios do Facebook</CardTitle>
-                        <Button variant="outline" size="sm" onClick={fetchAdAccounts} disabled={loadingAccounts}>
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          {loadingAccounts ? "Carregando..." : "Atualizar Contas"}
-                        </Button>
-                      </CardHeader>
-                      <CardContent>
-  {loadingAccounts ? (
-    <div className="space-y-2">
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-10 w-full" />
-    </div>
-  ) : adAccounts.length === 0 ? (
-    <p className="text-sm text-muted-foreground">
-      Nenhuma conta de anúncios encontrada.
-    </p>
-  ) : (
-    <div className="space-y-4">
-      {/* Toggle global: Ativar todas */}
-      <div className="flex items-center justify-between pb-2 border-b border-border/40">
-        <h3 className="text-sm font-medium text-muted-foreground">
-          Contas de Anúncio (Meta)
-        </h3>
-        <div className="flex items-center gap-2">
-          <span className="text-sm">Ativar todas:</span>
-          <input
-            type="checkbox"
-            className="h-4 w-4 cursor-pointer accent-primary"
-            onChange={(e) => {
-              const newStatus = e.target.checked ? 1 : 0
-              adAccounts.forEach((acc) =>
-                handleAccountStatusChange(acc.id, newStatus)
-              )
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Lista de contas individuais */}
-      {adAccounts.map((account) => (
-        <div
-          key={account.id}
-          className="flex items-center justify-between border border-border/60 rounded-lg px-4 py-3 hover:bg-muted/40 transition"
-        >
-          <div className="flex flex-col">
-            <span className="font-medium">{account.name}</span>
-            <span className="text-xs text-muted-foreground">
-              ID: {account.id} •{" "}
-              {account.account_status === 1 ? "Ativa" : "Inativa"}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* botão Selecionar */}
-            <Button
-              size="sm"
-              variant={
-                selectedAccountId === account.id ? "default" : "outline"
-              }
-              onClick={() => setSelectedAccountId(account.id)}
-            >
-              {selectedAccountId === account.id
-                ? "Selecionado"
-                : "Selecionar"}
-            </Button>
-
-            {/* toggle individual */}
-            <input
-              type="checkbox"
-              checked={account.account_status === 1}
-              className="h-4 w-4 cursor-pointer accent-primary"
-              onChange={() =>
-                handleAccountStatusChange(account.id, account.account_status)
-              }
-            />
-          </div>
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        <div className="flex items-center justify-center h-60">
+          <p className="text-muted-foreground">
+            Conteúdo da aba Contas para: {selectedAccountName}
+          </p>
         </div>
       ))}
-    </div>
-  )}
-</CardContent>
 
-                    </Card>
-                  </>
-                ) : (
-                  <div className="flex items-center justify-center h-60">
-                    <p className="text-muted-foreground">
-                      Conteúdo da aba Contas para: {selectedAccountName}
-                    </p>
-                  </div>
-                ))}
-
-              {activeSubTab === "campanhas" &&
-                (activeTab === "facebook" && selectedAccountId ? (
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Campanhas da Conta: {selectedAccountId}</CardTitle>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fetchCampaigns(selectedAccountId)}
-                        disabled={loadingCampaigns}
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        {loadingCampaigns ? "Carregando..." : "Atualizar Campanhas"}
-                      </Button>
-                    </CardHeader>
-                    <CardContent>
-                      {loadingCampaigns ? (
-                        <div className="space-y-2">
-                          <Skeleton className="h-10 w-full" />
-                          <Skeleton className="h-10 w-full" />
-                          <Skeleton className="h-10 w-full" />
-                        </div>
-                      ) : campaigns.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Nenhuma campanha encontrada para esta conta.</p>
-                      ) : (
-                        <Table className="w-full border-collapse">
-                          <TableHeader className="border-b border-white/10">
-                            <TableRow>
-                              <TableHead>Nome da Campanha</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="text-right">Ações</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {campaigns.map((campaign) => (
-                              <TableRow 
-                                key={campaign.id}
-                                className="border-b border-white/10 last:border-b-0 [&>td]:py-3"
-                              >
-                                <TableCell className="font-medium">{campaign.name}</TableCell>
-                                <TableCell>
-                                  <span
-                                    className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                      campaign.status === "ACTIVE"
-                                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                        : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                    }`}
-                                  >
-                                    {campaign.status}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" className="h-8 w-8 p-0">
-                                        <span className="sr-only">Abrir menu</span>
-                                        <MoreHorizontal className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem
-                                        onClick={() => handleCampaignStatusChange(campaign.id, campaign.status)}
-                                      >
-                                        {campaign.status === "ACTIVE" ? (
-                                          <>
-                                            <Pause className="mr-2 h-4 w-4" /> Pausar
-                                          </>
-                                        ) : (
-                                          <>
-                                            <PlayIcon className="mr-2 h-4 w-4" /> Ativar
-                                          </>
-                                        )}
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem>
-                                        <ExternalLinkIcon className="mr-2 h-4 w-4" /> Ver no Facebook Ads
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem className="text-red-600">
-                                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      )}
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="flex items-center justify-center h-60">
-                    <p className="text-muted-foreground">Conteúdo da aba Campanhas (em desenvolvimento)</p>
-                  </div>
-                ))}
-
-              {activeSubTab === "conjuntos" &&
-  (activeTab === "facebook" && selectedAccountId ? (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">
-          Conjuntos da Conta: {selectedAccountId}
-        </CardTitle>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fetchAdSets(selectedAccountId)}
-          disabled={loadingAdSets}
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          {loadingAdSets ? "Carregando..." : "Atualizar Conjuntos"}
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {loadingAdSets ? (
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ) : adSets.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nenhum conjunto de anúncios encontrado para esta conta.
-          </p>
-        ) : (
-          <Table className="w-full border-collapse">
-            <TableHeader className="border-b border-white/10">
-              <TableRow>
-                <TableHead>Nome do Conjunto</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Campanha</TableHead>
-                <TableHead>Budget Diário</TableHead>
-                <TableHead className="text-right">Início</TableHead>
-                <TableHead className="text-right">Fim</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {adSets.map((set) => (
-                <TableRow key={set.id} className="border-b border-white/10 last:border-b-0 [&>td]:py-3">
-                  <TableCell className="font-medium">{set.name}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        set.status === "ACTIVE"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                          : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                      }`}
+    {activeSubTab === "campanhas" &&
+      (activeTab === "facebook" && selectedAccountId ? (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Campanhas da Conta: {selectedAccountId}
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchCampaigns(selectedAccountId)}
+              disabled={loadingCampaigns}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {loadingCampaigns ? "Carregando..." : "Atualizar Campanhas"}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {loadingCampaigns ? (
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : campaigns.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma campanha encontrada para esta conta.
+              </p>
+            ) : (
+              <Table className="w-full border-collapse">
+                <TableHeader className="border-b border-white/10">
+                  <TableRow>
+                    <TableHead>Nome da Campanha</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {campaigns.map((campaign) => (
+                    <TableRow
+                      key={campaign.id}
+                      className="border-b border-white/10 last:border-b-0 [&>td]:py-3"
                     >
-                      {set.status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {set.campaign_id || "-"}
-                  </TableCell>
-                  <TableCell>{set.daily_budget ?? "-"}</TableCell>
-                  <TableCell className="text-right">{set.start_time ?? "-"}</TableCell>
-                  <TableCell className="text-right">{set.end_time ?? "-"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
-  ) : (
-    <div className="flex items-center justify-center h-60">
-      <p className="text-muted-foreground">Selecione uma conta para ver os conjuntos.</p>
-    </div>
-  ))}
+                      <TableCell className="font-medium">
+                        {campaign.name}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            campaign.status === "ACTIVE"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                              : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                          }`}
+                        >
+                          {campaign.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Abrir menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleCampaignStatusChange(
+                                  campaign.id,
+                                  campaign.status
+                                )
+                              }
+                            >
+                              {campaign.status === "ACTIVE" ? (
+                                <>
+                                  <Pause className="mr-2 h-4 w-4" /> Pausar
+                                </>
+                              ) : (
+                                <>
+                                  <PlayIcon className="mr-2 h-4 w-4" /> Ativar
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <ExternalLinkIcon className="mr-2 h-4 w-4" /> Ver
+                              no Facebook Ads
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600">
+                              <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex items-center justify-center h-60">
+          <p className="text-muted-foreground">
+            Conteúdo da aba Campanhas (em desenvolvimento)
+          </p>
+        </div>
+      ))}
 
-              {activeSubTab === "anuncios" && (
-                <div className="flex items-center justify-center h-60">
-                  <p className="text-muted-foreground">Conteúdo da aba Anúncios (em desenvolvimento)</p>
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
-    </>
-  )
+    {activeSubTab === "conjuntos" &&
+      (activeTab === "facebook" && selectedAccountId ? (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Conjuntos da Conta: {selectedAccountId}
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchAdSets(selectedAccountId)}
+              disabled={loadingAdSets}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {loadingAdSets ? "Carregando..." : "Atualizar Conjuntos"}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {loadingAdSets ? (
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : adSets.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhum conjunto de anúncios encontrado para esta conta.
+              </p>
+            ) : (
+              <Table className="w-full border-collapse">
+                <TableHeader className="border-b border-white/10">
+                  <TableRow>
+                    <TableHead>Nome do Conjunto</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Campanha</TableHead>
+                    <TableHead>Budget Diário</TableHead>
+                    <TableHead className="text-right">Início</TableHead>
+                    <TableHead className="text-right">Fim</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {adSets.map((set) => (
+                    <TableRow
+                      key={set.id}
+                      className="border-b border-white/10 last:border-b-0 [&>td]:py-3"
+                    >
+                      <TableCell className="font-medium">{set.name}</TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            set.status === "ACTIVE"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                              : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                          }`}
+                        >
+                          {set.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {set.campaign_id || "-"}
+                      </TableCell>
+                      <TableCell>{set.daily_budget ?? "-"}</TableCell>
+                      <TableCell className="text-right">
+                        {set.start_time ?? "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {set.end_time ?? "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex items-center justify-center h-60">
+          <p className="text-muted-foreground">
+            Selecione uma conta para ver os conjuntos.
+          </p>
+        </div>
+      ))}
+
+    {activeSubTab === "anuncios" &&
+      (activeTab === "facebook" && selectedAccountId ? (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Anúncios da Conta: {selectedAccountId}
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchAds(selectedAccountId)}
+              disabled={loadingAds}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {loadingAds ? "Carregando..." : "Atualizar Anúncios"}
+            </Button>
+          </CardHeader>
+
+          <CardContent>
+            {loadingAds ? (
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : ads.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhum anúncio encontrado para esta conta.
+              </p>
+            ) : (
+              <Table className="w-full border-collapse">
+                <TableHeader className="border-b border-white/10">
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Conjunto</TableHead>
+                    <TableHead>Campanha</TableHead>
+                    <TableHead>Criativo</TableHead>
+                    <TableHead className="text-right">Atualizado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ads.map((ad: any) => (
+                    <TableRow
+                      key={ad.id}
+                      className="border-b border-white/10 last:border-b-0 [&>td]:py-3"
+                    >
+                      <TableCell className="font-medium">{ad.name}</TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            ad.status === "ACTIVE"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                              : ad.status === "PAUSED"
+                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                              : "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
+                          }`}
+                        >
+                          {ad.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {ad.adset_id || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {ad.campaign_id || "—"}
+                      </TableCell>
+                      <TableCell className="truncate max-w-[240px]">
+                        {ad.creative_name || ad.creative_id || "—"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {ad.updated_time
+                          ? new Date(ad.updated_time).toLocaleString("pt-BR")
+                          : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex items-center justify-center h-60">
+          <p className="text-muted-foreground">
+            Selecione uma conta para ver os anúncios.
+          </p>
+        </div>
+      ))}
+  </div>
+);
 }

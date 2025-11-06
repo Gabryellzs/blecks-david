@@ -119,7 +119,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
       id: "Copywriting",
       title: "Copywriting's",
       iconPath: `${ICON_BASE}/copywriting.png`,
-      href: "/dashboard/Copywriting",
+      href: "/dashboard/copywriting",
       size: 32,
       offsetX: 1,
     },

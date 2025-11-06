@@ -120,8 +120,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
     { id: "calendar", title: "Calendário", iconPath: `${ICON_BASE}/calendario.png`, href: "/dashboard/calendar", size: 41 },
     { id: "mindmap", title: "Mapa Mental", iconPath: `${ICON_BASE}/mapa-mental.png`, href: "/dashboard/mindmap", size: 40, offsetY: -1 },
     { id: "ai", title: "IA's", iconPath: `${ICON_BASE}/ias.png`, href: "/dashboard/ai", size: 32, offsetX: 1 },
-    { id: "copywriting", title: "Copywriting", iconPath: `${ICON_BASE}/copywriting.png`, href: "/dashboard/copywriting", size: 32, offsetX: 1 },
-    { id: "oferta", title: "Oferta Escalada", iconPath: `${ICON_BASE}/oferta.png`, href: "/dashboard/oferta", size: 30, offsetX: 1 },
+    { id: "copywriting", title: "Copywriting", iconPath: `${ICON_BASE}/copywriting.png`, href: "/dashboard/copywriting", size: 30, offsetX: 1 },
+    { id: "oferta", title: "Oferta Escalada", iconPath: `${ICON_BASE}/oferta.png`, href: "/dashboard/oferta", size: 29, offsetX: 1 },
     { id: "finances", title: "Financeiro", iconPath: `${ICON_BASE}/financeiro.png`, href: "/dashboard/finances", size: 30 },
     { id: "editor-paginas", title: "Suporte", iconPath: `${ICON_BASE}/suporte.png`, href: "/dashboard/support", size: 31 },
   ]), [])

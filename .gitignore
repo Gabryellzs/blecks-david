@@ -12,3 +12,4 @@ node_modules/
 dev.log
 docs/*-setup.md
 .DS_Store
+components/views/calendar-view.tsx

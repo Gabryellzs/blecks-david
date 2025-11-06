@@ -101,7 +101,7 @@ export async function GET(request: Request) {
         currency: 'USD',
         type: campaign.budget_mode === 'DAILY' ? 'DAILY' : 'LIFETIME'
       } : undefined,
-      spend: 0, // Será calculado separadamente
+      spend: 0, // Será calculado
       impressions: 0,
       clicks: 0,
       ctr: 0,

@@ -75,7 +75,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
       title: "Dashboard",
       iconPath: `${ICON_BASE}/dashboard.png`,
       href: "/dashboard",
-      size: 35,
+      size: 30,
     },
     {
       id: "diary",

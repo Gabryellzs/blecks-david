@@ -814,119 +814,136 @@ export default function CalendarView() {
           </div>
         </div>
 
-        {/* Dialog criar/editar */}
+        {/* Dialog criar/editar/visualizar */}
         <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
-          <DialogContent className="sm:max-w-[500px] max-w-[95vw]">
-            <DialogHeader>
-              <DialogTitle>{isCreatingEvent ? "Criar Evento" : isViewingEvent ? "Detalhes do Evento" : "Editar Evento"}</DialogTitle>
-            </DialogHeader>
+          <DialogContent
+            className={cn(
+              "sm:max-w-[500px] max-w-[95vw] relative overflow-hidden border border-white/10",
+              isViewingEvent
+                ? cn(selectedEvent?.color ?? "bg-blue-500", "text-white")
+                : "bg-card"
+            )}
+          >
+            {/* Overlay que você preferiu */}
+            {isViewingEvent && (
+              <div className="pointer-events-none absolute inset-0 bg-black/20 rounded-md z-0" />
+            )}
 
-            <div className="grid gap-4 py-4">
-              {isViewingEvent ? (
-                <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">{selectedEvent?.title}</h2>
+            {/* Conteúdo do modal acima do overlay */}
+            <div className="relative z-10">
+              <DialogHeader>
+                <DialogTitle>
+                  {isCreatingEvent ? "Criar Evento" : isViewingEvent ? "Detalhes do Evento" : "Editar Evento"}
+                </DialogTitle>
+              </DialogHeader>
 
-                  <div className="flex items-start gap-2">
-                    <CalendarIcon className="h-5 w-5 text-muted-foreground mt-0.5" />
-                    <div>
+              <div className="grid gap-4 py-4">
+                {isViewingEvent ? (
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-semibold">{selectedEvent?.title}</h2>
+
+                    <div className="flex items-start gap-2">
+                      <CalendarIcon className="h-5 w-5 text-white/80 mt-0.5" />
                       <div>
-                        {selectedEvent?.start &&
-                          format(selectedEvent.start instanceof Date ? selectedEvent.start : new Date(selectedEvent.start), "EEEE, d 'de' MMMM", { locale: ptBR })}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {selectedEvent?.start && format(selectedEvent.start instanceof Date ? selectedEvent.start : new Date(selectedEvent.start), "HH:mm")}{" "}
-                        - {selectedEvent?.end && format(selectedEvent.end instanceof Date ? selectedEvent.end : new Date(selectedEvent.end), "HH:mm")}
+                        <div>
+                          {selectedEvent?.start &&
+                            format(selectedEvent.start instanceof Date ? selectedEvent.start : new Date(selectedEvent.start), "EEEE, d 'de' MMMM", { locale: ptBR })}
+                        </div>
+                        <div className="text-sm text-white/80">
+                          {selectedEvent?.start && format(selectedEvent.start instanceof Date ? selectedEvent.start : new Date(selectedEvent.start), "HH:mm")}{" "}
+                          - {selectedEvent?.end && format(selectedEvent.end instanceof Date ? selectedEvent.end : new Date(selectedEvent.end), "HH:mm")}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {selectedEvent?.location && (
+                    {selectedEvent?.location && (
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-5 w-5 text-white/80 mt-0.5" />
+                        <div>{selectedEvent.location}</div>
+                      </div>
+                    )}
+
+                    {selectedEvent?.description && (
+                      <div className="flex items-start gap-2">
+                        <div className="whitespace-pre-wrap">{selectedEvent.description}</div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap justify-end gap-2 pt-4">
+                      <Button variant="outline" onClick={() => { setIsViewingEvent(false); setIsEventDialogOpen(false) }}>
+                        Fechar
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsViewingEvent(false)}>
+                        Editar
+                      </Button>
+                      <Button variant="destructive" onClick={handleDeleteEvent}>
+                        Excluir
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Adicionar título"
+                        value={newEvent.title || ""}
+                        onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                        className="text-lg font-medium border-0 border-b rounded-none focus-visible:ring-0 px-0 h-auto py-1"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                      <div className="grid grid-cols-2 gap-2 flex-1">
+                        <div className="flex items-center gap-1">
+                          <Input type="text" value={tempTimeRange.startHour} onChange={(e) => { setTempTimeRange({ ...tempTimeRange, startHour: e.target.value }); handleTimeChange() }} className="w-12" />
+                          <span>:</span>
+                          <Input type="text" value={tempTimeRange.startMinute} onChange={(e) => { setTempTimeRange({ ...tempTimeRange, startMinute: e.target.value }); handleTimeChange() }} className="w-12" />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Input type="text" value={tempTimeRange.endHour} onChange={(e) => { setTempTimeRange({ ...tempTimeRange, endHour: e.target.value }); handleTimeChange() }} className="w-12" />
+                          <span>:</span>
+                          <Input type="text" value={tempTimeRange.endMinute} onChange={(e) => { setTempTimeRange({ ...tempTimeRange, endMinute: e.target.value }); handleTimeChange() }} className="w-12" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                      <Input placeholder="Adicionar local" value={newEvent.location || ""} onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })} />
+                    </div>
+
                     <div className="flex items-start gap-2">
-                      <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>{selectedEvent.location}</div>
+                      <Users className="h-5 w-5 text-muted-foreground mt-2 flex-shrink-0" />
+                      <Textarea placeholder="Adicionar descrição" value={newEvent.description || ""} onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })} className="min-h-[100px]" />
                     </div>
-                  )}
 
-                  {selectedEvent?.description && (
-                    <div className="flex items-start gap-2">
-                      <div className="whitespace-pre-wrap">{selectedEvent.description}</div>
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap justify-end gap-2 pt-4">
-                    <Button variant="outline" onClick={() => { setIsViewingEvent(false); setIsEventDialogOpen(false) }}>
-                      Fechar
-                    </Button>
-                    <Button variant="outline" onClick={() => setIsViewingEvent(false)}>
-                      Editar
-                    </Button>
-                    <Button variant="destructive" onClick={handleDeleteEvent}>
-                      Excluir
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Adicionar título"
-                      value={newEvent.title || ""}
-                      onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                      className="text-lg font-medium border-0 border-b rounded-none focus-visible:ring-0 px-0 h-auto py-1"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                    <div className="grid grid-cols-2 gap-2 flex-1">
-                      <div className="flex items-center gap-1">
-                        <Input type="text" value={tempTimeRange.startHour} onChange={(e) => { setTempTimeRange({ ...tempTimeRange, startHour: e.target.value }); handleTimeChange() }} className="w-12" />
-                        <span>:</span>
-                        <Input type="text" value={tempTimeRange.startMinute} onChange={(e) => { setTempTimeRange({ ...tempTimeRange, startMinute: e.target.value }); handleTimeChange() }} className="w-12" />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Input type="text" value={tempTimeRange.endHour} onChange={(e) => { setTempTimeRange({ ...tempTimeRange, endHour: e.target.value }); handleTimeChange() }} className="w-12" />
-                        <span>:</span>
-                        <Input type="text" value={tempTimeRange.endMinute} onChange={(e) => { setTempTimeRange({ ...tempTimeRange, endMinute: e.target.value }); handleTimeChange() }} className="w-12" />
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-sm">Cor:</div>
+                      <div className="flex gap-1 flex-wrap">
+                        {calendarCategories.map((cat) => (
+                          <div
+                            key={cat.id}
+                            className={cn("w-6 h-6 rounded-full cursor-pointer border-2", cat.color, newEvent.color === cat.color ? "border-black dark:border-white" : "border-transparent")}
+                            onClick={() => setNewEvent({ ...newEvent, color: cat.color })}
+                            title={cat.name}
+                          />
+                        ))}
                       </div>
                     </div>
-                  </div>
+                  </>
+                )}
+              </div>
 
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                    <Input placeholder="Adicionar local" value={newEvent.location || ""} onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })} />
-                  </div>
-
-                  <div className="flex items-start gap-2">
-                    <Users className="h-5 w-5 text-muted-foreground mt-2 flex-shrink-0" />
-                    <Textarea placeholder="Adicionar descrição" value={newEvent.description || ""} onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })} className="min-h-[100px]" />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="font-medium text-sm">Cor:</div>
-                    <div className="flex gap-1 flex-wrap">
-                      {calendarCategories.map((cat) => (
-                        <div
-                          key={cat.id}
-                          className={cn("w-6 h-6 rounded-full cursor-pointer border-2", cat.color, newEvent.color === cat.color ? "border-black dark:border-white" : "border-transparent")}
-                          onClick={() => setNewEvent({ ...newEvent, color: cat.color })}
-                          title={cat.name}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </>
+              {!isViewingEvent && (
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsEventDialogOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleSaveEvent} className="bg-blue-600 hover:bg-blue-700">
+                    {isCreatingEvent ? "Criar" : "Salvar"}
+                  </Button>
+                </DialogFooter>
               )}
             </div>
-
-            {!isViewingEvent && (
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsEventDialogOpen(false)}>Cancelar</Button>
-                <Button onClick={handleSaveEvent} className="bg-blue-600 hover:bg-blue-700">
-                  {isCreatingEvent ? "Criar" : "Salvar"}
-                </Button>
-              </DialogFooter>
-            )}
           </DialogContent>
         </Dialog>
       </div>

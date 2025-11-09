@@ -48,7 +48,9 @@ interface CalendarEvent {
 type ViewMode = "day" | "week" | "month"
 
 const backgroundImage = "/mountain-clouds-sunset.jpeg"
-const HOUR_ROW_PX = 60
+
+// === ALTURA POR HORA (ajuste aqui) ===
+const HOUR_ROW_PX = 64
 
 const ensureDateObjects = (evs: any[]): CalendarEvent[] =>
   evs.map((e) => ({
@@ -131,7 +133,7 @@ export default function CalendarView() {
   /* ====== DnD ====== */
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
-  /* ====== util de cor válida (evita “sumir” no filtro) ====== */
+  /* ====== util de cor válida ====== */
   const getDefaultEventColor = () =>
     calendarCategories.find((c) => c.enabled)?.color ?? calendarCategories[0]?.color ?? "bg-blue-500"
 
@@ -264,7 +266,7 @@ export default function CalendarView() {
     }
 
     setIsEventDialogOpen(false)
-    setNewEvent({ title: "", description: "", location: "", color: getDefaultEventColor(), allDay: false })
+    setNewEvent({ title: "", description: "", location: getDefaultEventColor(), color: getDefaultEventColor(), allDay: false })
   }
 
   const handleDeleteEvent = () => {
@@ -372,7 +374,7 @@ export default function CalendarView() {
               return s.getHours() === hour
             })
             return (
-              <div key={hour} className="relative flex min-h-[60px]">
+              <div key={hour} className="relative flex" style={{ minHeight: HOUR_ROW_PX }}>
                 <div
                   ref={hour === 0 ? dayGutterRef : undefined}
                   className="w-16 py-2 text-right pr-2 text-sm text-muted-foreground border-r border-white/15 z-[80]"
@@ -384,20 +386,21 @@ export default function CalendarView() {
                     const s = ev.start instanceof Date ? ev.start : new Date(ev.start)
                     const en = ev.end instanceof Date ? ev.end : new Date(ev.end)
                     const startMin = s.getMinutes()
-                    const durMin = Math.min((en.getTime() - s.getTime()) / 60000, 60 - startMin)
+                    // <<< sem Math.min: permite atravessar horas >>>
+                    const durMin = (en.getTime() - s.getTime()) / 60000
                     const hPct = (durMin / 60) * 100
                     return (
                       <div
                         key={ev.id}
                         id={ev.id}
                         className={cn(
-                          "absolute rounded p-1 text-white text-sm cursor-move hover:brightness-90 transition-all shadow-sm overflow-hidden",
+                          "absolute rounded p-1 text-white text-sm cursor-move hover:brightness-90 transition-all shadow-sm overflow-hidden z-[60]",
                           ev.color,
                           draggedEvent?.id === ev.id && "opacity-50",
                         )}
                         style={{
-                          top: `${(s.getMinutes() / 60) * 100}%`,
-                          height: `${hPct}%`,
+                          top: `${(startMin / 60) * 100}%`,
+                          height: `calc(${hPct}% - 2px)`,
                           width: "calc(100% - 8px)",
                         }}
                         onClick={(e) => { e.stopPropagation(); handleEventClick(ev) }}
@@ -475,7 +478,7 @@ export default function CalendarView() {
           {isThisWeek && <NowLine top={nowTopPx} left={gutterPx} right={0} />}
 
           {hours.map((hour) => (
-            <div key={hour} className="grid grid-cols-8 min-h-[60px]">
+            <div key={hour} className="grid grid-cols-8" style={{ minHeight: HOUR_ROW_PX }}>
               <div
                 ref={hour === 0 ? gutterRef : undefined}
                 className="py-2 text-right pr-2 text-sm text-muted-foreground border-r border-white/10 z-[80]"
@@ -501,7 +504,8 @@ export default function CalendarView() {
                       const s = ev.start instanceof Date ? ev.start : new Date(ev.start)
                       const en = ev.end instanceof Date ? ev.end : new Date(ev.end)
                       const startMin = s.getMinutes()
-                      const durMin = Math.min((en.getTime() - s.getTime()) / 60000, 60 - startMin)
+                      // <<< sem Math.min >>> permite atravessar múltiplas horas
+                      const durMin = (en.getTime() - s.getTime()) / 60000
                       const hPct = (durMin / 60) * 100
 
                       return (
@@ -514,8 +518,8 @@ export default function CalendarView() {
                             draggedEvent?.id === ev.id && "opacity-50",
                           )}
                           style={{
-                            top: `${(s.getMinutes() / 60) * 100}%`,
-                            height: `${hPct}%`,
+                            top: `${(startMin / 60) * 100}%`,
+                            height: `calc(${hPct}% - 2px)`,
                             width: "calc(100% - 8px)",
                           }}
                           onClick={(e) => { e.stopPropagation(); handleEventClick(ev) }}

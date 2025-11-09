@@ -8,18 +8,18 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PenLine, Copy, Save, History, Sparkles, AlertCircle, Trash2, RefreshCw, Lightbulb, Info } from "lucide-react"
+import { PenLine, Copy, Save, Sparkles, AlertCircle, RefreshCw, Lightbulb, Info } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
 import ChatView from "./chat-view"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
-// Adicionar este import no topo do arquivo:
+// Componentes adicionais
 import HeadlineLibrary from "../copywriting/headline-library"
 import CopyComparator from "../copywriting/copy-comparator"
 
-// Tipo para o histórico de copies
+// Tipo para o histórico de copies (mantido para botão “Salvar”, caso queira persistir)
 type CopyItem = {
   id: string
   copyType: string
@@ -105,7 +105,7 @@ const copyTemplates = {
   },
 }
 
-// Dicas para melhorar os resultados
+// Dicas
 const copywritingTips = {
   anúncio: [
     "Use números específicos em vez de generalizações",
@@ -144,7 +144,7 @@ const copywritingTips = {
   ],
 }
 
-// Exemplos de descrições poderosas para cada campo
+// Exemplos de preenchimento
 const fieldExamples = {
   productInfo: {
     title: "Exemplos de Descrições de Produto",
@@ -165,20 +165,20 @@ const fieldExamples = {
 }
 
 export default function CopywritingView() {
-  // Estados para os campos do formulário
+  // Estados do formulário
   const [copyType, setCopyType] = useState<string>("")
   const [tone, setTone] = useState<string>("")
   const [productInfo, setProductInfo] = useState<string>("")
   const [targetAudience, setTargetAudience] = useState<string>("")
   const [length, setLength] = useState<string>("")
 
-  // Estado para o texto gerado
+  // Resultado
   const [generatedText, setGeneratedText] = useState<string>("")
 
-  // Estado para o histórico (persistido no localStorage)
+  // (Opcional) Histórico local — mantido para o botão Salvar
   const [history, setHistory] = useState<CopyItem[]>([])
 
-  // Estados para controle de UI
+  // UI
   const [isGenerating, setIsGenerating] = useState<boolean>(false)
   const [isEditing, setIsEditing] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
@@ -186,7 +186,7 @@ export default function CopywritingView() {
 
   const { toast } = useToast()
 
-  // Carregar histórico do localStorage ao iniciar
+  // Carregar histórico (se quiser usar em outra tela/feature)
   useEffect(() => {
     const savedHistory = localStorage.getItem("copywritingHistory")
     if (savedHistory) {
@@ -198,22 +198,19 @@ export default function CopywritingView() {
     }
   }, [])
 
-  // Salvar histórico no localStorage quando mudar
   useEffect(() => {
     if (history.length > 0) {
       localStorage.setItem("copywritingHistory", JSON.stringify(history))
     }
   }, [history])
 
-  // Função para gerar texto usando templates
+  // Gerar via template local (fallback)
   const generateWithTemplate = useCallback(() => {
     if (!copyType || !tone || !productInfo || !targetAudience) return ""
 
-    // Obter o template apropriado
     const template =
       copyTemplates[copyType as keyof typeof copyTemplates]?.[tone as keyof (typeof copyTemplates)["anúncio"]] || ""
 
-    // Substituir os placeholders
     let text = template
       .replace(/\[Produto\/Serviço\]/g, productInfo)
       .replace(/\[público-alvo\]/g, targetAudience)
@@ -223,7 +220,6 @@ export default function CopywritingView() {
       .replace(/\[Sua Empresa\]/g, "Nossa Empresa")
       .replace(/\[oferta especial\]/g, "um desconto especial")
 
-    // Ajustar o comprimento
     if (length === "short" && text.length > 300) {
       text = text.substring(0, 300) + "..."
     } else if (length === "medium" && text.length > 800) {
@@ -233,16 +229,11 @@ export default function CopywritingView() {
     return text
   }, [copyType, tone, productInfo, targetAudience, length])
 
-  // Função para gerar o texto usando templates ou IA
+  // Gerar (chama API e usa fallback)
   const generateCopy = async () => {
-    // Validar os campos
     if (!copyType || !tone || !productInfo || !targetAudience || !length) {
       setError("Todos os campos são obrigatórios")
-      toast({
-        title: "Erro",
-        description: "Por favor, preencha todos os campos",
-        variant: "destructive",
-      })
+      toast({ title: "Erro", description: "Por favor, preencha todos os campos", variant: "destructive" })
       return
     }
 
@@ -250,62 +241,44 @@ export default function CopywritingView() {
     setError(null)
 
     try {
-      // Fazer a chamada para a API
       const response = await fetch("/api/generate-copy", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Cache-Control": "no-cache, no-store, must-revalidate",
         },
-        body: JSON.stringify({
-          copyType,
-          tone,
-          productInfo,
-          targetAudience,
-          length,
-        }),
+        body: JSON.stringify({ copyType, tone, productInfo, targetAudience, length }),
       })
 
-      // Verificar se a resposta é um erro HTTP
-      if (!response.ok) {
-        throw new Error(`Erro ${response.status}: ${response.statusText}`)
-      }
+      if (!response.ok) throw new Error(`Erro ${response.status}: ${response.statusText}`)
 
-      // Parsear a resposta
       const data = await response.json()
-
-      // Verificar se o texto foi gerado
-      if (!data || !data.text) {
-        throw new Error("Nenhum texto foi gerado.")
-      }
+      if (!data || !data.text) throw new Error("Nenhum texto foi gerado.")
 
       setGeneratedText(data.text)
     } catch (err: any) {
-      const errorMessage = err instanceof Error ? err.message : "Erro desconhecido"
-      setError(errorMessage)
-      toast({
-        title: "Erro",
-        description: errorMessage,
-        variant: "destructive",
-      })
+      // fallback local
+      const fallback = generateWithTemplate()
+      if (fallback) {
+        setGeneratedText(fallback)
+        toast({ title: "Gerado com template", description: "Usei um modelo local como fallback." })
+      } else {
+        const errorMessage = err instanceof Error ? err.message : "Erro desconhecido"
+        setError(errorMessage)
+        toast({ title: "Erro", description: errorMessage, variant: "destructive" })
+      }
     } finally {
       setIsGenerating(false)
     }
   }
 
-  // Função para copiar o texto
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
-    toast({
-      title: "Copiado!",
-      description: "Texto copiado para a área de transferência",
-    })
+    toast({ title: "Copiado!", description: "Texto copiado para a área de transferência" })
   }
 
-  // Função para salvar o texto no histórico
   const saveToHistory = () => {
     if (!generatedText) return
-
     const newItem: CopyItem = {
       id: Date.now().toString(),
       copyType,
@@ -316,25 +289,10 @@ export default function CopywritingView() {
       generatedText,
       createdAt: new Date(),
     }
-
     setHistory([newItem, ...history])
-
-    toast({
-      title: "Salvo!",
-      description: "Texto salvo no histórico",
-    })
+    toast({ title: "Salvo!", description: "Texto salvo no histórico local" })
   }
 
-  // Função para excluir um item do histórico
-  const deleteHistoryItem = (id: string) => {
-    setHistory(history.filter((item) => item.id !== id))
-    toast({
-      title: "Excluído",
-      description: "Item removido do histórico",
-    })
-  }
-
-  // Função para limpar o formulário
   const clearForm = () => {
     setCopyType("")
     setTone("")
@@ -344,12 +302,9 @@ export default function CopywritingView() {
     setGeneratedText("")
   }
 
-  // Renderizar dicas específicas para o tipo de copy selecionado
   const renderTips = () => {
     if (!copyType) return null
-
     const tips = copywritingTips[copyType as keyof typeof copywritingTips] || []
-
     return (
       <div className="bg-muted/50 p-4 rounded-lg space-y-2">
         <div className="flex items-center gap-2">
@@ -381,13 +336,13 @@ export default function CopywritingView() {
           <TabsList className="w-full min-w-max">
             <TabsTrigger value="create">Criar Copy</TabsTrigger>
             <TabsTrigger value="chat">Chat IA</TabsTrigger>
-            <TabsTrigger value="history">Histórico</TabsTrigger>
-            <TabsTrigger value="templates">Templates</TabsTrigger>
+            {/* Removidos: Histórico e Templates */}
             <TabsTrigger value="tips">Dicas Avançadas</TabsTrigger>
             <TabsTrigger value="headlines">Headlines</TabsTrigger>
             <TabsTrigger value="comparator">Comparador</TabsTrigger>
           </TabsList>
 
+          {/* Criar Copy */}
           <TabsContent value="create" className="space-y-4">
             <Card>
               <CardHeader>
@@ -620,173 +575,12 @@ export default function CopywritingView() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="history">
-            <Card>
-              <CardHeader>
-                <CardTitle>Histórico de Copies</CardTitle>
-                <CardDescription>Acesse seus textos gerados anteriormente</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {history.length > 0 ? (
-                  <div className="space-y-4">
-                    {history.map((item) => (
-                      <Card key={item.id} className="overflow-hidden">
-                        <CardHeader className="bg-muted/50 p-4">
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <CardTitle className="text-base">{item.copyType}</CardTitle>
-                                <Badge variant="outline">{item.tone}</Badge>
-                              </div>
-                              <CardDescription>
-                                {new Date(item.createdAt).toLocaleDateString()} • {item.length}
-                              </CardDescription>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setCopyType(item.copyType)
-                                  setTone(item.tone)
-                                  setProductInfo(item.productInfo)
-                                  setTargetAudience(item.targetAudience)
-                                  setLength(item.length)
-                                  setGeneratedText(item.generatedText)
-                                }}
-                              >
-                                Usar
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => deleteHistoryItem(item.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="p-4">
-                          <p className="line-clamp-3">{item.generatedText}</p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <History className="mx-auto h-12 w-12 opacity-50" />
-                    <p className="mt-2">Seu histórico de copies aparecerá aqui</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="templates">
-            <Card>
-              <CardHeader>
-                <CardTitle>Templates</CardTitle>
-                <CardDescription>Templates pré-definidos para diferentes tipos de copy</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[
-                    {
-                      title: "Anúncio de Produto",
-                      description: "Template para anúncio de lançamento de produto",
-                      fields: {
-                        copyType: "anúncio",
-                        tone: "persuasivo",
-                        productInfo: "Um produto inovador que resolve problemas do dia a dia",
-                        targetAudience: "Adultos de 25-45 anos, profissionais ocupados",
-                        length: "medium",
-                      },
-                    },
-                    {
-                      title: "Email de Boas-vindas",
-                      description: "Template para email de boas-vindas a novos clientes",
-                      fields: {
-                        copyType: "email marketing",
-                        tone: "amigável",
-                        productInfo: "Plataforma de produtividade para profissionais",
-                        targetAudience: "Novos usuários que acabaram de se cadastrar",
-                        length: "short",
-                      },
-                    },
-                    {
-                      title: "Post para Instagram",
-                      description: "Template para post engajador no Instagram",
-                      fields: {
-                        copyType: "post para redes sociais",
-                        tone: "casual",
-                        productInfo: "Serviço de assinatura mensal com produtos exclusivos",
-                        targetAudience: "Jovens adultos de 18-30 anos, interessados em novidades",
-                        length: "short",
-                      },
-                    },
-                    {
-                      title: "Descrição de Produto",
-                      description: "Template para descrição detalhada de produto",
-                      fields: {
-                        copyType: "descrição de produto",
-                        tone: "profissional",
-                        productInfo: "Produto tecnológico com múltiplas funcionalidades",
-                        targetAudience: "Consumidores interessados em tecnologia",
-                        length: "medium",
-                      },
-                    },
-                    {
-                      title: "Campanha Promocional",
-                      description: "Template para campanha de desconto ou promoção",
-                      fields: {
-                        copyType: "anúncio",
-                        tone: "persuasivo",
-                        productInfo: "Oferta por tempo limitado com descontos especiais",
-                        targetAudience: "Clientes existentes e potenciais interessados em economia",
-                        length: "short",
-                      },
-                    },
-                    {
-                      title: "Landing Page de Serviço",
-                      description: "Template para landing page de serviço profissional",
-                      fields: {
-                        copyType: "landing page",
-                        tone: "profissional",
-                        productInfo: "Serviço de consultoria especializada",
-                        targetAudience: "Empresas que buscam crescimento e otimização",
-                        length: "long",
-                      },
-                    },
-                  ].map((template, index) => (
-                    <Card key={index} className="overflow-hidden">
-                      <CardHeader className="p-4">
-                        <CardTitle className="text-base">{template.title}</CardTitle>
-                        <CardDescription>{template.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-0">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => {
-                            setCopyType(template.fields.copyType)
-                            setTone(template.fields.tone)
-                            setProductInfo(template.fields.productInfo)
-                            setTargetAudience(template.fields.targetAudience)
-                            setLength(template.fields.length)
-                          }}
-                        >
-                          Usar Template
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
+          {/* Chat IA */}
           <TabsContent value="chat">
             <ChatView />
           </TabsContent>
 
+          {/* Dicas Avançadas */}
           <TabsContent value="tips">
             <Card>
               <CardHeader>
@@ -898,10 +692,12 @@ export default function CopywritingView() {
             </Card>
           </TabsContent>
 
+          {/* Headlines */}
           <TabsContent value="headlines">
             <HeadlineLibrary />
           </TabsContent>
 
+          {/* Comparador */}
           <TabsContent value="comparator">
             <CopyComparator />
           </TabsContent>

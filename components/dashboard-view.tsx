@@ -193,6 +193,12 @@ function calcGatewaySplit(rows: GatewayTransaction[]): Record<string, number> {
   return totals
 }
 
+function dedupById<T extends { id: string }>(arr: T[]): T[] {
+  const m = new Map<string, T>()
+  for (const it of arr) m.set(it.id, it)
+  return Array.from(m.values())
+}
+
 // =============================
 // HOOK SUPABASE (fetch + realtime)
 // =============================
@@ -202,7 +208,10 @@ export function useGatewayKpis(filter: KpiFilter) {
   const [rows, setRows] = useState<GatewayTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const seenIdsRef = useRef<Set<string>>(new Set())
+  const initialLoadedRef = useRef(false)
 
   async function fetchAll() {
     setLoading(true)
@@ -210,27 +219,26 @@ export function useGatewayKpis(filter: KpiFilter) {
 
     const q = supabase
       .from("gateway_transactions")
-      .select(
-        "id,user_id,transaction_id,gateway_id,amount,currency,customer_name,customer_email,customer_phone,product_name,payment_method,fee,net_amount,event_type,status,raw_payload,created_at,updated_by,fees,updated_at,product_price"
-      )
+      .select("id,user_id,transaction_id,gateway_id,amount,currency,customer_name,customer_email,customer_phone,product_name,payment_method,fee,net_amount,event_type,status,raw_payload,created_at,updated_by,fees,updated_at,product_price")
       .order("created_at", { ascending: false })
 
     if (from) q.gte("created_at", from)
     if (to) q.lt("created_at", to)
-
     if (search && search.trim()) {
-      q.or(
-        `customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,product_name.ilike.%${search}%`
-      )
+      q.or(`customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,product_name.ilike.%${search}%`)
     }
 
     const { data, error } = await q
-
     if (error) {
       setError(error.message)
       setRows([])
+      seenIdsRef.current = new Set()
+      initialLoadedRef.current = true
     } else {
-      setRows((data || []) as any)
+      const clean = dedupById((data || []) as GatewayTransaction[])
+      setRows(clean)
+      seenIdsRef.current = new Set(clean.map(r => r.id))
+      initialLoadedRef.current = true
     }
 
     setLoading(false)
@@ -242,22 +250,37 @@ export function useGatewayKpis(filter: KpiFilter) {
   }, [userId, from, to, search])
 
   useEffect(() => {
+    // encerra canal anterior
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
 
-    const channel = supabase.channel("gateway_transactions_dashboard")
+    // canal único por range
+    const chanName = `gateway_transactions_dashboard_${(from||'min')}_${(to||'max')}_${Math.random().toString(36).slice(2)}`
+    const channel = supabase.channel(chanName)
+
+    const fromMs = from ? Date.parse(from) : null
+    const toMs   = to   ? Date.parse(to)   : null
 
     channel
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "gateway_transactions" },
         (payload) => {
+          if (!initialLoadedRef.current) return
           const row = payload.new as GatewayTransaction
-          if (from && row.created_at < from) return
-          if (to && row.created_at >= to) return
-          setRows((prev) => [row, ...prev])
+          const rowMs = Date.parse(row.created_at)
+          if (fromMs !== null && rowMs < fromMs) return
+          if (toMs !== null && rowMs >= toMs) return
+
+          setRows(prev => {
+            if (seenIdsRef.current.has(row.id)) {
+              return prev.map(r => (r.id === row.id ? row : r))
+            }
+            seenIdsRef.current.add(row.id)
+            return [row, ...prev]
+          })
         }
       )
       .on(
@@ -265,12 +288,19 @@ export function useGatewayKpis(filter: KpiFilter) {
         { event: "UPDATE", schema: "public", table: "gateway_transactions" },
         (payload) => {
           const row = payload.new as GatewayTransaction
-          setRows((prev) => {
-            const idx = prev.findIndex((r) => r.id === row.id)
-            if (idx === -1) return prev
-            const clone = prev.slice()
-            clone[idx] = row
-            return clone
+          const rowMs = Date.parse(row.created_at)
+
+          setRows(prev => {
+            if ((fromMs !== null && rowMs < fromMs) || (toMs !== null && rowMs >= toMs)) {
+              seenIdsRef.current.delete(row.id)
+              return prev.filter(r => r.id !== row.id)
+            }
+
+            if (!seenIdsRef.current.has(row.id)) {
+              seenIdsRef.current.add(row.id)
+              return [row, ...prev]
+            }
+            return prev.map(r => (r.id === row.id ? row : r))
           })
         }
       )
@@ -282,7 +312,7 @@ export function useGatewayKpis(filter: KpiFilter) {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
-  }, [userId, from, to])
+  }, [from, to])
 
   const kpis: GatewayKpisLight = useMemo(
     () => calcGatewaySummaryForPeriod(rows),
@@ -297,9 +327,9 @@ export function useGatewayKpis(filter: KpiFilter) {
 // =============================
 function DonutChart({
   data,
-  size = 220,  // <= controle de tamanho (px)
-  radius = 60, // <= raio externo
-  stroke = 20, // <= espessura do anel
+  size = 220,
+  radius = 60,
+  stroke = 20,
 }: {
   data: Record<string, number>
   size: number
@@ -316,7 +346,7 @@ function DonutChart({
   )
 
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const [tip, setTip] = useState({
+  const [tip] = useState({
     show: false,
     name: "",
     pct: 0,
@@ -334,7 +364,6 @@ function DonutChart({
     )
   }
 
-  // ViewBox + métricas
   const OUTER_R = radius
   const STROKE = stroke
   const INNER_R = OUTER_R - STROKE
@@ -379,7 +408,6 @@ function DonutChart({
     const pct100 = pct * 100
     const sliceLen = pct * C
 
-    // fatia
     slices.push(
       <circle
         key={name}
@@ -396,12 +424,11 @@ function DonutChart({
       />
     )
 
-    // label percentual sobre o anel
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
     const midAngleDeg = midFrac * 360 - 90
-    const labelRadius = INNER_R + STROKE / 1 -1
+    const labelRadius = INNER_R + STROKE / 1 - 1
     const { x, y } = polarToCartesian(1, 1, labelRadius, midAngleDeg)
 
     const pctText = pct100.toLocaleString("pt-BR", {
@@ -433,15 +460,14 @@ function DonutChart({
       className="relative flex h-full w-full items-center justify-center"
     >
       <svg
-        className="block mx-auto my-auto"     // centraliza no wrapper
+        className="block mx-auto my-auto"
         width="100%"
         height="100%"
         viewBox={`0 0 ${BOX} ${BOX}`}
         preserveAspectRatio="xMidYMid meet"
-        style={{ maxWidth: size, maxHeight: size }} // controle de tamanho
+        style={{ maxWidth: size, maxHeight: size }}
       >
         <g transform={`translate(${CENTER}, ${CENTER})`}>
-          {/* anel de fundo */}
           <circle
             r={OUTER_R}
             fill="none"
@@ -453,7 +479,6 @@ function DonutChart({
         </g>
       </svg>
 
-      {/* tooltip (se quiser ativar, já tem base pronta) */}
       {tip.show && (
         <div
           className="pointer-events-none absolute rounded-md px-2 py-1 text-xs font-medium shadow-lg bg-black/80 text-white whitespace-nowrap"
@@ -471,7 +496,7 @@ function DonutChart({
 // =============================
 // DASHBOARD LAYOUT / GRID
 // =============================
-export type CardRenderer =
+type CardRenderer =
   | React.ReactNode
   | ((
       slotId: string,
@@ -479,10 +504,10 @@ export type CardRenderer =
       refreshKey: number
     ) => React.ReactNode)
 
-export type CardContentMap = Record<string, CardRenderer>
-export type VisibleSlotsMap = Record<string, boolean>
-export type LayoutOverride = { w?: number; h?: number }
-export type LayoutOverridesMap = Record<string, LayoutOverride>
+type CardContentMap = Record<string, CardRenderer>
+type VisibleSlotsMap = Record<string, boolean>
+type LayoutOverride = { w?: number; h?: number }
+type LayoutOverridesMap = Record<string, LayoutOverride>
 
 interface DashboardProps {
   userName?: string
@@ -684,26 +709,36 @@ export default function DashboardView({
   const loading = ctx.loading || isRefreshing
 
   const totalNet = React.useMemo(() => {
-    return (ctx.rows || []).reduce((sum, r) => {
-      const raw = r?.net_amount ?? 0
-      const num = typeof raw === "string" ? Number(raw) : Number(raw || 0)
-      return sum + (isFinite(num) ? num : 0)
-    }, 0)
+    // colapsa por transaction_id (ou id), pegando o último evento aprovado
+    const byTxn = new Map<string, GatewayTransaction>()
+
+    for (const r of (ctx.rows || [])) {
+      if (!isApprovedSale(r)) continue
+      if (isRefund(r) || isChargeback(r)) continue
+
+      const key = r.transaction_id || r.id
+      const prev = byTxn.get(key)
+      if (!prev || new Date(r.created_at) > new Date(prev.created_at)) {
+        byTxn.set(key, r)
+      }
+    }
+
+    let sum = 0
+    for (const r of byTxn.values()) {
+      const n = Number(r.net_amount ?? 0) || 0
+      if (n > 0) sum += n
+    }
+    return sum
   }, [ctx.rows])
 
   return (
     <div key={`kpi-top1-${key}`} className="p-3 text-black dark:text-white relative">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-xs text-black/70 dark:text-white/70">Receita Total</div>
-
-        {/* Tooltip custom simples */}
-        <div className="group relative">
-          <Info
-            size={14}
-            className="text-black/50 dark:text-white/50 cursor-pointer hover:text-black dark:hover:text-white transition"
-          />
-          <div className="absolute right-0 top-5 z-10 hidden w-56 rounded-md bg-black/80 text-white text-[11px] p-2 leading-tight group-hover:block shadow-lg">
-            O valor exibido em <b>Receita Total</b> é o total vendido menos as taxas das gateways.
+      <div className="flex items-center gap-1 mb-2">
+        <span className="text-xs text-black/70 dark:text-white/70">Receita Total</span>
+        <div className="group relative flex items-center">
+          <Info size={13} className="text-black/50 dark:text-white/50 cursor-pointer hover:text-black dark:hover:text-white transition" />
+          <div className="absolute left-4 top-4 z-20 hidden w-56 rounded-md bg-black/80 text-white text-[11px] p-2 leading-tight group-hover:block shadow-lg">
+            Soma do <b>net_amount</b> das vendas aprovadas, 1x por transação, sem reembolsos/chargebacks.
           </div>
         </div>
       </div>
@@ -1096,7 +1131,6 @@ export default function DashboardView({
 
           return (
             <Block key={`${card.id}-${idx}`} className={cls} style={style}>
-              {/* IMPORTANTE: ocupar 100% do card para centralizar o donut */}
               <div className="relative h-full">
                 <div
                   className={(isRefreshing ? "opacity-60 " : "") + "transition-opacity h-full"}

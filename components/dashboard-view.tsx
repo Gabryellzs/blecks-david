@@ -10,6 +10,7 @@ import React, {
 } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { Info } from "lucide-react"
 
 // =============================
 // TIPOS / MODELOS DE DADOS
@@ -680,17 +681,43 @@ export default function DashboardView({
   // conteúdo padrão dos cards
   const defaultContent: CardContentMap = {
     "top-1": (_slotId, ctx, key) => {
-      const value = ctx.kpis.receitaTotal ?? 0
-      const loading = ctx.loading || isRefreshing
-      return (
-        <div key={`kpi-top1-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Receita Total</div>
-          <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(value)}
+  const loading = ctx.loading || isRefreshing
+
+  const totalNet = React.useMemo(() => {
+    return (ctx.rows || []).reduce((sum, r) => {
+      const raw = r?.net_amount ?? 0
+      const num = typeof raw === "string" ? Number(raw) : Number(raw || 0)
+      return sum + (isFinite(num) ? num : 0)
+    }, 0)
+  }, [ctx.rows])
+
+  return (
+    <div key={`kpi-top1-${key}`} className="p-3 text-black dark:text-white relative">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xs text-black/70 dark:text-white/70">Receita Total</div>
+
+        {/* Tooltip custom simples */}
+        <div className="group relative">
+          <Info
+            size={14}
+            className="text-black/50 dark:text-white/50 cursor-pointer hover:text-black dark:hover:text-white transition"
+          />
+          <div className="absolute right-0 top-5 z-10 hidden w-56 rounded-md bg-black/80 text-white text-[11px] p-2 leading-tight group-hover:block shadow-lg">
+            O valor exibido em <b>Receita Total</b> é o total vendido menos as taxas das gateways.
           </div>
         </div>
-      )
-    },
+      </div>
+
+      <div className="text-2xl font-semibold">
+        {loading
+          ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+          : brl(totalNet)}
+      </div>
+    </div>
+  )
+},
+
+
     "top-2": (_slotId, ctx, key) => {
       const value = ctx.kpis.vendas ?? 0
       const loading = ctx.loading || isRefreshing

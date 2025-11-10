@@ -57,7 +57,7 @@ const ensureDateObjects = (evs: any[]): CalendarEvent[] =>
     end: e.end instanceof Date ? e.end : new Date(e.end),
   }))
 
-/** ====== UI helpers (linhas) ====== */
+/* ====== UI helpers (linhas) ====== */
 function HLine({ top, z = 60 }: { top: number; z?: number }) {
   return (
     <div className="absolute left-0 right-0 pointer-events-none" style={{ top, zIndex: z }}>
@@ -80,44 +80,61 @@ function NowLine({ top, left, right = 0, z = 80 }: { top: number; left: number; 
   )
 }
 
-/** ====== Layout de colunas para conflitos (por hora/coluna) ======
- * Distribui eventos que começam na mesma hora em colunas lado a lado
- * sem sobreposição visual.
+/** ========= NOVO: layout em grupos =========
+ * 1) agrupa eventos que se sobrepõem dentro da MESMA hora
+ * 2) agenda colunas por grupo (greedy)
+ * 3) todos do grupo recebem o mesmo colsCount final
  */
-function layoutColumns(evs: CalendarEvent[]) {
-  // ordena por início; para consistência, eventos mais longos primeiro quando empata
+function layoutColumnsGrouped(evs: CalendarEvent[]) {
+  // ordena por início (e, em empate, por maior duração primeiro)
   const sorted = [...evs].sort((a, b) => {
-    const sa = +a.start
-    const sb = +b.start
+    const sa = +a.start, sb = +b.start
     if (sa !== sb) return sa - sb
-    const da = +a.end - +a.start
-    const db = +b.end - +b.start
+    const da = (+a.end - +a.start), db = (+b.end - +b.start)
     return db - da
   })
 
-  const cols: { end: number }[] = []
-  const placed: Map<string, { col: number; colsCount: number }> = new Map()
+  type Placed = { id: string; col: number }
+  const result = new Map<string, { col: number; colsCount: number }>()
+
+  // cria grupos por sobreposição
+  let group: CalendarEvent[] = []
+  let groupMaxEnd = -Infinity
+
+  const flushGroup = () => {
+    if (group.length === 0) return
+    // distribui colunas dentro do grupo
+    const cols: number[] = [] // armazena "end" de cada coluna
+    const placed: Placed[] = []
+    for (const ev of group) {
+      const s = +ev.start, e = +ev.end
+      let idx = cols.findIndex(end => end <= s)
+      if (idx === -1) { idx = cols.length; cols.push(e) } else { cols[idx] = Math.max(cols[idx], e) }
+      placed.push({ id: ev.id, col: idx })
+    }
+    const colsCount = Math.max(1, cols.length)
+    for (const p of placed) result.set(p.id, { col: p.col, colsCount })
+    group = []
+    groupMaxEnd = -Infinity
+  }
 
   for (const ev of sorted) {
-    const s = ev.start instanceof Date ? ev.start : new Date(ev.start)
-    const e = ev.end instanceof Date ? ev.end : new Date(ev.end)
-
-    // acha a primeira coluna livre (fim <= início atual)
-    let colIdx = cols.findIndex(c => c.end <= +s)
-    if (colIdx === -1) {
-      colIdx = cols.length
-      cols.push({ end: +e })
+    const s = +ev.start, e = +ev.end
+    if (group.length === 0) {
+      group = [ev]; groupMaxEnd = e
+    } else if (s < groupMaxEnd) { // sobrepõe com o grupo atual
+      group.push(ev); groupMaxEnd = Math.max(groupMaxEnd, e)
     } else {
-      cols[colIdx].end = Math.max(cols[colIdx].end, +e)
+      flushGroup()
+      group = [ev]; groupMaxEnd = e
     }
-
-    placed.set(ev.id, { col: colIdx, colsCount: cols.length })
   }
-  return placed
+  flushGroup()
+  return result
 }
 
 export default function CalendarView() {
-  /** ====== storage de eventos ====== */
+  /* ====== storage de eventos ====== */
   const useCalendarEvents = () => {
     const [stored, setStored] = useLocalStorage<any[]>("calendar-events", [])
     const events = ensureDateObjects(stored)
@@ -126,7 +143,7 @@ export default function CalendarView() {
   }
   const [events, setEvents] = useCalendarEvents()
 
-  /** ====== estado ====== */
+  /* ====== estado ====== */
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<ViewMode>("week")
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false)
@@ -140,12 +157,7 @@ export default function CalendarView() {
     color: "bg-blue-500",
     allDay: false,
   })
-  const [tempTimeRange, setTempTimeRange] = useState({
-    startHour: "09",
-    startMinute: "00",
-    endHour: "10",
-    endMinute: "00",
-  })
+  const [tempTimeRange, setTempTimeRange] = useState({ startHour: "09", startMinute: "00", endHour: "10", endMinute: "00" })
   const [searchQuery, setSearchQuery] = useState("")
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -164,21 +176,21 @@ export default function CalendarView() {
   const [conflictingEvents, setConflictingEvents] = useState<CalendarEvent[]>([])
   const { toast } = useToast()
 
-  /** ====== DnD ====== */
+  /* ====== DnD ====== */
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
-  /** ====== util de cor válida ====== */
+  /* ====== util de cor válida ====== */
   const getDefaultEventColor = () =>
     calendarCategories.find((c) => c.enabled)?.color ?? calendarCategories[0]?.color ?? "bg-blue-500"
 
-  /** ====== navegação ====== */
+  /* ====== navegação ====== */
   const goToToday = () => setCurrentDate(new Date())
   const goToPrevious = () =>
     setCurrentDate(view === "day" ? subDays(currentDate, 1) : view === "week" ? subDays(currentDate, 7) : subMonths(currentDate, 1))
   const goToNext = () =>
     setCurrentDate(view === "day" ? addDays(currentDate, 1) : view === "week" ? addDays(currentDate, 7) : addMonths(currentDate, 1))
 
-  /** ====== filtros ====== */
+  /* ====== filtros ====== */
   const toggleCalendarCategory = (id: string) =>
     setCalendarCategories(calendarCategories.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c)))
 
@@ -195,45 +207,23 @@ export default function CalendarView() {
     )
   }
 
-  /** ====== criar / editar ====== */
+  /* ====== criar / editar ====== */
   const handleCreateEvent = () => {
     const base = selectedDate ?? currentDate ?? new Date()
     const s = new Date(base); s.setHours(9, 0, 0)
     const e = new Date(base); e.setHours(10, 0, 0)
-
-    setNewEvent({
-      title: "",
-      description: "",
-      location: "",
-      color: getDefaultEventColor(),
-      allDay: false,
-      start: s,
-      end: e,
-    })
+    setNewEvent({ title: "", description: "", location: "", color: getDefaultEventColor(), allDay: false, start: s, end: e })
     setTempTimeRange({ startHour: "09", startMinute: "00", endHour: "10", endMinute: "00" })
-    setIsCreatingEvent(true)
-    setIsViewingEvent(false)
-    setIsEventDialogOpen(true)
+    setIsCreatingEvent(true); setIsViewingEvent(false); setIsEventDialogOpen(true)
   }
 
   const handleDateClick = (date: Date) => {
-    setSelectedDate(date)
-    setCurrentDate(date)
+    setSelectedDate(date); setCurrentDate(date)
     const s = new Date(date); s.setHours(9, 0, 0)
     const e = new Date(date); e.setHours(10, 0, 0)
-    setNewEvent({
-      title: "",
-      description: "",
-      location: "",
-      color: getDefaultEventColor(),
-      allDay: false,
-      start: s,
-      end: e,
-    })
+    setNewEvent({ title: "", description: "", location: "", color: getDefaultEventColor(), allDay: false, start: s, end: e })
     setTempTimeRange({ startHour: "09", startMinute: "00", endHour: "10", endMinute: "00" })
-    setIsCreatingEvent(true)
-    setIsViewingEvent(false)
-    setIsEventDialogOpen(true)
+    setIsCreatingEvent(true); setIsViewingEvent(false); setIsEventDialogOpen(true)
   }
 
   const handleTimeChange = () => {
@@ -250,7 +240,6 @@ export default function CalendarView() {
       toast({ title: "Erro ao criar evento", description: "O título do evento é obrigatório", variant: "destructive" })
       return
     }
-
     let s = newEvent.start instanceof Date ? newEvent.start : new Date()
     let e = newEvent.end instanceof Date ? newEvent.end : new Date()
 
@@ -279,22 +268,9 @@ export default function CalendarView() {
       setEvents([...events, ev])
       toast({ title: "Evento criado", description: "O evento foi criado com sucesso" })
     } else if (selectedEvent) {
-      setEvents(
-        events.map((ev) =>
-          ev.id === selectedEvent.id
-            ? {
-                ...ev,
-                title: newEvent.title || ev.title,
-                start: s,
-                end: e,
-                description: newEvent.description,
-                location: newEvent.location,
-                color: safeColor,
-                allDay: newEvent.allDay,
-              }
-            : ev,
-        ),
-      )
+      setEvents(events.map((ev) =>
+        ev.id === selectedEvent.id ? { ...ev, title: newEvent.title || ev.title, start: s, end: e, description: newEvent.description, location: newEvent.location, color: safeColor, allDay: newEvent.allDay } : ev,
+      ))
       toast({ title: "Evento atualizado", description: "O evento foi atualizado com sucesso" })
     }
 
@@ -311,27 +287,17 @@ export default function CalendarView() {
   const handleEventClick = (event: CalendarEvent) => {
     const ev = { ...event, start: new Date(event.start), end: new Date(event.end) }
     setSelectedEvent(ev)
-    setNewEvent({
-      title: ev.title,
-      description: ev.description,
-      location: ev.location,
-      color: ev.color,
-      allDay: ev.allDay,
-      start: ev.start,
-      end: ev.end,
-    })
+    setNewEvent({ title: ev.title, description: ev.description, location: ev.location, color: ev.color, allDay: ev.allDay, start: ev.start, end: ev.end })
     setTempTimeRange({
       startHour: ev.start.getHours().toString().padStart(2, "0"),
       startMinute: ev.start.getMinutes().toString().padStart(2, "0"),
       endHour: ev.end.getHours().toString().padStart(2, "0"),
       endMinute: ev.end.getMinutes().toString().padStart(2, "0"),
     })
-    setIsCreatingEvent(false)
-    setIsViewingEvent(true)
-    setIsEventDialogOpen(true)
+    setIsCreatingEvent(false); setIsViewingEvent(true); setIsEventDialogOpen(true)
   }
 
-  /** ====== DnD ====== */
+  /* ====== DnD ====== */
   const handleDragStart = (e: DragStartEvent) => {
     const id = e.active.id as string
     const f = events.find((ev) => ev.id === id)
@@ -359,18 +325,14 @@ export default function CalendarView() {
       if (conflicts.length > 0) {
         setConflictingEvents(conflicts)
         setShowConflictAlert(true)
-        toast({
-          title: "Conflito de horário",
-          description: `Este horário conflita com ${conflicts.length} evento(s).`,
-          variant: "destructive",
-        })
+        toast({ title: "Conflito de horário", description: `Este horário conflita com ${conflicts.length} evento(s).`, variant: "destructive" })
       }
       setEvents(events.map((ev) => (ev.id === draggedEvent.id ? upd : ev)))
     }
     setDraggedEvent(null)
   }
 
-  /** ====== DIA ====== */
+  /* ====== DIA ====== */
   const dayScrollRef = useRef<HTMLDivElement>(null)
   const dayGutterRef = useRef<HTMLDivElement>(null)
   const [dayGutterPx, setDayGutterPx] = useState(0)
@@ -384,9 +346,7 @@ export default function CalendarView() {
 
   const renderDayView = () => {
     const hours = Array.from({ length: 24 }, (_, i) => i)
-    const dayEvents = filterEventsBySearch(
-      events.filter((e) => isSameDay(e.start instanceof Date ? e.start : new Date(e.start), currentDate)),
-    )
+    const dayEvents = filterEventsBySearch(events.filter((e) => isSameDay(e.start instanceof Date ? e.start : new Date(e.start), currentDate)))
     const now = new Date()
     const showNow = isSameDay(now, currentDate)
     const topNowPx = (now.getHours() + now.getMinutes() / 60) * HOUR_ROW_PX
@@ -402,18 +362,12 @@ export default function CalendarView() {
           {showNow && <NowLine top={topNowPx} left={dayGutterPx} />}
 
           {hours.map((hour) => {
-            const hourEvents = dayEvents.filter((e) => {
-              const s = e.start instanceof Date ? e.start : new Date(e.start)
-              return s.getHours() === hour
-            })
-            const layout = layoutColumns(hourEvents)
+            const hourEvents = dayEvents.filter((e) => (e.start instanceof Date ? e.start : new Date(e.start)).getHours() === hour)
+            const layout = layoutColumnsGrouped(hourEvents)
 
             return (
               <div key={hour} className="relative flex min-h-[60px]">
-                <div
-                  ref={hour === 0 ? dayGutterRef : undefined}
-                  className="w-16 py-2 text-right pr-2 text-sm text-muted-foreground border-r border-white/15 z-[80]"
-                >
+                <div ref={hour === 0 ? dayGutterRef : undefined} className="w-16 py-2 text-right pr-2 text-sm text-muted-foreground border-r border-white/15 z-[80]">
                   {hour}:00
                 </div>
                 <div className="flex-1 p-1 relative overflow-visible z-[50]">
@@ -423,7 +377,7 @@ export default function CalendarView() {
                     const durMin = (en.getTime() - s.getTime()) / 60000
                     const hPct = (durMin / 60) * 100
 
-                    const info = layout.get(ev.id)!
+                    const info = layout.get(ev.id) || { col: 0, colsCount: 1 }
                     const widthPct = 100 / info.colsCount
 
                     return (
@@ -459,7 +413,7 @@ export default function CalendarView() {
     )
   }
 
-  /** ====== SEMANA ====== */
+  /* ====== SEMANA ====== */
   const weekScrollRef = useRef<HTMLDivElement>(null)
   const gutterRef = useRef<HTMLDivElement>(null)
   const [gutterPx, setGutterPx] = useState(0)
@@ -495,13 +449,7 @@ export default function CalendarView() {
         <div className="grid grid-cols-8 border-b border-white/10 relative z-[80] bg-background/80 backdrop-blur-sm">
           <div className="p-2 border-r border-white/10" />
           {days.map((day) => (
-            <div
-              key={day.toString()}
-              className={cn(
-                "p-2 text-center border-r border-white/10 last:border-r-0",
-                isDateToday(day) && "bg-primary/10",
-              )}
-            >
+            <div key={day.toString()} className={cn("p-2 text-center border-r border-white/10 last:border-r-0", isDateToday(day) && "bg-primary/10")}>
               <div className="font-medium">{format(day, "EEE", { locale: ptBR })}</div>
               <div className={cn("text-2xl", isDateToday(day) && "text-primary font-bold")}>{format(day, "d")}</div>
             </div>
@@ -510,17 +458,12 @@ export default function CalendarView() {
 
         <div ref={weekScrollRef} className="relative flex-1 overflow-y-auto min-h-0">
           {hours.map((_, i) => <HLine key={`h-${i}`} top={i * HOUR_ROW_PX} />)}
-          {Array.from({ length: 8 }, (_, i) => (
-            <VLine key={`v-${i}`} left={gutterPx + i * colWidth} height={weekHeight} />
-          ))}
+          {Array.from({ length: 8 }, (_, i) => (<VLine key={`v-${i}`} left={gutterPx + i * colWidth} height={weekHeight} />))}
           {isThisWeek && <NowLine top={nowTopPx} left={gutterPx} right={0} />}
 
           {hours.map((hour) => (
             <div key={hour} className="grid grid-cols-8 min-h-[60px]">
-              <div
-                ref={hour === 0 ? gutterRef : undefined}
-                className="py-2 text-right pr-2 text-sm text-muted-foreground border-r border-white/10 z-[80]"
-              >
+              <div ref={hour === 0 ? gutterRef : undefined} className="py-2 text-right pr-2 text-sm text-muted-foreground border-r border-white/10 z-[80]">
                 {hour}:00
               </div>
 
@@ -531,21 +474,17 @@ export default function CalendarView() {
                     return isSameDay(s, day) && s.getHours() === hour
                   }),
                 )
-                const layout = layoutColumns(dayEvents)
+                const layout = layoutColumnsGrouped(dayEvents)
 
                 return (
-                  <div
-                    key={day.toString()}
-                    className="relative p-1 overflow-visible border-r border-white/10 last:border-r-0"
-                    id={`cell-${day.toISOString().split("T")[0]}-${hour}-0`}
-                  >
+                  <div key={day.toString()} className="relative p-1 overflow-visible border-r border-white/10 last:border-r-0" id={`cell-${day.toISOString().split("T")[0]}-${hour}-0`}>
                     {dayEvents.map((ev) => {
                       const s = ev.start instanceof Date ? ev.start : new Date(ev.start)
                       const en = ev.end instanceof Date ? ev.end : new Date(ev.end)
                       const durMin = (en.getTime() - s.getTime()) / 60000
                       const hPct = (durMin / 60) * 100
 
-                      const info = layout.get(ev.id)!
+                      const info = layout.get(ev.id) || { col: 0, colsCount: 1 }
                       const widthPct = 100 / info.colsCount
 
                       return (
@@ -579,7 +518,7 @@ export default function CalendarView() {
     )
   }
 
-  /** ====== MÊS ====== */
+  /* ====== MÊS ====== */
   const renderMonthView = () => {
     const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
     const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
@@ -601,7 +540,6 @@ export default function CalendarView() {
         </div>
 
         <div className="relative flex-1 overflow-hidden min-h-0">
-          {/* grade 6x7 por baixo (z-10) */}
           <div
             className="absolute inset-0 z-[10] pointer-events-none"
             style={{
@@ -611,31 +549,20 @@ export default function CalendarView() {
             }}
           />
 
-          <div
-            className="grid h-full"
-            style={{ gridTemplateRows: "repeat(6, minmax(0, 1fr))", gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}
-          >
+          <div className="grid h-full" style={{ gridTemplateRows: "repeat(6, minmax(0, 1fr))", gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
             {weeks.flatMap((week, wi) =>
               week.map((day, di) => {
                 const isCurrentMonth = day.getMonth() === currentDate.getMonth()
                 const isToday = isDateToday(day)
-                const dayEvents = filterEventsBySearch(
-                  events.filter((e) => isSameDay(e.start instanceof Date ? e.start : new Date(e.start), day)),
-                )
+                const dayEvents = filterEventsBySearch(events.filter((e) => isSameDay(e.start instanceof Date ? e.start : new Date(e.start), day)))
 
                 return (
                   <div
                     key={`${wi}-${di}`}
-                    className={cn(
-                      "p-1 h-full min-h-0 flex flex-col relative z-[20]",
-                      !isCurrentMonth && "bg-muted/20 text-muted-foreground",
-                      isToday && "bg-primary/10",
-                    )}
+                    className={cn("p-1 h-full min-h-0 flex flex-col relative z-[20]", !isCurrentMonth && "bg-muted/20 text-muted-foreground", isToday && "bg-primary/10")}
                     onClick={() => handleDateClick(day)}
                   >
-                    <div className={cn("text-right font-medium", isToday && "text-primary font-bold")}>
-                      {format(day, "d")}
-                    </div>
+                    <div className={cn("text-right font-medium", isToday && "text-primary font-bold")}>{format(day, "d")}</div>
 
                     <div className="mt-1 space-y-1 overflow-auto min-h-0">
                       {dayEvents.slice(0, 6).map((ev) => {
@@ -643,10 +570,7 @@ export default function CalendarView() {
                         return (
                           <div
                             key={ev.id}
-                            className={cn(
-                              "relative z-[30] rounded px-1 py-0.5 text-white text-xs cursor-pointer hover:brightness-90 transition-all shadow-sm",
-                              ev.color,
-                            )}
+                            className={cn("relative z-[30] rounded px-1 py-0.5 text-white text-xs cursor-pointer hover:brightness-90 transition-all shadow-sm", ev.color)}
                             onClick={(e) => { e.stopPropagation(); handleEventClick(ev) }}
                           >
                             <div className="flex items-center gap-1">
@@ -659,10 +583,7 @@ export default function CalendarView() {
                       {dayEvents.length > 6 && (
                         <div
                           className="text-[11px] text-muted-foreground text-center cursor-pointer hover:bg-muted/30 rounded py-0.5"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedDate(day); setCurrentDate(day); setView("day")
-                          }}
+                          onClick={(e) => { e.stopPropagation(); setSelectedDate(day); setCurrentDate(day); setView("day") }}
                         >
                           +{dayEvents.length - 6} mais
                         </div>
@@ -678,7 +599,7 @@ export default function CalendarView() {
     )
   }
 
-  /** ====== mini calendário ====== */
+  /* ====== mini calendário ====== */
   const renderMiniCalendar = () => {
     const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
     const daysInMonth = getDaysInMonth(currentDate)
@@ -694,19 +615,8 @@ export default function CalendarView() {
       const hasEvents = events.some((e) => isSameDay(e.start instanceof Date ? e.start : new Date(e.start), date))
 
       cells.push(
-        <div
-          key={`day-${i}`}
-          className="flex items-center justify-center"
-          onClick={() => { setSelectedDate(date); setCurrentDate(date) }}
-        >
-          <div
-            className={cn(
-              "h-8 w-8 rounded-full flex items-center justify-center text-sm cursor-pointer",
-              isToday && "bg-primary text-primary-foreground",
-              isSelected && !isToday && "bg-primary/20",
-              hasEvents && !isToday && !isSelected && "underline",
-            )}
-          >
+        <div key={`day-${i}`} className="flex items-center justify-center" onClick={() => { setSelectedDate(date); setCurrentDate(date) }}>
+          <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-sm cursor-pointer", isToday && "bg-primary text-primary-foreground", isSelected && !isToday && "bg-primary/20", hasEvents && !isToday && !isSelected && "underline")}>
             {i}
           </div>
         </div>,
@@ -718,12 +628,8 @@ export default function CalendarView() {
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-medium">{format(currentDate, "MMMM yyyy", { locale: ptBR })}</h3>
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCurrentDate(subMonths(currentDate, 1))}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCurrentDate(addMonths(currentDate, 1))}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCurrentDate(subMonths(currentDate, 1))}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCurrentDate(addMonths(currentDate, 1))}><ChevronRight className="h-4 w-4" /></Button>
           </div>
         </div>
         <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground mb-1">
@@ -734,7 +640,7 @@ export default function CalendarView() {
     )
   }
 
-  /** ====== fundo ====== */
+  /* ====== fundo ====== */
   const backgroundStyles = {
     backgroundImage: `url(${backgroundImage})`,
     backgroundSize: "cover",
@@ -766,12 +672,7 @@ export default function CalendarView() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               {searchQuery && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
-                  onClick={() => setSearchQuery("")}
-                >
+                <Button variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0" onClick={() => setSearchQuery("")}>
                   <X className="h-4 w-4" />
                 </Button>
               )}
@@ -784,9 +685,7 @@ export default function CalendarView() {
               <AlertTitle>Conflito de Horário</AlertTitle>
               <AlertDescription>
                 O evento movido conflita com {conflictingEvents.length} evento(s).
-                <Button variant="outline" size="sm" className="ml-2" onClick={() => setShowConflictAlert(false)}>
-                  Fechar
-                </Button>
+                <Button variant="outline" size="sm" className="ml-2" onClick={() => setShowConflictAlert(false)}>Fechar</Button>
               </AlertDescription>
             </Alert>
           )}
@@ -807,23 +706,14 @@ export default function CalendarView() {
                   <div className="space-y-1">
                     {calendarCategories.map((category) => (
                       <div key={category.id} className="flex items-center gap-2">
-                        <Checkbox
-                          id={`calendar-${category.id}`}
-                          checked={category.enabled}
-                          onCheckedChange={() => toggleCalendarCategory(category.id)}
-                          className={cn("rounded-full border-0", category.color, !category.enabled && "opacity-50")}
-                        />
-                        <label htmlFor={`calendar-${category.id}`} className={cn("text-sm cursor-pointer", !category.enabled && "text-muted-foreground")}>
-                          {category.name}
-                        </label>
+                        <Checkbox id={`calendar-${category.id}`} checked={category.enabled} onCheckedChange={() => toggleCalendarCategory(category.id)} className={cn("rounded-full border-0", category.color, !category.enabled && "opacity-50")} />
+                        <label htmlFor={`calendar-${category.id}`} className={cn("text-sm cursor-pointer", !category.enabled && "text-muted-foreground")}>{category.name}</label>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <Button variant="ghost" className="mt-auto sm:hidden" onClick={() => setIsSidebarOpen(false)}>
-                  Fechar
-                </Button>
+                <Button variant="ghost" className="mt-auto sm:hidden" onClick={() => setIsSidebarOpen(false)}>Fechar</Button>
               </div>
             )}
 
@@ -875,8 +765,7 @@ export default function CalendarView() {
                     <CalendarIcon className="h-5 w-5 text-muted-foreground mt-0.5" />
                     <div>
                       <div>
-                        {selectedEvent?.start &&
-                          format(selectedEvent.start instanceof Date ? selectedEvent.start : new Date(selectedEvent.start), "EEEE, d 'de' MMMM", { locale: ptBR })}
+                        {selectedEvent?.start && format(selectedEvent.start instanceof Date ? selectedEvent.start : new Date(selectedEvent.start), "EEEE, d 'de' MMMM", { locale: ptBR })}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {selectedEvent?.start && format(selectedEvent.start instanceof Date ? selectedEvent.start : new Date(selectedEvent.start), "HH:mm")}{" "}
@@ -899,26 +788,15 @@ export default function CalendarView() {
                   )}
 
                   <div className="flex flex-wrap justify-end gap-2 pt-4">
-                    <Button variant="outline" onClick={() => { setIsViewingEvent(false); setIsEventDialogOpen(false) }}>
-                      Fechar
-                    </Button>
-                    <Button variant="outline" onClick={() => setIsViewingEvent(false)}>
-                      Editar
-                    </Button>
-                    <Button variant="destructive" onClick={handleDeleteEvent}>
-                      Excluir
-                    </Button>
+                    <Button variant="outline" onClick={() => { setIsViewingEvent(false); setIsEventDialogOpen(false) }}>Fechar</Button>
+                    <Button variant="outline" onClick={() => setIsViewingEvent(false)}>Editar</Button>
+                    <Button variant="destructive" onClick={handleDeleteEvent}>Excluir</Button>
                   </div>
                 </div>
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Input
-                      placeholder="Adicionar título"
-                      value={newEvent.title || ""}
-                      onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                      className="text-lg font-medium border-0 border-b rounded-none focus-visible:ring-0 px-0 h-auto py-1"
-                    />
+                    <Input placeholder="Adicionar título" value={newEvent.title || ""} onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })} className="text-lg font-medium border-0 border-b rounded-none focus-visible:ring-0 px-0 h-auto py-1" />
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -951,12 +829,7 @@ export default function CalendarView() {
                     <div className="font-medium text-sm">Cor:</div>
                     <div className="flex gap-1 flex-wrap">
                       {calendarCategories.map((cat) => (
-                        <div
-                          key={cat.id}
-                          className={cn("w-6 h-6 rounded-full cursor-pointer border-2", cat.color, newEvent.color === cat.color ? "border-black dark:border-white" : "border-transparent")}
-                          onClick={() => setNewEvent({ ...newEvent, color: cat.color })}
-                          title={cat.name}
-                        />
+                        <div key={cat.id} className={cn("w-6 h-6 rounded-full cursor-pointer border-2", cat.color, newEvent.color === cat.color ? "border-black dark:border-white" : "border-transparent")} onClick={() => setNewEvent({ ...newEvent, color: cat.color })} title={cat.name} />
                       ))}
                     </div>
                   </div>
@@ -967,9 +840,7 @@ export default function CalendarView() {
             {!isViewingEvent && (
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsEventDialogOpen(false)}>Cancelar</Button>
-                <Button onClick={handleSaveEvent} className="bg-blue-600 hover:bg-blue-700">
-                  {isCreatingEvent ? "Criar" : "Salvar"}
-                </Button>
+                <Button onClick={handleSaveEvent} className="bg-blue-600 hover:bg-blue-700">{isCreatingEvent ? "Criar" : "Salvar"}</Button>
               </DialogFooter>
             )}
           </DialogContent>

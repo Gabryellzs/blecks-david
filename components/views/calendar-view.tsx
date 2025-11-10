@@ -383,8 +383,8 @@ export default function CalendarView() {
                   {hourEvents.map((ev) => {
                     const s = ev.start instanceof Date ? ev.start : new Date(ev.start)
                     const en = ev.end instanceof Date ? ev.end : new Date(ev.end)
-                    const startMin = s.getMinutes()
-                    const durMin = Math.min((en.getTime() - s.getTime()) / 60000, 60 - startMin)
+                    // duração real (sem limitar à hora)
+                    const durMin = (en.getTime() - s.getTime()) / 60000
                     const hPct = (durMin / 60) * 100
                     return (
                       <div
@@ -500,8 +500,8 @@ export default function CalendarView() {
                     {dayEvents.map((ev) => {
                       const s = ev.start instanceof Date ? ev.start : new Date(ev.start)
                       const en = ev.end instanceof Date ? ev.end : new Date(ev.end)
-                      const startMin = s.getMinutes()
-                      const durMin = Math.min((en.getTime() - s.getTime()) / 60000, 60 - startMin)
+                      // duração real (sem limitar à hora)
+                      const durMin = (en.getTime() - s.getTime()) / 60000
                       const hPct = (durMin / 60) * 100
 
                       return (

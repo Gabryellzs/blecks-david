@@ -266,7 +266,7 @@ export default function CalendarView() {
     }
 
     setIsEventDialogOpen(false)
-    setNewEvent({ title: "", description: "", location: getDefaultEventColor(), color: getDefaultEventColor(), allDay: false })
+    setNewEvent({ title: "", description: "", location: "", color: getDefaultEventColor(), allDay: false })
   }
 
   const handleDeleteEvent = () => {
@@ -357,6 +357,8 @@ export default function CalendarView() {
     const now = new Date()
     const showNow = isSameDay(now, currentDate)
     const topNowPx = (now.getHours() + now.getMinutes() / 60) * HOUR_ROW_PX
+    const PX_PER_MIN = HOUR_ROW_PX / 60
+    const DAY_HEIGHT = 24 * HOUR_ROW_PX
 
     return (
       <div className="relative flex flex-col h-full overflow-hidden border-x border-white/15">
@@ -368,54 +370,55 @@ export default function CalendarView() {
           {hours.map((_, i) => <HLine key={i} top={i * HOUR_ROW_PX} />)}
           {showNow && <NowLine top={topNowPx} left={dayGutterPx} />}
 
-          {hours.map((hour) => {
-            const hourEvents = dayEvents.filter((e) => {
-              const s = e.start instanceof Date ? e.start : new Date(e.start)
-              return s.getHours() === hour
-            })
-            return (
-              <div key={hour} className="relative flex" style={{ minHeight: HOUR_ROW_PX }}>
-                <div
-                  ref={hour === 0 ? dayGutterRef : undefined}
-                  className="w-16 py-2 text-right pr-2 text-sm text-muted-foreground border-r border-white/15 z-[80]"
-                >
-                  {hour}:00
-                </div>
-                <div className="flex-1 p-1 relative overflow-visible z-[50]">
-                  {hourEvents.map((ev) => {
-                    const s = ev.start instanceof Date ? ev.start : new Date(ev.start)
-                    const en = ev.end instanceof Date ? ev.end : new Date(ev.end)
-                    const startMin = s.getMinutes()
-                    // <<< sem Math.min: permite atravessar horas >>>
-                    const durMin = (en.getTime() - s.getTime()) / 60000
-                    const hPct = (durMin / 60) * 100
-                    return (
-                      <div
-                        key={ev.id}
-                        id={ev.id}
-                        className={cn(
-                          "absolute rounded p-1 text-white text-sm cursor-move hover:brightness-90 transition-all shadow-sm overflow-hidden z-[60]",
-                          ev.color,
-                          draggedEvent?.id === ev.id && "opacity-50",
-                        )}
-                        style={{
-                          top: `${(startMin / 60) * 100}%`,
-                          height: `calc(${hPct}% - 2px)`,
-                          width: "calc(100% - 8px)",
-                        }}
-                        onClick={(e) => { e.stopPropagation(); handleEventClick(ev) }}
-                      >
-                        <div className="font-medium truncate">{ev.title}</div>
-                        <div className="text-xs opacity-90 truncate">
-                          {format(s, "HH:mm")} - {format(en, "HH:mm")}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+          {/* Grade de horas (sem eventos dentro) */}
+          {hours.map((hour) => (
+            <div key={hour} className="relative flex" style={{ minHeight: HOUR_ROW_PX }}>
+              <div
+                ref={hour === 0 ? dayGutterRef : undefined}
+                className="w-16 py-2 text-right pr-2 text-sm text-muted-foreground border-r border-white/15 z-[80]"
+              >
+                {hour}:00
               </div>
-            )
-          })}
+              <div className="flex-1 p-1 relative overflow-visible z-[40]}" />
+            </div>
+          ))}
+
+          {/* Overlay absoluto: todos os eventos do dia */}
+          <div
+            className="absolute z-[60] pointer-events-none"
+            style={{ left: dayGutterPx, right: 0, top: 0, height: DAY_HEIGHT, padding: 4 }}
+          >
+            {dayEvents.map((ev) => {
+              const s = ev.start instanceof Date ? ev.start : new Date(ev.start)
+              const en = ev.end instanceof Date ? ev.end : new Date(ev.end)
+              const startMinFrom00 = s.getHours() * 60 + s.getMinutes()
+              const endMinFrom00 = en.getHours() * 60 + en.getMinutes()
+              const durMin = Math.max(5, endMinFrom00 - startMinFrom00) // mín. 5min
+
+              return (
+                <div
+                  key={ev.id}
+                  className={cn(
+                    "absolute rounded p-1 text-white text-sm shadow-sm hover:brightness-90 transition-all pointer-events-auto",
+                    ev.color,
+                    draggedEvent?.id === ev.id && "opacity-50",
+                  )}
+                  style={{
+                    top: startMinFrom00 * PX_PER_MIN + 1,
+                    height: durMin * PX_PER_MIN - 2,
+                    left: 4,
+                    right: 4,
+                  }}
+                  onClick={(e) => { e.stopPropagation(); handleEventClick(ev) }}
+                >
+                  <div className="font-medium truncate">{ev.title}</div>
+                  <div className="text-xs opacity-90 truncate">
+                    {format(s, "HH:mm")} - {format(en, "HH:mm")}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     )
@@ -451,6 +454,9 @@ export default function CalendarView() {
     const isThisWeek = now >= startDate && now <= endDate
     const nowTopPx = (now.getHours() + now.getMinutes() / 60) * HOUR_ROW_PX
     const colWidth = Math.max((weekWidth - gutterPx) / 7, 0)
+    const PX_PER_MIN = HOUR_ROW_PX / 60
+    const DAY_HEIGHT = 24 * HOUR_ROW_PX
+    const pad = 4
 
     return (
       <div className="flex flex-col h-full overflow-hidden border-x border-white/10">
@@ -477,6 +483,7 @@ export default function CalendarView() {
           ))}
           {isThisWeek && <NowLine top={nowTopPx} left={gutterPx} right={0} />}
 
+          {/* Grade por hora (sem eventos dentro) */}
           {hours.map((hour) => (
             <div key={hour} className="grid grid-cols-8" style={{ minHeight: HOUR_ROW_PX }}>
               <div
@@ -486,53 +493,67 @@ export default function CalendarView() {
                 {hour}:00
               </div>
 
-              {days.map((day) => {
-                const dayEvents = filterEventsBySearch(
-                  events.filter((e) => {
-                    const s = e.start instanceof Date ? e.start : new Date(e.start)
-                    return isSameDay(s, day) && s.getHours() === hour
-                  }),
-                )
-
-                return (
-                  <div
-                    key={day.toString()}
-                    className="relative p-1 overflow-visible border-r border-white/10 last:border-r-0"
-                    id={`cell-${day.toISOString().split("T")[0]}-${hour}-0`}
-                  >
-                    {dayEvents.map((ev) => {
-                      const s = ev.start instanceof Date ? ev.start : new Date(ev.start)
-                      const en = ev.end instanceof Date ? ev.end : new Date(ev.end)
-                      const startMin = s.getMinutes()
-                      // <<< sem Math.min >>> permite atravessar múltiplas horas
-                      const durMin = (en.getTime() - s.getTime()) / 60000
-                      const hPct = (durMin / 60) * 100
-
-                      return (
-                        <div
-                          key={ev.id}
-                          id={ev.id}
-                          className={cn(
-                            "absolute rounded p-1 text-white text-xs cursor-move hover:brightness-90 transition-all shadow-sm overflow-hidden z-[50]",
-                            ev.color,
-                            draggedEvent?.id === ev.id && "opacity-50",
-                          )}
-                          style={{
-                            top: `${(startMin / 60) * 100}%`,
-                            height: `calc(${hPct}% - 2px)`,
-                            width: "calc(100% - 8px)",
-                          }}
-                          onClick={(e) => { e.stopPropagation(); handleEventClick(ev) }}
-                        >
-                          <div className="font-medium truncate">{ev.title}</div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })}
+              {days.map((day) => (
+                <div
+                  key={day.toString()}
+                  className="relative p-1 overflow-visible border-r border-white/10 last:border-r-0"
+                  id={`cell-${day.toISOString().split("T")[0]}-${hour}-0`}
+                />
+              ))}
             </div>
           ))}
+
+          {/* Overlay por dia com eventos contínuos */}
+          {days.map((day, idx) => {
+            const left = gutterPx + idx * colWidth
+            const width = colWidth
+
+            const dayEvents = filterEventsBySearch(
+              events.filter((e) => {
+                const s = e.start instanceof Date ? e.start : new Date(e.start)
+                return isSameDay(s, day)
+              }),
+            )
+
+            return (
+              <div
+                key={`overlay-${idx}`}
+                className="absolute z-[60] pointer-events-none"
+                style={{ top: 0, left, width, height: DAY_HEIGHT, padding: pad }}
+              >
+                {dayEvents.map((ev) => {
+                  const s = ev.start instanceof Date ? ev.start : new Date(ev.start)
+                  const en = ev.end instanceof Date ? ev.end : new Date(ev.end)
+                  const startMinFrom00 = s.getHours() * 60 + s.getMinutes()
+                  const endMinFrom00 = en.getHours() * 60 + en.getMinutes()
+                  const durMin = Math.max(5, endMinFrom00 - startMinFrom00)
+
+                  return (
+                    <div
+                      key={ev.id}
+                      className={cn(
+                        "absolute rounded p-1 text-white text-xs shadow-sm hover:brightness-90 transition-all pointer-events-auto",
+                        ev.color,
+                        draggedEvent?.id === ev.id && "opacity-50",
+                      )}
+                      style={{
+                        top: startMinFrom00 * PX_PER_MIN + 1,
+                        height: durMin * PX_PER_MIN - 2,
+                        left: pad,
+                        right: pad,
+                      }}
+                      onClick={(e) => { e.stopPropagation(); handleEventClick(ev) }}
+                    >
+                      <div className="font-medium truncate">{ev.title}</div>
+                      <div className="text-[11px] opacity-90 truncate">
+                        {format(s, "HH:mm")} - {format(en, "HH:mm")}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
         </div>
       </div>
     )

@@ -44,6 +44,27 @@ export default function DashboardPage() {
   const totalNetSales = consolidatedSummary.netAmount
   const achievementData = getAchievementData(totalNetSales)
 
+  // === METAS QUE DISPARAM O BOTÃO DE RESGATE ===
+  const MILESTONES = [
+    { value: 10_000, label: "R$ 10 Mil" },
+    { value: 100_000, label: "R$ 100 Mil" },
+    { value: 500_000, label: "R$ 500 Mil" },
+    { value: 1_000_000, label: "R$ 1 Milhão" },
+  ]
+
+  const hitMilestone =
+    [...MILESTONES].reverse().find((m) => totalNetSales >= m.value) || null
+
+  // ✅ redireciona pro WhatsApp
+  const handleClaimReward = () => {
+    const message = encodeURIComponent(
+      "🎉 Conquistei minha meta no painel e quero resgatar minha premiação!"
+    )
+    const phone = "556293183069" // seu número no formato internacional
+    window.open(`https://wa.me/${phone}?text=${message}`, "_blank")
+  }
+
+  // === AUTENTICAÇÃO ===
   const checkAuth = async () => {
     try {
       const { isAuthenticated, session, error } = await checkSessionStatus()
@@ -102,15 +123,17 @@ export default function DashboardPage() {
   useEffect(() => {
     checkAuth()
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") {
-        window.location.href = "/login"
-      } else if (event === "SIGNED_IN" && session) {
-        setAuthenticated(true)
-        setAuthError(null)
-        setLoading(false)
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === "SIGNED_OUT") {
+          window.location.href = "/login"
+        } else if (event === "SIGNED_IN" && session) {
+          setAuthenticated(true)
+          setAuthError(null)
+          setLoading(false)
+        }
       }
-    })
+    )
 
     const handleAvatarUpdate = (event: CustomEvent) => {
       setUserAvatarUrl((event as any).detail)
@@ -214,22 +237,22 @@ export default function DashboardPage() {
             {/* BODY */}
             <div className="flex h-[calc(100%-4rem)] w-full overflow-hidden">
               {/* Painel principal */}
-              <div className="w-full md:w-[90%] overflow-hidden p-0">
+              <div className="w-full md:w-[82%] overflow-hidden p-0">
                 <DashboardView onViewChange={() => {}} />
               </div>
 
-              {/* Coluna lateral */}
-              <div className="hidden md:flex md:w-[18%] overflow-hidden p-4 flex-col items-center pt-4 mt-[137px]">
-                {/* Wrapper interno reduzido */}
-                <div className="w-full max-w-[280px] scale-100 origin-top mx-auto flex flex-col items-center">
+              {/* === COLUNA LATERAL === */}
+              <div className="hidden md:flex md:w-[18%] overflow-hidden p-4 flex-col items-center pt-3 mt-[70px]">
+                <div className="w-full max-w-[280px] origin-top mx-auto flex flex-col items-center">
                   <img
                     src={imageSrc || "/placeholder.svg"}
                     alt="Suas Próximas Premiações"
-                    style={{ transform: "scale(1.19)" }}
+                    className="w-full h-auto object-contain"
+                    style={{ transform: "scale(1.22)", transformOrigin: "top center" }}
                   />
 
                   {/* PROGRESSO DE CONQUISTAS */}
-                  <div className="mt-6 w-full px 1 text-center">
+                  <div className="mt-6 w-full px-1 text-center">
                     <h3
                       className="text-[18px] md:text-sm font-semibold leading-none tracking-tight
                                  max-w-full overflow-hidden text-ellipsis whitespace-nowrap mb-1"
@@ -257,6 +280,56 @@ export default function DashboardPage() {
                         ? "Todas as metas atingidas!"
                         : achievementData.goalText}
                     </p>
+
+                    {/* === BOTÃO DE RESGATE === */}
+                    {hitMilestone && (
+                      <>
+                        <style jsx>{`
+                          @keyframes pulseGlow {
+                            0% {
+                              box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.45);
+                              transform: scale(1);
+                            }
+                            50% {
+                              box-shadow: 0 0 0 14px rgba(250, 204, 21, 0);
+                              transform: scale(1.02);
+                            }
+                            100% {
+                              box-shadow: 0 0 0 0 rgba(250, 204, 21, 0);
+                              transform: scale(1);
+                            }
+                          }
+                        `}</style>
+
+                        <button
+                          onClick={handleClaimReward}
+                          className="
+                            group relative mt-4 w-full rounded-xl px-4 py-3
+                            font-semibold text-black
+                            bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-400
+                            hover:brightness-110 transition-all
+                            focus:outline-none focus:ring-2 focus:ring-yellow-400/60
+                          "
+                          style={{ animation: "pulseGlow 2.2s ease-in-out infinite" }}
+                        >
+                          <span className="relative z-10">
+                            🎉 Parabéns! Clique e resgate
+                          </span>
+                          <span
+                            className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{
+                              background:
+                                "linear-gradient(120deg, transparent 0%, rgba(255,255,255,.35) 50%, transparent 100%)",
+                              transform: "skewX(-12deg)",
+                            }}
+                          />
+                        </button>
+
+                        <div className="text-[11px] text-white/60 mt-1 text-center">
+                          {hitMilestone.label} atingido
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

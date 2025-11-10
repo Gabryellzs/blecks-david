@@ -57,7 +57,7 @@ const ensureDateObjects = (evs: any[]): CalendarEvent[] =>
     end: e.end instanceof Date ? e.end : new Date(e.end),
   }))
 
-/* ====== UI helpers (linhas) ====== */
+/** ====== UI helpers (linhas) ====== */
 function HLine({ top, z = 60 }: { top: number; z?: number }) {
   return (
     <div className="absolute left-0 right-0 pointer-events-none" style={{ top, zIndex: z }}>
@@ -80,8 +80,44 @@ function NowLine({ top, left, right = 0, z = 80 }: { top: number; left: number; 
   )
 }
 
+/** ====== Layout de colunas para conflitos (por hora/coluna) ======
+ * Distribui eventos que começam na mesma hora em colunas lado a lado
+ * sem sobreposição visual.
+ */
+function layoutColumns(evs: CalendarEvent[]) {
+  // ordena por início; para consistência, eventos mais longos primeiro quando empata
+  const sorted = [...evs].sort((a, b) => {
+    const sa = +a.start
+    const sb = +b.start
+    if (sa !== sb) return sa - sb
+    const da = +a.end - +a.start
+    const db = +b.end - +b.start
+    return db - da
+  })
+
+  const cols: { end: number }[] = []
+  const placed: Map<string, { col: number; colsCount: number }> = new Map()
+
+  for (const ev of sorted) {
+    const s = ev.start instanceof Date ? ev.start : new Date(ev.start)
+    const e = ev.end instanceof Date ? ev.end : new Date(ev.end)
+
+    // acha a primeira coluna livre (fim <= início atual)
+    let colIdx = cols.findIndex(c => c.end <= +s)
+    if (colIdx === -1) {
+      colIdx = cols.length
+      cols.push({ end: +e })
+    } else {
+      cols[colIdx].end = Math.max(cols[colIdx].end, +e)
+    }
+
+    placed.set(ev.id, { col: colIdx, colsCount: cols.length })
+  }
+  return placed
+}
+
 export default function CalendarView() {
-  /* ====== storage de eventos ====== */
+  /** ====== storage de eventos ====== */
   const useCalendarEvents = () => {
     const [stored, setStored] = useLocalStorage<any[]>("calendar-events", [])
     const events = ensureDateObjects(stored)
@@ -90,7 +126,7 @@ export default function CalendarView() {
   }
   const [events, setEvents] = useCalendarEvents()
 
-  /* ====== estado ====== */
+  /** ====== estado ====== */
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<ViewMode>("week")
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false)
@@ -128,21 +164,21 @@ export default function CalendarView() {
   const [conflictingEvents, setConflictingEvents] = useState<CalendarEvent[]>([])
   const { toast } = useToast()
 
-  /* ====== DnD ====== */
+  /** ====== DnD ====== */
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
-  /* ====== util de cor válida (evita “sumir” no filtro) ====== */
+  /** ====== util de cor válida ====== */
   const getDefaultEventColor = () =>
     calendarCategories.find((c) => c.enabled)?.color ?? calendarCategories[0]?.color ?? "bg-blue-500"
 
-  /* ====== navegação ====== */
+  /** ====== navegação ====== */
   const goToToday = () => setCurrentDate(new Date())
   const goToPrevious = () =>
     setCurrentDate(view === "day" ? subDays(currentDate, 1) : view === "week" ? subDays(currentDate, 7) : subMonths(currentDate, 1))
   const goToNext = () =>
     setCurrentDate(view === "day" ? addDays(currentDate, 1) : view === "week" ? addDays(currentDate, 7) : addMonths(currentDate, 1))
 
-  /* ====== filtros ====== */
+  /** ====== filtros ====== */
   const toggleCalendarCategory = (id: string) =>
     setCalendarCategories(calendarCategories.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c)))
 
@@ -159,7 +195,7 @@ export default function CalendarView() {
     )
   }
 
-  /* ====== criar / editar ====== */
+  /** ====== criar / editar ====== */
   const handleCreateEvent = () => {
     const base = selectedDate ?? currentDate ?? new Date()
     const s = new Date(base); s.setHours(9, 0, 0)
@@ -226,7 +262,6 @@ export default function CalendarView() {
       if (e < s) { e.setDate(s.getDate()); e.setHours(s.getHours() + 1) }
     }
 
-    // cor sempre válida frente às categorias
     const valid = new Set(calendarCategories.map((c) => c.color))
     const safeColor = (newEvent.color && valid.has(newEvent.color) && newEvent.color) || getDefaultEventColor()
 
@@ -296,7 +331,7 @@ export default function CalendarView() {
     setIsEventDialogOpen(true)
   }
 
-  /* ====== DnD ====== */
+  /** ====== DnD ====== */
   const handleDragStart = (e: DragStartEvent) => {
     const id = e.active.id as string
     const f = events.find((ev) => ev.id === id)
@@ -335,7 +370,7 @@ export default function CalendarView() {
     setDraggedEvent(null)
   }
 
-  /* ====== DIA ====== */
+  /** ====== DIA ====== */
   const dayScrollRef = useRef<HTMLDivElement>(null)
   const dayGutterRef = useRef<HTMLDivElement>(null)
   const [dayGutterPx, setDayGutterPx] = useState(0)
@@ -371,6 +406,8 @@ export default function CalendarView() {
               const s = e.start instanceof Date ? e.start : new Date(e.start)
               return s.getHours() === hour
             })
+            const layout = layoutColumns(hourEvents)
+
             return (
               <div key={hour} className="relative flex min-h-[60px]">
                 <div
@@ -383,9 +420,12 @@ export default function CalendarView() {
                   {hourEvents.map((ev) => {
                     const s = ev.start instanceof Date ? ev.start : new Date(ev.start)
                     const en = ev.end instanceof Date ? ev.end : new Date(ev.end)
-                    // duração real (sem limitar à hora)
                     const durMin = (en.getTime() - s.getTime()) / 60000
                     const hPct = (durMin / 60) * 100
+
+                    const info = layout.get(ev.id)!
+                    const widthPct = 100 / info.colsCount
+
                     return (
                       <div
                         key={ev.id}
@@ -398,7 +438,8 @@ export default function CalendarView() {
                         style={{
                           top: `${(s.getMinutes() / 60) * 100}%`,
                           height: `${hPct}%`,
-                          width: "calc(100% - 8px)",
+                          width: `calc(${widthPct}% - 8px)`,
+                          left: `calc(${info.col} * ${widthPct}%)`,
                         }}
                         onClick={(e) => { e.stopPropagation(); handleEventClick(ev) }}
                       >
@@ -418,7 +459,7 @@ export default function CalendarView() {
     )
   }
 
-  /* ====== SEMANA ====== */
+  /** ====== SEMANA ====== */
   const weekScrollRef = useRef<HTMLDivElement>(null)
   const gutterRef = useRef<HTMLDivElement>(null)
   const [gutterPx, setGutterPx] = useState(0)
@@ -490,6 +531,7 @@ export default function CalendarView() {
                     return isSameDay(s, day) && s.getHours() === hour
                   }),
                 )
+                const layout = layoutColumns(dayEvents)
 
                 return (
                   <div
@@ -500,9 +542,11 @@ export default function CalendarView() {
                     {dayEvents.map((ev) => {
                       const s = ev.start instanceof Date ? ev.start : new Date(ev.start)
                       const en = ev.end instanceof Date ? ev.end : new Date(ev.end)
-                      // duração real (sem limitar à hora)
                       const durMin = (en.getTime() - s.getTime()) / 60000
                       const hPct = (durMin / 60) * 100
+
+                      const info = layout.get(ev.id)!
+                      const widthPct = 100 / info.colsCount
 
                       return (
                         <div
@@ -516,7 +560,8 @@ export default function CalendarView() {
                           style={{
                             top: `${(s.getMinutes() / 60) * 100}%`,
                             height: `${hPct}%`,
-                            width: "calc(100% - 8px)",
+                            width: `calc(${widthPct}% - 8px)`,
+                            left: `calc(${info.col} * ${widthPct}%)`,
                           }}
                           onClick={(e) => { e.stopPropagation(); handleEventClick(ev) }}
                         >
@@ -534,7 +579,7 @@ export default function CalendarView() {
     )
   }
 
-  /* ====== MÊS ====== */
+  /** ====== MÊS ====== */
   const renderMonthView = () => {
     const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
     const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
@@ -633,7 +678,7 @@ export default function CalendarView() {
     )
   }
 
-  /* ====== mini calendário ====== */
+  /** ====== mini calendário ====== */
   const renderMiniCalendar = () => {
     const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
     const daysInMonth = getDaysInMonth(currentDate)
@@ -689,7 +734,7 @@ export default function CalendarView() {
     )
   }
 
-  /* ====== fundo ====== */
+  /** ====== fundo ====== */
   const backgroundStyles = {
     backgroundImage: `url(${backgroundImage})`,
     backgroundSize: "cover",

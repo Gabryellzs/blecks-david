@@ -44,7 +44,7 @@ export default function DashboardPage() {
   const totalNetSales = consolidatedSummary.netAmount
   const achievementData = getAchievementData(totalNetSales)
 
-  // === METAS QUE DISPARAM O BOTÃO DE RESGATE ===
+  // === METAS ===
   const MILESTONES = [
     { value: 10_000, label: "R$ 10 Mil" },
     { value: 100_000, label: "R$ 100 Mil" },
@@ -55,12 +55,12 @@ export default function DashboardPage() {
   const hitMilestone =
     [...MILESTONES].reverse().find((m) => totalNetSales >= m.value) || null
 
-  // ✅ redireciona pro WhatsApp
+  // === WHATSAPP ===
   const handleClaimReward = () => {
     const message = encodeURIComponent(
       "🎉 Conquistei minha meta no painel e quero resgatar minha premiação!"
     )
-    const phone = "556293183069" // seu número no formato internacional
+    const phone = "556293183069" // seu número internacional
     window.open(`https://wa.me/${phone}?text=${message}`, "_blank")
   }
 
@@ -68,7 +68,6 @@ export default function DashboardPage() {
   const checkAuth = async () => {
     try {
       const { isAuthenticated, session, error } = await checkSessionStatus()
-
       if (error) {
         setAuthError(error.message || "Erro ao verificar autenticação")
         setLoading(false)
@@ -88,27 +87,20 @@ export default function DashboardPage() {
         .single()
 
       if (profileError) {
-        console.error("Erro ao buscar perfil do usuário:", profileError)
         setUserName(session.user.email?.split("@")[0] || "Usuário")
       } else {
-        if (userProfile?.first_name) {
-          setUserName(userProfile.first_name)
-        } else if (userProfile?.full_name) {
+        if (userProfile?.first_name) setUserName(userProfile.first_name)
+        else if (userProfile?.full_name)
           setUserName(userProfile.full_name.split(" ")[0])
-        } else {
-          setUserName(session.user.email?.split("@")[0] || "Usuário")
-        }
+        else setUserName(session.user.email?.split("@")[0] || "Usuário")
+
         setUserAvatarUrl(userProfile?.avatar_url || null)
       }
 
       setAuthenticated(true)
       setAuthError(null)
       setLoading(false)
-
-      toast({
-        title: "Bem-vindo ao Dashboard!",
-        description: "Você está logado com sucesso.",
-      })
+      toast({ title: "Bem-vindo ao Dashboard!", description: "Você está logado com sucesso." })
     } catch (error: any) {
       setAuthError(error.message || "Erro desconhecido ao verificar autenticação")
       setLoading(false)
@@ -241,8 +233,8 @@ export default function DashboardPage() {
                 <DashboardView onViewChange={() => {}} />
               </div>
 
-              {/* === COLUNA LATERAL === */}
-              <div className="hidden md:flex md:w-[18%] overflow-hidden p-4 flex-col items-center pt-3 mt-[70px]">
+              {/* COLUNA LATERAL */}
+              <div className="hidden md:flex md:w-[18%] p-4 flex-col items-center sticky top-[72px]">
                 <div className="w-full max-w-[280px] origin-top mx-auto flex flex-col items-center">
                   <img
                     src={imageSrc || "/placeholder.svg"}
@@ -252,11 +244,8 @@ export default function DashboardPage() {
                   />
 
                   {/* PROGRESSO DE CONQUISTAS */}
-                  <div className="mt-6 w-full px-1 text-center">
-                    <h3
-                      className="text-[18px] md:text-sm font-semibold leading-none tracking-tight
-                                 max-w-full overflow-hidden text-ellipsis whitespace-nowrap mb-1"
-                    >
+                  <div className="mt-3 w-full px-1 text-center">
+                    <h3 className="text-[18px] md:text-sm font-semibold leading-none tracking-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap mb-1">
                       Progresso de Conquistas
                     </h3>
 
@@ -281,7 +270,7 @@ export default function DashboardPage() {
                         : achievementData.goalText}
                     </p>
 
-                    {/* === BOTÃO DE RESGATE === */}
+                    {/* BOTÃO DE RESGATE COMPACTO */}
                     {hitMilestone && (
                       <>
                         <style jsx>{`
@@ -291,8 +280,8 @@ export default function DashboardPage() {
                               transform: scale(1);
                             }
                             50% {
-                              box-shadow: 0 0 0 14px rgba(250, 204, 21, 0);
-                              transform: scale(1.02);
+                              box-shadow: 0 0 0 8px rgba(250, 204, 21, 0);
+                              transform: scale(1.01);
                             }
                             100% {
                               box-shadow: 0 0 0 0 rgba(250, 204, 21, 0);
@@ -304,17 +293,16 @@ export default function DashboardPage() {
                         <button
                           onClick={handleClaimReward}
                           className="
-                            group relative mt-4 w-full rounded-xl px-4 py-3
-                            font-semibold text-black
+                            group relative mt-3 w-full max-w-[220px] self-center
+                            rounded-lg px-3 py-2
+                            font-semibold text-black text-[14px] leading-tight
                             bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-400
                             hover:brightness-110 transition-all
                             focus:outline-none focus:ring-2 focus:ring-yellow-400/60
                           "
                           style={{ animation: "pulseGlow 2.2s ease-in-out infinite" }}
                         >
-                          <span className="relative z-10">
-                            🎉 Parabéns! Clique e resgate
-                          </span>
+                          <span className="relative z-10">🎉 Parabéns!<br />Clique e resgate</span>
                           <span
                             className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
                             style={{

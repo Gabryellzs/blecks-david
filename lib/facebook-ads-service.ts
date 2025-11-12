@@ -8,12 +8,14 @@ async function tryJson(res: Response) {
     return null
   }
 }
-const withAct  = (id: string) => (id?.startsWith("act_") ? id : `act_${id}`)
+const withAct = (id: string) => (id?.startsWith("act_") ? id : `act_${id}`)
 const stripAct = (id: string) => (id || "").replace(/^act_/, "")
 
 /* ========= CONTAS ========= */
 export async function getFacebookAdAccounts(): Promise<FacebookAdAccount[]> {
-  const response = await fetch("/api/facebook-ads/accounts", { credentials: "include" })
+  const response = await fetch("/api/facebook-ads/accounts", {
+    credentials: "include",
+  })
   if (!response.ok) {
     const errorData = await tryJson(response)
     throw new Error(errorData?.error || "Falha ao buscar contas de anúncio do Facebook.")
@@ -36,7 +38,7 @@ export async function getFacebookCampaigns(
   return response.json()
 }
 
-/* ========= CAMPANHAS + INSIGHTS (normalizado para o grid) ========= */
+/* ========= CAMPANHAS + INSIGHTS (normalizado para seu grid) ========= */
 export type CampaignRow = {
   id: string
   name: string
@@ -61,9 +63,10 @@ export async function getFacebookCampaignsWithInsights(
   if (uuid) qs.set("uuid", uuid)
   if (datePreset) qs.set("date_preset", datePreset)
 
-  const res = await fetch(`/api/facebook-ads/campaigns/insights?${qs.toString()}`, {
-    credentials: "include",
-  })
+  const res = await fetch(
+    `/api/facebook-ads/campaigns/insights?${qs.toString()}`,
+    { credentials: "include" }
+  )
   if (!res.ok) {
     const details = await tryJson(res)
     throw new Error(

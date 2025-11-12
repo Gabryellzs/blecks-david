@@ -8,38 +8,38 @@ export const revalidate = 0
 const FB_API = process.env.FACEBOOK_GRAPH_API || "https://graph.facebook.com"
 const FB_VER = process.env.FACEBOOK_API_VERSION || "v19.0"
 
-const withAct = (id: string) => (id?.startsWith("act_") ? id : `act_${id}`)
+const stripAct = (id: string) => (id || "").replace(/^act_/, "")
+const withAct  = (id: string) => (id?.startsWith("act_") ? id : `act_${id}`)
 
 export async function GET(req: NextRequest) {
   try {
-    const url = new URL(req.url)
-    const adAccountId = url.searchParams.get("ad_account_id")
-    const datePreset  = url.searchParams.get("date_preset") || "last_7d"
-    const uuidParam   = url.searchParams.get("uuid") || undefined
+    const url        = new URL(req.url)
+    const rawId      = url.searchParams.get("ad_account_id")
+    const datePreset = url.searchParams.get("date_preset") || "last_7d"
+    const uuidParam  = url.searchParams.get("uuid") || undefined
 
-    if (!adAccountId) {
-      return NextResponse.json(
-        { error: "Parâmetro ad_account_id é obrigatório." },
-        { status: 400 }
-      )
+    if (!rawId) {
+      return NextResponse.json({ error: "Parâmetro ad_account_id é obrigatório." }, { status: 400 })
     }
 
-    // ====== Resolve usuário (uuid > sessão) ======
-    let userId: string | null = null
+    // Normaliza SEMPRE: aceita tanto "123" quanto "act_123"
+    const actId = withAct(stripAct(rawId))
 
+    // --------- Resolve usuário (uuid > sessão > nenhum) ----------
+    let userId: string | null = null
     if (uuidParam) {
       userId = uuidParam
     } else {
-      const supabase = createRouteHandlerClient({ cookies })
-      const { data: { user }, error: sessErr } = await supabase.auth.getUser()
-      if (sessErr) console.error("[insights] getUser error:", sessErr)
-      if (!user) {
-        return NextResponse.json({ error: "Sessão não encontrada." }, { status: 401 })
+      try {
+        const supabase = createRouteHandlerClient({ cookies })
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) userId = user.id
+      } catch (err) {
+        console.warn("[insights] Sem sessão; seguindo com fallback do token meta mais recente.")
       }
-      userId = user.id
     }
 
-    // ====== Buscar token em platform_tokens (platform='meta') com client admin ======
+    // --------- Busca token em platform_tokens (platform='meta') ----------
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
     const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY
     if (!SUPABASE_URL || !SERVICE_KEY) {
@@ -50,24 +50,37 @@ export async function GET(req: NextRequest) {
     const { createClient } = await import("@supabase/supabase-js")
     const admin = createClient(SUPABASE_URL, SERVICE_KEY)
 
-    const { data: tokenRow, error: tokenErr } = await admin
-      .from("platform_tokens")
-      .select("access_token, expires_at")
-      .eq("platform", "meta")     // <- sua coluna
-      .eq("user_id", userId!)     // <- sua coluna
-      .maybeSingle()
+    let accessToken: string | null = null
 
-    if (tokenErr) {
-      console.error("[platform_tokens] select error:", tokenErr)
-      return NextResponse.json({ error: "Falha ao ler token." }, { status: 500 })
-    }
-    if (!tokenRow?.access_token) {
-      return NextResponse.json({ error: "Token do Facebook não encontrado para o usuário." }, { status: 401 })
+    if (userId) {
+      const { data: byUser, error: errUser } = await admin
+        .from("platform_tokens")
+        .select("access_token")
+        .eq("platform", "meta")
+        .eq("user_id", userId)
+        .maybeSingle()
+      if (errUser) console.error("[platform_tokens] select by user error:", errUser)
+      accessToken = byUser?.access_token ?? null
     }
 
-    const accessToken: string = tokenRow.access_token
+    if (!accessToken) {
+      const { data: lastMeta, error: errAny } = await admin
+        .from("platform_tokens")
+        .select("access_token")
+        .eq("platform", "meta")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (errAny) {
+        console.error("[platform_tokens] select last meta error:", errAny)
+        return NextResponse.json({ error: "Falha ao ler token." }, { status: 500 })
+      }
+      if (!lastMeta?.access_token) {
+        return NextResponse.json({ error: "Token do Facebook não encontrado." }, { status: 401 })
+      }
+      accessToken = lastMeta.access_token
+    }
 
-    // ====== Chamada à Graph API ======
     const fields = [
       "id",
       "name",
@@ -76,10 +89,10 @@ export async function GET(req: NextRequest) {
     ].join(",")
 
     const graphUrl =
-      `${FB_API}/${FB_VER}/${withAct(adAccountId)}/campaigns`
-      + `?fields=${encodeURIComponent(fields)}`
-      + `&limit=200`
-      + `&access_token=${encodeURIComponent(accessToken)}`
+      `${FB_API}/${FB_VER}/${actId}/campaigns` +
+      `?fields=${encodeURIComponent(fields)}` +
+      `&limit=200` +
+      `&access_token=${encodeURIComponent(accessToken)}`
 
     const fbRes  = await fetch(graphUrl, { cache: "no-store" })
     const fbJson = await fbRes.json()

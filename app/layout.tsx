@@ -1,29 +1,27 @@
+// app/layout.tsx
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
-
-import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
-import { NotificationProvider } from "@/components/notification-provider"
-import { DataMigrationDialog } from "@/components/data-migration-dialog"
-import { MigrationInitializer } from "@/components/migration-initializer"
-import { SessionKeeper } from "@/components/session-keeper"
-import { AuthGuard } from "@/components/auth-guard"
-import { AuthProvider } from "@/lib/auth" // CORREÇÃO: Importação sem a extensão .tsx
-import { SessionSyncProvider } from "@/components/session-sync-provider"
-
+import { ClientLayout } from "./client-layout"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "BLECK's",
   icons: {
     icon: "/images/logo-light-mode.png",
     shortcut: "/images/logo-light-mode.png",
     apple: "/images/logo-light-mode.png",
   },
-};
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
 
 export default function RootLayout({
   children,
@@ -32,20 +30,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        {/* Meta viewport adicional no head (ok manter junto com export viewport) */}
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+      </head>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
-          <SessionKeeper />
-          <AuthProvider>
-            <AuthGuard>
-              <DataMigrationDialog />
-              <MigrationInitializer />
-              <NotificationProvider>
-                {children}
-                <Toaster />
-              </NotificationProvider>
-            </AuthGuard>
-          </AuthProvider>
-        </ThemeProvider>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   )

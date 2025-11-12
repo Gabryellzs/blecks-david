@@ -21,7 +21,7 @@ export async function getFacebookAdAccounts(): Promise<FacebookAdAccount[]> {
 
 /** ============== CAMPANHAS ============== */
 export async function getFacebookCampaigns(adAccountId: string): Promise<FacebookCampaign[]> {
-  // a sua rota de campanhas já aceita ad_account_id com prefixo act_, então mantive assim
+  // sua rota aceita ad_account_id com prefixo act_
   const response = await fetch(`/api/facebook-ads/campaigns?ad_account_id=${adAccountId}`)
   if (!response.ok) {
     const errorData = await tryJson(response)
@@ -62,7 +62,9 @@ export async function getFacebookAdSets(
   if (!res.ok) {
     const details = await tryJson(res)
     throw new Error(
-      `Erro ao carregar conjuntos de anúncios: ${res.status} ${details ? JSON.stringify(details) : ""}`
+      `Erro ao carregar conjuntos de anúncios: ${res.status} ${
+        details ? JSON.stringify(details) : ""
+      }`
     )
   }
 
@@ -98,19 +100,32 @@ export type FacebookAd = {
   created_time?: string | null
 }
 
+type GetFacebookAdsParams = {
+  limit?: number
+  offset?: number
+  status?: "ACTIVE" | "PAUSED" | "ALL"
+  q?: string
+}
+
 /**
  * Busca Ads da conta informada.
  * Aceita `accountId` com ou sem `act_`.
  * A rota aceita `uuid` opcional pra filtrar o token do usuário (platform_tokens.user_id).
+ * `params` é opcional (limite/offset/status/q). Se sua API não suportar, a função ainda funciona.
  */
 export async function getFacebookAds(
   accountId: string,
-  uuid?: string
+  uuid?: string,
+  params: GetFacebookAdsParams = {}
 ): Promise<FacebookAd[]> {
   const cleanId = accountId.replace(/^act_/, "")
 
   const qs = new URLSearchParams({ accountId: cleanId })
   if (uuid) qs.set("uuid", uuid)
+  if (params.limit != null) qs.set("limit", String(params.limit))
+  if (params.offset != null) qs.set("offset", String(params.offset))
+  if (params.status && params.status !== "ALL") qs.set("status", params.status)
+  if (params.q) qs.set("q", params.q)
 
   const res = await fetch(`/api/facebook-ads/ads?${qs.toString()}`)
   if (!res.ok) {
@@ -121,7 +136,7 @@ export async function getFacebookAds(
   }
 
   const data = await res.json()
-  const items = Array.isArray(data?.data) ? data.data : []
+  const items = Array.isArray((data as any)?.data) ? (data as any).data : (Array.isArray(data) ? data : [])
 
   return items.map((x: any): FacebookAd => ({
     id: x.id,

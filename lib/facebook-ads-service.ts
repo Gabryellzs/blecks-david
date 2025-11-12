@@ -1,6 +1,6 @@
 import type { FacebookAdAccount, FacebookCampaign } from "./types/facebook-ads"
 
-/** Utilitário para tentar ler JSON de erro sem quebrar */
+/* ========= Helpers ========= */
 async function tryJson(res: Response) {
   try {
     return await res.json()
@@ -8,10 +8,12 @@ async function tryJson(res: Response) {
     return null
   }
 }
+const withAct  = (id: string) => (id?.startsWith("act_") ? id : `act_${id}`)
+const stripAct = (id: string) => (id || "").replace(/^act_/, "")
 
-/** ============== CONTAS ============== */
+/* ========= CONTAS ========= */
 export async function getFacebookAdAccounts(): Promise<FacebookAdAccount[]> {
-  const response = await fetch("/api/facebook-ads/accounts")
+  const response = await fetch("/api/facebook-ads/accounts", { credentials: "include" })
   if (!response.ok) {
     const errorData = await tryJson(response)
     throw new Error(errorData?.error || "Falha ao buscar contas de anúncio do Facebook.")
@@ -19,10 +21,14 @@ export async function getFacebookAdAccounts(): Promise<FacebookAdAccount[]> {
   return response.json()
 }
 
-/** ============== CAMPANHAS ============== */
-export async function getFacebookCampaigns(adAccountId: string): Promise<FacebookCampaign[]> {
-  // sua rota aceita ad_account_id com prefixo act_
-  const response = await fetch(`/api/facebook-ads/campaigns?ad_account_id=${adAccountId}`)
+/* ========= CAMPANHAS (sem insights) ========= */
+export async function getFacebookCampaigns(
+  adAccountId: string
+): Promise<FacebookCampaign[]> {
+  const response = await fetch(
+    `/api/facebook-ads/campaigns?ad_account_id=${encodeURIComponent(withAct(adAccountId))}`,
+    { credentials: "include" }
+  )
   if (!response.ok) {
     const errorData = await tryJson(response)
     throw new Error(errorData?.error || "Falha ao buscar campanhas do Facebook.")
@@ -30,7 +36,103 @@ export async function getFacebookCampaigns(adAccountId: string): Promise<Faceboo
   return response.json()
 }
 
-/** ============== CONJUNTOS (AD SETS) ============== */
+/* ========= CAMPANHAS + INSIGHTS (normalizado para o grid) ========= */
+export type CampaignRow = {
+  id: string
+  name: string
+  status: string
+  spend: number
+  resultLabel: string
+  results: number
+  roas?: number | null
+  cost_per_result?: number | null
+  cpm?: number | null
+  inline_link_clicks?: number | null
+  cpc?: number | null
+  ctr?: number | null
+}
+
+export async function getFacebookCampaignsWithInsights(
+  adAccountId: string,
+  uuid?: string,
+  datePreset: string = "last_7d"
+): Promise<CampaignRow[]> {
+  const qs = new URLSearchParams({ ad_account_id: withAct(adAccountId) })
+  if (uuid) qs.set("uuid", uuid)
+  if (datePreset) qs.set("date_preset", datePreset)
+
+  const res = await fetch(`/api/facebook-ads/campaigns/insights?${qs.toString()}`, {
+    credentials: "include",
+  })
+  if (!res.ok) {
+    const details = await tryJson(res)
+    throw new Error(
+      `Erro ao buscar campanhas com insights: ${res.status} ${details ? JSON.stringify(details) : ""}`
+    )
+  }
+
+  const payload = await res.json()
+  const arr = Array.isArray(payload?.data) ? payload.data : []
+
+  return arr.map((c: any): CampaignRow => {
+    const insight = Array.isArray(c.insights?.data) ? c.insights.data[0] : c.insights || null
+    const spend = insight ? Number(insight.spend || 0) : 0
+
+    const actions: any[] = insight?.actions || []
+    const actionValues: any[] = insight?.action_values || []
+    const cpat: any[] = insight?.cost_per_action_type || []
+
+    const findAction = (types: string[]) =>
+      actions.find(a => types.includes(a.action_type)) || null
+
+    const primary =
+      findAction(["purchase", "omni_purchase", "offsite_conversion.purchase"]) ||
+      findAction(["lead"]) ||
+      findAction(["messaging_conversation_started_7d"]) ||
+      findAction(["link_click"])
+
+    const resultLabel =
+      primary?.action_type === "purchase" ||
+      primary?.action_type === "omni_purchase" ||
+      primary?.action_type === "offsite_conversion.purchase"
+        ? "Compras"
+        : primary?.action_type === "lead"
+        ? "Leads"
+        : primary?.action_type?.includes("messaging")
+        ? "Conversas por mensagem"
+        : primary?.action_type === "link_click"
+        ? "Cliques no link"
+        : "Resultados"
+
+    const results = primary ? Number(primary.value || 0) : 0
+
+    const valueRow =
+      actionValues.find(a =>
+        ["purchase", "omni_purchase", "offsite_conversion.purchase"].includes(a.action_type)
+      ) || null
+    const roas = valueRow ? (spend > 0 ? Number(valueRow.value || 0) / spend : null) : null
+
+    const cprRow = primary ? cpat.find(a => a.action_type === primary.action_type) : null
+    const cost_per_result = cprRow ? Number(cprRow.value || 0) : null
+
+    return {
+      id: c.id,
+      name: c.name,
+      status: c.status,
+      spend,
+      resultLabel,
+      results,
+      roas,
+      cost_per_result,
+      cpm: insight ? Number(insight.cpm || 0) : null,
+      inline_link_clicks: insight ? Number(insight.inline_link_clicks || 0) : null,
+      cpc: insight ? Number(insight.cpc || 0) : null,
+      ctr: insight ? Number(insight.ctr || 0) : null,
+    }
+  })
+}
+
+/* ========= CONJUNTOS (AD SETS) ========= */
 export type FacebookAdSet = {
   id: string
   name: string
@@ -44,34 +146,26 @@ export type FacebookAdSet = {
   end_time?: string | null
 }
 
-/**
- * Busca Ad Sets da conta informada.
- * Aceita `accountId` com ou sem prefixo `act_`.
- * A rota aceita `uuid` opcional pra filtrar o token do usuário (platform_tokens.user_id).
- */
 export async function getFacebookAdSets(
   accountId: string,
   uuid?: string
 ): Promise<FacebookAdSet[]> {
-  const cleanId = accountId.replace(/^act_/, "") // aceita "act_123" e "123"
+  const qs = new URLSearchParams({ accountId: stripAct(accountId) })
+  if (uuid) qs.set("uuid", uuid)
 
-  const qs = new URLSearchParams({ accountId: cleanId })
-  if (uuid) qs.set("uuid", uuid) // <-- importante pro filtro por usuário logado
-
-  const res = await fetch(`/api/facebook-ads/adsets?${qs.toString()}`)
+  const res = await fetch(`/api/facebook-ads/adsets?${qs.toString()}`, {
+    credentials: "include",
+  })
   if (!res.ok) {
     const details = await tryJson(res)
     throw new Error(
-      `Erro ao carregar conjuntos de anúncios: ${res.status} ${
-        details ? JSON.stringify(details) : ""
-      }`
+      `Erro ao carregar conjuntos de anúncios: ${res.status} ${details ? JSON.stringify(details) : ""}`
     )
   }
 
   const data = await res.json()
   const items = Array.isArray(data?.data) ? data.data : []
 
-  // Mapeia com campos planos (sem nested campaign{})
   return items.map((item: any): FacebookAdSet => ({
     id: item.id,
     name: item.name,
@@ -86,7 +180,7 @@ export async function getFacebookAdSets(
   }))
 }
 
-/** ============== ANÚNCIOS (ADS) ============== */
+/* ========= ANÚNCIOS (ADS) ========= */
 export type FacebookAd = {
   id: string
   name: string
@@ -107,27 +201,21 @@ type GetFacebookAdsParams = {
   q?: string
 }
 
-/**
- * Busca Ads da conta informada.
- * Aceita `accountId` com ou sem `act_`.
- * A rota aceita `uuid` opcional pra filtrar o token do usuário (platform_tokens.user_id).
- * `params` é opcional (limite/offset/status/q). Se sua API não suportar, a função ainda funciona.
- */
 export async function getFacebookAds(
   accountId: string,
   uuid?: string,
   params: GetFacebookAdsParams = {}
 ): Promise<FacebookAd[]> {
-  const cleanId = accountId.replace(/^act_/, "")
-
-  const qs = new URLSearchParams({ accountId: cleanId })
+  const qs = new URLSearchParams({ accountId: stripAct(accountId) })
   if (uuid) qs.set("uuid", uuid)
   if (params.limit != null) qs.set("limit", String(params.limit))
   if (params.offset != null) qs.set("offset", String(params.offset))
   if (params.status && params.status !== "ALL") qs.set("status", params.status)
   if (params.q) qs.set("q", params.q)
 
-  const res = await fetch(`/api/facebook-ads/ads?${qs.toString()}`)
+  const res = await fetch(`/api/facebook-ads/ads?${qs.toString()}`, {
+    credentials: "include",
+  })
   if (!res.ok) {
     const details = await tryJson(res)
     throw new Error(
@@ -136,7 +224,11 @@ export async function getFacebookAds(
   }
 
   const data = await res.json()
-  const items = Array.isArray((data as any)?.data) ? (data as any).data : (Array.isArray(data) ? data : [])
+  const items = Array.isArray((data as any)?.data)
+    ? (data as any).data
+    : Array.isArray(data)
+    ? (data as any)
+    : []
 
   return items.map((x: any): FacebookAd => ({
     id: x.id,
@@ -152,7 +244,7 @@ export async function getFacebookAds(
   }))
 }
 
-/** ============== ATUALIZAÇÕES ============== */
+/* ========= ATUALIZAÇÕES ========= */
 export async function updateFacebookCampaignStatus(
   campaignId: string,
   status: "ACTIVE" | "PAUSED",
@@ -160,6 +252,7 @@ export async function updateFacebookCampaignStatus(
   const response = await fetch(`/api/facebook-ads/campaigns/${campaignId}/status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ status }),
   })
   if (!response.ok) {
@@ -176,6 +269,7 @@ export async function updateFacebookAdAccountStatus(
   const response = await fetch(`/api/facebook-ads/ad-accounts/${adAccountId}/status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ status }),
   })
   if (!response.ok) {

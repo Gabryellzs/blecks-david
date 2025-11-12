@@ -78,26 +78,40 @@
 }
 
 /* ========= Neon base ========= */
+/* ⬇️ substituído/atualizado com o estilo “glass + blur + oklch glow” */
 .neon-card {
   position: relative;
-  --gw: var(--gw, #8b5cf6);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow:
-    0 0 8px 1px color-mix(in oklab, var(--gw), transparent 80%),
-    inset 0 0 5px 0 color-mix(in oklab, var(--gw), transparent 100%);
-  transition: box-shadow .25s ease, transform .2s ease, filter .2s ease;
-  border-color: transparent;
+    0 0 10px oklch(0.65 0 0 / 0.3),
+    0 0 20px oklch(0.65 0 0 / 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.3);
+  transition: all .3s ease;
+  border-radius: 14px;
   overflow: hidden;
 }
 .neon-card:hover,
 .neon-card:focus-within {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow:
-    0 0 15px 2px color-mix(in oklab, var(--gw), transparent 60%),
-    inset 0 0 12px 0 color-mix(in oklab, var(--gw), transparent 100%);
+    0 0 15px oklch(0.65 0 0 / 0.5),
+    0 0 25px oklch(0.65 0 0 / 0.3),
+    0 0 35px oklch(0.65 0 0 / 0.2),
+    0 12px 40px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
 }
+
+/* varredura opcional de topo (se usar a classe .neon-top) */
 .neon-card.neon-top::before {
   content: "";
   position: absolute; left: 0; right: 0; top: 0; height: 2px;
-  background: linear-gradient(90deg, transparent, var(--gw), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent);
   opacity: 1;
   transform: translateX(-100%);
   animation: gw-sweep 4s linear infinite;
@@ -105,12 +119,13 @@
 }
 @keyframes gw-sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 
-/* variantes (se usar) */
+/* variantes de texto neon (se quiser usar) */
 .neon-text { text-shadow: 0 0 5px rgba(74, 222, 128, 0.7); }
 .neon-text-blue { text-shadow: 0 0 5px rgba(59, 130, 246, 0.7); }
 .neon-text-purple { text-shadow: 0 0 5px rgba(139, 92, 246, 0.7); }
 .neon-text-amber { text-shadow: 0 0 5px rgba(245, 158, 11, 0.7); }
 
+/* ======== Fire Progress Indicator ======== */
 .fire-progress-indicator {
   background-image: linear-gradient(to right, #ff4500, #ff8c00, #ffd700);
   box-shadow: 0 0 8px rgba(255,69,0,.7), 0 0 15px rgba(255,140,0,.5);
@@ -120,129 +135,6 @@
   0% { box-shadow: 0 0 8px rgba(255,69,0,.7), 0 0 15px rgba(255,140,0,.5); opacity: 1; }
   50%{ box-shadow: 0 0 10px rgba(255,69,0,.9), 0 0 20px rgba(255,140,0,.7); opacity: .95; }
   100%{ box-shadow: 0 0 8px rgba(255,69,0,.7), 0 0 15px rgba(255,140,0,.5); opacity: 1; }
-}
-
-/* =========================
-   DayPicker (react-day-picker v8)
-   ========================= */
-
-.rdp-caption{ display:flex; align-items:center; justify-content:space-between; }
-.rdp-nav{ position:static !important; }
-
-.rdp-button_previous svg,
-.rdp-button_next svg,
-.rdp-chevron,
-.rdp-chevron *{ fill: currentColor !important; stroke: currentColor !important; }
-
-html:not(.dark) .rdp-button_previous,
-html:not(.dark) .rdp-button_next,
-html:not(.dark) .rdp-nav_button{ color:#111 !important; }
-html:not(.dark) .rdp-button_previous svg polygon,
-html:not(.dark) .rdp-button_next svg polygon{ fill:#111 !important; stroke:#111 !important; }
-.rdp-nav_button:hover{ background-color: rgba(0,0,0,.06) !important; border-color: rgba(0,0,0,.12) !important; }
-
-.rdp-month_grid{ text-align:center; width:100%; }
-
-html.dark .rdp-button_previous,
-html.dark .rdp-button_next,
-html.dark .rdp-nav_button,
-body.dark .rdp-button_previous,
-body.dark .rdp-button_next,
-body.dark .rdp-nav_button,
-.dark .rdp-button_previous,
-.dark .rdp-button_next,
-.dark .rdp-nav_button{ color:#fff !important; }
-html.dark .rdp-button_previous svg polygon,
-html.dark .rdp-button_next svg polygon,
-body.dark .rdp-button_previous svg polygon,
-body.dark .rdp-button_next svg polygon,
-.dark .rdp-button_previous svg polygon,
-.dark .rdp-button_next svg polygon{ fill:#fff !important; stroke:#fff !important; }
-html.dark .rdp-nav_button:hover,
-body.dark .rdp-nav_button:hover,
-.dark .rdp-nav_button:hover{ background-color: rgba(255,255,255,.10) !important; border-color: rgba(255,255,255,.15) !important; }
-
-.date-range-dialog > button[aria-label="Close"],
-.date-range-dialog > button[aria-label="Fechar"],
-.date-range-dialog > button.absolute.right-4.top-4 { display: none !important; }
-
-.rdp-weekday, .rdp-head_cell abbr {
-  color: #f97316 !important;
-  text-decoration: none !important;
-}
-.dark .rdp-weekday, .rdp-head_cell abbr { color: #fb923c !important; }
-
-.rdp-row { display: grid !important; grid-template-columns: repeat(7, minmax(0,1fr)) !important; gap: 4px !important; }
-.rdp-cell { padding: 6px !important; display: grid !important; place-items: center !important; }
-
-.rdp-day { height: 2rem !important; width: 2rem !important; border-radius: 6px !important; }
-
-.rdp-day_range_middle { background-color: rgba(255,255,255,0.07) !important; }
-.rdp-day_selected,
-.rdp-day_range_start,
-.rdp-day_range_end,
-.rdp-day_range_middle {
-  width: calc(2rem - 6px) !important;
-  height: calc(2rem - 6px) !important;
-  margin: 3px !important;
-  box-shadow: none !important;
-  border-radius: 6px !important;
-}
-
-.rdp-day:not(.rdp-day_selected):not(.rdp-day_range_start):not(.rdp-day_range_end):not(.rdp-day_range_middle):hover {
-  transform: scale(0.96);
-}
-
-.rdp-table td[role="gridcell"][aria-selected="true"],
-.rdp-table td[role="gridcell"][data-selected="true"],
-.rdp-table td[role="gridcell"][data-range-start="true"],
-.rdp-table td[role="gridcell"][data-range-end="true"],
-.rdp-table td[role="gridcell"][data-range-middle="true"]{ background: transparent !important; }
-
-.rdp-table td[role="gridcell"][aria-selected="true"] > .rdp-day_button,
-.rdp-table td[role="gridcell"][data-selected="true"] > .rdp-day_button,
-.rdp-table td[role="gridcell"][data-range-start="true"] > .rdp-day_button,
-.rdp-table td[role="gridcell"][data-range-end="true"] > .rdp-day_button,
-.rdp-table td[role="gridcell"][data-range-middle="true"] > .rdp-day_button{
-  display: grid; place-items: center;
-  width: 100%; height: 100%;
-  transform: scale(0.88);
-  border-radius: 8px !important;
-  background: rgba(148,163,184,.28) !important;
-  color: #fff !important;
-  box-shadow: none !important;
-}
-
-.rdp-table td[role="gridcell"]:not([aria-disabled="true"]):not([aria-selected="true"])
-  > .rdp-day_button:hover{
-  transform: scale(0.95);
-  background: rgba(255,255,255,.06);
-  border-radius: 8px;
-}
-
-.donut-center-text { display: none !important; }
-
-/* =========================================================
-   ANTI-LINHA no layout com sidebar-wrapper
-   ========================================================= */
-.group\/sidebar-wrapper .sticky.top-0.border-b,
-.group\/sidebar-wrapper .sticky.border-b,
-.group\/sidebar-wrapper [class*="border-b"][class*="sticky"][class*="top-0"] {
-  border-bottom: 0 !important;
-}
-.group\/sidebar-wrapper .border-b,
-.group\/sidebar-wrapper [class*="border-b-"] {
-  border-bottom: 0 !important;
-  border-bottom-width: 0 !important;
-}
-.group\/sidebar-wrapper header,
-.group\/sidebar-wrapper header * {
-  border-bottom: 0 !important;
-  box-shadow: none !important;
-}
-.group\/sidebar-wrapper [role="separator"],
-.group\/sidebar-wrapper hr {
-  display: none !important;
 }
 
 /* =========================================
@@ -261,7 +153,7 @@ body.dark .rdp-nav_button:hover,
 }
 
 /* =========================================
-   🔧 FIX GLOBAL DE LAYOUT (Zoom + Scroll)
+   🔧 FIX GLOBAL DE LAYOUT
    ========================================= */
 html {
   scrollbar-gutter: stable both-edges;
@@ -278,5 +170,84 @@ body {
 @supports (height: 100dvh) {
   body {
     min-height: 100dvh;
+  }
+}
+
+/* =========================================
+   💫 Rolagem contínua das plataformas
+   ========================================= */
+
+/* keyframes para rolagem infinita */
+@keyframes scroll-left-seamless {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes scroll-right-seamless {
+  0%   { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+/* ====== Classes com correção (inclui animation-name nas variantes) ====== */
+
+/* esquerda */
+.animate-scroll-left-seamless {
+  animation: scroll-left-seamless var(--speed, 28s) linear infinite;
+  will-change: transform;
+}
+.animate-scroll-left-seamless-slow {
+  animation-name: scroll-left-seamless;
+  animation-duration: var(--speed, 40s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+.animate-scroll-left-seamless-fast {
+  animation-name: scroll-left-seamless;
+  animation-duration: var(--speed, 18s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+/* direita */
+.animate-scroll-right-seamless {
+  animation: scroll-right-seamless var(--speed, 32s) linear infinite;
+  will-change: transform;
+}
+.animate-scroll-right-seamless-slow {
+  animation-name: scroll-right-seamless;
+  animation-duration: var(--speed, 40s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+.animate-scroll-right-seamless-fast {
+  animation-name: scroll-right-seamless;
+  animation-duration: var(--speed, 18s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+/* 🔒 força continuar rodando mesmo no hover (sem pausa) */
+#integracoes .animate-scroll-left-seamless,
+#integracoes .animate-scroll-right-seamless,
+#integracoes .animate-scroll-left-seamless-slow,
+#integracoes .animate-scroll-right-seamless-slow,
+#integracoes .animate-scroll-left-seamless-fast,
+#integracoes .animate-scroll-right-seamless-fast {
+  animation-play-state: running !important;
+}
+
+/* respeita “reduzir movimento” */
+@media (prefers-reduced-motion: reduce) {
+  .animate-scroll-left-seamless,
+  .animate-scroll-right-seamless,
+  .animate-scroll-left-seamless-slow,
+  .animate-scroll-right-seamless-slow,
+  .animate-scroll-left-seamless-fast,
+  .animate-scroll-right-seamless-fast {
+    animation: none !important;
+    transform: none !important;
   }
 }

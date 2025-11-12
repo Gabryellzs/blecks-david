@@ -35,9 +35,17 @@ export const TestimonialsSection = memo(function TestimonialsSection() {
 
   const largerLogos = ["Logzz", "SoluPay", "Payt", "Greem", "ClickBank", "Vega", "Kirvano"]
 
-  const renderLogosRow = (platforms: typeof firstRow, animationClass: string, rowKey: string) => (
+  const renderLogosRow = (
+    platforms: typeof firstRow,
+    animationClass: string,
+    rowKey: string,
+    speed?: string
+  ) => (
     <div className="relative flex overflow-hidden">
-      <div className={`flex gap-6 md:gap-8 lg:gap-10 ${animationClass}`} style={{ willChange: "transform" }}>
+      <div
+        className={`flex gap-6 md:gap-8 lg:gap-10 ${animationClass}`}
+        style={{ willChange: "transform", ...(speed ? ({ ['--speed' as any]: speed } as any) : {}) }}
+      >
         {[...platforms, ...platforms].map((platform, index) => {
           const isLarger = largerLogos.includes(platform.name)
           const imageSize = isLarger
@@ -52,7 +60,7 @@ export const TestimonialsSection = memo(function TestimonialsSection() {
               <img
                 src={platform.src || "/placeholder.svg"}
                 alt={platform.name}
-                className={`${imageSize} object-contain opacity-70 hover:opacity-100 transition-opacity duration-300`}
+                className={`${imageSize} object-contain opacity-75 hover:opacity-100 transition-opacity duration-300`}
                 loading="lazy"
               />
             </div>
@@ -82,9 +90,9 @@ export const TestimonialsSection = memo(function TestimonialsSection() {
           }}
         >
           <div className="flex flex-col gap-6 md:gap-8">
-            {renderLogosRow(firstRow, "animate-scroll-left-seamless", "row1")}
-            {renderLogosRow(secondRow, "animate-scroll-right-seamless", "row2")}
-            {renderLogosRow(thirdRow, "animate-scroll-left-seamless-slow", "row3")}
+            {renderLogosRow(firstRow, "animate-scroll-left-seamless", "row1", "28s")}
+            {renderLogosRow(secondRow, "animate-scroll-right-seamless", "row2", "34s")}
+            {renderLogosRow(thirdRow, "animate-scroll-left-seamless-slow", "row3", "42s")}
           </div>
         </div>
       </div>

@@ -42,7 +42,7 @@ export const CleanSectionThree = memo(function CleanSectionThree() {
         <div className="flex flex-col lg:flex-row items-center justify-between min-h-[400px] md:min-h-[600px] gap-8 lg:gap-12 -mt-8 lg:-mt-16">
           <div className="perspective-1000 relative order-2 lg:order-1 lg:-ml-16">
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-              <svg className="w-[560px] h-[560px] opacity-60" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
+              <svg className="w-[530px] h-[530px] opacity-60" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
                 <g transform="translate(400,400)">
                   <circle r="100" className="fill-none stroke-primary/30 stroke-[1px]" />
                   <circle r="200" className="fill-none stroke-primary/40 stroke-[1px]" />

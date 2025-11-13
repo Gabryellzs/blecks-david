@@ -11,14 +11,14 @@ const INTERVAL_TIME = 7000 // 7 segundos
 // =============================
 const courseModules = [
   {
-    icon: "Análise De Faturamento",
+    icon: "Análise-De-Faturamento",
     title: "ANÁLISE DE FATURAMENTO",
     subtitle: "Análise completa e precisa do seu faturamento",
     description:
       "Tenha clareza total sobre seus números e tome decisões estratégicas para aumentar seus lucros mês após mês com dados precisos e insights acionáveis.",
   },
   {
-    icon: "diario-semanal",
+    icon: "Diario-Semanal",
     title: "DIÁRIO SEMANAL",
     subtitle: "Tenha uma visão clara da sua semana",
     description:

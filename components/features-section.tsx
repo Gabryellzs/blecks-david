@@ -1,9 +1,14 @@
 "use client"
 
-import { memo, useCallback, useEffect, useRef, useState } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Image from "next/image"
 
+const INTERVAL_TIME = 7000 // 7 segundos
+
+// =============================
+// MÓDULOS
+// =============================
 const courseModules = [
   {
     icon: "revenue-analysis",
@@ -17,114 +22,249 @@ const courseModules = [
     title: "DIÁRIO SEMANAL",
     subtitle: "Tenha uma visão clara da sua semana",
     description:
-      "Mantenha consistência, disciplina e crescimento constante. Organize seus pensamentos, acompanhe sua evolução e mantenha o foco no que realmente importa para seus resultados.",
+      "Mantenha consistência, disciplina e crescimento constante. Organize seus pensamentos, acompanhe sua evolução e mantenha o foco no que realmente importa.",
   },
   {
     icon: "calendar",
     title: "CALENDÁRIO",
     subtitle: "Chega de ter a sua agenda desorganizada",
     description:
-      "Transforme sua rotina: planeje, acompanhe e execute suas metas com mais foco e eficiência. Tenha controle total do seu tempo e alcance seus objetivos com muito mais organização.",
+      "Transforme sua rotina: planeje, acompanhe e execute suas metas com muito mais eficiência.",
   },
   {
     icon: "ai-brain",
     title: "IA'S",
     subtitle: "Tenha todas as IA's em um só lugar",
     description:
-      "Acesse as inteligências artificiais mais usadas pelos maiores players do mercado em um único lugar, prontas para acelerar seus resultados e otimizar seu trabalho.",
+      "Acesse as melhores inteligências artificiais para acelerar seu trabalho.",
   },
 ] as const
 
-export const FeaturesSection = memo(function FeaturesSection() {
-  const [isVisible, setIsVisible] = useState(false)
-  const sectionRef = useRef<HTMLElement>(null)
-  const hasInitialized = useRef(false)
+// =============================
+// CARD INDIVIDUAL
+// =============================
+function FeatureCard({ module, index, isVisible, active }) {
+  const wrapperRef = useRef<HTMLDivElement | null>(null)
+  const [tilt, setTilt] = useState({ rx: 0, ry: 0 })
+  const [hovered, setHovered] = useState(false)
+  const angleRef = useRef(0)
 
+  // Movimento suave automático
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !isVisible) {
-          setIsVisible(true)
-          observer.disconnect()
+    let frameId: number
+
+    const animate = () => {
+      angleRef.current += 0.015
+
+      setTilt((prev) => {
+        let rx = prev.rx
+        let ry = prev.ry
+
+        if (active && !hovered) {
+          const amp = 3
+          rx = Math.sin(angleRef.current) * amp
+          ry = Math.cos(angleRef.current * 0.8) * amp
+        } else if (!hovered) {
+          const easing = 0.08
+          rx = rx + (0 - rx) * easing
+          ry = ry + (0 - ry) * easing
         }
-      },
-      { threshold: 0.3 },
-    )
 
-    if (sectionRef.current) observer.observe(sectionRef.current)
-    return () => observer.disconnect()
-  }, [isVisible])
+        return { rx, ry }
+      })
 
-  const handleMouseMove = useCallback((ev: MouseEvent) => {
-    const cards = document.querySelectorAll(".card")
-    cards.forEach((e) => {
-      const blob = e.querySelector(".blob") as HTMLElement | null
-      const fblob = e.querySelector(".fakeblob") as HTMLElement | null
-      if (blob && fblob) {
-        const rec = fblob.getBoundingClientRect()
-        requestAnimationFrame(() => {
-          blob.style.transform = `translate(${ev.clientX - rec.left - rec.width / 2}px, ${ev.clientY - rec.top - rec.height / 2}px)`
-          blob.style.opacity = "1"
-        })
-      }
-    })
-  }, [])
+      frameId = requestAnimationFrame(animate)
+    }
 
-  useEffect(() => {
-    if (hasInitialized.current) return
-    hasInitialized.current = true
-    window.addEventListener("mousemove", handleMouseMove, { passive: true })
-    return () => window.removeEventListener("mousemove", handleMouseMove)
-  }, [handleMouseMove])
+    animate()
+    return () => cancelAnimationFrame(frameId)
+  }, [active, hovered])
+
+  // Movimento com o mouse
+  const handleMouseMove = (e) => {
+    const rect = wrapperRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const px = x / rect.width
+    const py = y / rect.height
+
+    const maxTilt = 10
+    const ry = (px - 0.5) * maxTilt * 2
+    const rx = (0.5 - py) * maxTilt * 2
+
+    setTilt({ rx, ry })
+  }
+
+  const isHoveredOrActive = hovered || active
+
+  const transform = `
+    translateY(${isVisible ? 0 : 18}px)
+    rotateX(${tilt.rx}deg)
+    rotateY(${tilt.ry}deg)
+    scale(${isHoveredOrActive ? 1.04 : 1})
+  `
 
   return (
-    <section ref={sectionRef} id="features" className="py-12 md:py-16 lg:py-20 bg-background relative">
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-black/50 pointer-events-none z-10" />
+    <div
+      ref={wrapperRef}
+      className="group relative"
+      style={{
+        perspective: "1200px",
+        transitionDelay: isVisible ? `${index * 110}ms` : "0ms",
+      }}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* halo externo elegante */}
+      <div
+        className={`
+          pointer-events-none absolute -inset-px rounded-[26px] blur-xl
+          bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_65%)]
+          transition-opacity duration-700
+          ${isHoveredOrActive ? "opacity-100" : "opacity-0"}
+        `}
+      />
 
+      {/* CARD */}
+      <Card
+        className={[
+          "relative overflow-hidden flex flex-col h-full",
+          "bg-white/5 backdrop-blur-2xl border border-white/12 rounded-3xl",
+          "px-6 pt-7 pb-8 shadow-[0_20px_50px_rgba(0,0,0,0.55)]",
+          isHoveredOrActive ? "border-neutral-200/50 shadow-[0_0_30px_rgba(255,255,255,0.18)]" : "",
+        ].join(" ")}
+        style={{
+          transform,
+          opacity: isVisible ? 1 : 0,
+          transformStyle: "preserve-3d",
+          transition:
+            "transform 320ms ease-out, border-color 280ms ease-out, box-shadow 280ms ease-out, opacity 600ms ease-out",
+        }}
+      >
+        {/* borda interna */}
+        <div className="pointer-events-none absolute inset-[1px] rounded-[22px] border border-white/6" />
+
+        {/* CONTEÚDO */}
+        <div className="relative z-10 flex flex-col h-full">
+          <CardHeader className="pb-6 flex flex-col items-center text-center gap-4">
+
+            {/* QUADRADO DO ÍCONE */}
+            <div
+              className={[
+                "w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20",
+                "flex items-center justify-center shadow-[0_6px_22px_rgba(0,0,0,0.5)]",
+                isHoveredOrActive ? "shadow-[0_0_18px_rgba(255,255,255,0.22)] border-white/35" : "",
+              ].join(" ")}
+              style={{ transform: "translateZ(30px)" }}
+            >
+              <Image
+                src={`/icons-siderbar/${module.icon}.png`}
+                alt={module.title}
+                width={52}
+                height={52}
+                className="h-12 w-12 object-contain opacity-95"
+                style={{ transform: "translateZ(40px)" }}
+              />
+            </div>
+
+            {/* TÍTULO + SUBTÍTULO */}
+            <div className="flex flex-col items-center text-center gap-1" style={{ transform: "translateZ(22px)" }}>
+              <CardTitle
+                className="
+                  text-[14px] font-semibold 
+                  tracking-[0.05em] text-white uppercase 
+                  whitespace-nowrap text-center
+                "
+              >
+                {module.title}
+              </CardTitle>
+
+              <div className="text-xs md:text-sm text-neutral-300 font-medium leading-tight max-w-[90%]">
+                {module.subtitle}
+              </div>
+            </div>
+
+            {/* FAIXA DE NEON PREMIUM */}
+            <div
+              className={`
+                h-[2px] w-32 md:w-40 lg:w-48 mt-3
+                bg-gradient-to-r from-transparent via-white/45 to-transparent
+                transition-all duration-400
+                ${isHoveredOrActive ? "via-white/90" : "via-white/45"}
+              `}
+              style={{
+                transform: "translateZ(18px)",
+                boxShadow: isHoveredOrActive
+                  ? "0 0 12px rgba(255,255,255,0.35)"
+                  : "0 0 6px rgba(255,255,255,0.18)",
+              }}
+            />
+          </CardHeader>
+
+          {/* DESCRIÇÃO */}
+          <CardContent className="flex-1 flex items-start justify-center text-center px-2">
+            <CardDescription className="text-[13px] text-neutral-100/90 leading-relaxed">
+              {module.description}
+            </CardDescription>
+          </CardContent>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+// =============================
+// SEÇÃO COMPLETA
+// =============================
+export const FeaturesSection = memo(function FeaturesSection() {
+  const [isVisible, setIsVisible] = useState(false)
+  const [activeCard, setActiveCard] = useState(0)
+  const sectionRef = useRef<HTMLElement>(null)
+
+  // aparece quando entra na tela
+  useEffect(() => {
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setIsVisible(true)
+    })
+
+    if (sectionRef.current) obs.observe(sectionRef.current)
+    return () => obs.disconnect()
+  }, [])
+
+  // troca automática dos cards
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveCard((prev) => (prev + 1) % courseModules.length)
+    }, INTERVAL_TIME)
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <section ref={sectionRef} id="features" className="py-20 relative">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12 md:mb-16">
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-balance mb-4 text-white">
-            OUTRAS ABAS
+
+        {/* ===== TÍTULO LUXO FUTURISTA ===== */}
+        <div className="text-center mb-14 md:mb-20">
+          <h2 className="text-[36px] md:text-[44px] lg:text-[52px] font-bold uppercase tracking-[0.18em]">
+            <span className="bg-gradient-to-r from-white via-neutral-200 to-white/60 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(255,255,255,0.28)]">
+              OUTRAS ABAS
+            </span>
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        {/* GRID */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {courseModules.map((module, index) => (
-            <Card
-              key={index}
-              className={`card bg-card border-border hover:border-primary/70 transition-all duration-1000 group shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:shadow-xl neon-glow relative overflow-hidden transform ${
-                isVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
-              }`}
-              style={{
-                transitionDelay: isVisible ? `${index * 120}ms` : "0ms",
-              }}
-            >
-              <div className="blob" />
-              <div className="fakeblob" />
-
-              <CardHeader className="relative z-10 pb-3">
-                <div className="w-12 h-12 md:w-14 md:h-14 bg-primary/20 rounded-lg flex items-center justify-center mb-3 md:mb-4 group-hover:bg-primary/30 transition-colors shadow-md shadow-primary/20 group-hover:shadow-primary/40">
-                  <Image
-                    src={`/icons/${module.icon}.png`}
-                    alt={module.title}
-                    width={36}
-                    height={36}
-                    className="h-8 w-8 md:h-9 md:w-9 object-contain opacity-90"
-                    loading="lazy"
-                  />
-                </div>
-                <CardTitle className="text-base md:text-lg font-bold text-white leading-tight">
-                  {module.title}
-                </CardTitle>
-                <div className="text-xs md:text-sm text-white font-semibold">{module.subtitle}</div>
-              </CardHeader>
-
-              <CardContent className="relative z-10 pt-0">
-                <CardDescription className="text-sm md:text-base text-white leading-relaxed mb-3 md:mb-4">
-                  {module.description}
-                </CardDescription>
-              </CardContent>
-            </Card>
+            <FeatureCard
+              key={module.title}
+              module={module}
+              index={index}
+              isVisible={isVisible}
+              active={activeCard === index}
+            />
           ))}
         </div>
       </div>

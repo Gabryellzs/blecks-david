@@ -2,35 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* === RESET GLOBAL E TAMANHO BASE DE FONTE === */
-@layer base {
-  html {
-    font-size: 16px; /* 1rem = 16px */
-    -webkit-text-size-adjust: 100%;
-    -ms-text-size-adjust: 100%;
-  }
-
-  body {
-    font-size: 1rem;
-    line-height: 1.5;
-  }
-
-  *, *::before, *::after {
-    box-sizing: border-box;
-  }
-}
-
-/* =============================================
-   THEME INLINE (TAILWIND V4)
-   ============================================= */
-@theme inline {
-  --font-sans: "Aspekta", "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-/* =============================================
-   CONFIGURAÇÕES BASE E CORES
-   ============================================= */
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -80,12 +51,9 @@
 
 @layer base {
   * { @apply border-border; }
-  body { @apply bg-background text-foreground font-sans; }
+  body { @apply bg-background text-foreground; }
 }
 
-/* =============================================
-   UTILITÁRIOS PADRÃO
-   ============================================= */
 @layer utilities {
   .bg-black { background-color: #000000; }
   .text-white { color: #ffffff; }
@@ -110,40 +78,26 @@
 }
 
 /* ========= Neon base ========= */
-/* glass + blur + glow moderno */
 .neon-card {
   position: relative;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  --gw: var(--gw, #8b5cf6);
   box-shadow:
-    0 0 10px oklch(0.65 0 0 / 0.3),
-    0 0 20px oklch(0.65 0 0 / 0.2),
-    0 8px 32px rgba(0, 0, 0, 0.3);
-  transition: all .3s ease;
-  border-radius: 14px;
+    0 0 8px 1px color-mix(in oklab, var(--gw), transparent 80%),
+    inset 0 0 5px 0 color-mix(in oklab, var(--gw), transparent 100%);
+  transition: box-shadow .25s ease, transform .2s ease, filter .2s ease;
+  border-color: transparent;
   overflow: hidden;
 }
 .neon-card:hover,
 .neon-card:focus-within {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow:
-    0 0 15px oklch(0.65 0 0 / 0.5),
-    0 0 25px oklch(0.65 0 0 / 0.3),
-    0 0 35px oklch(0.65 0 0 / 0.2),
-    0 12px 40px rgba(0, 0, 0, 0.4);
-  transform: translateY(-2px);
+    0 0 15px 2px color-mix(in oklab, var(--gw), transparent 60%),
+    inset 0 0 12px 0 color-mix(in oklab, var(--gw), transparent 100%);
 }
-
-/* varredura topo (classe opcional .neon-top) */
 .neon-card.neon-top::before {
   content: "";
   position: absolute; left: 0; right: 0; top: 0; height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent);
+  background: linear-gradient(90deg, transparent, var(--gw), transparent);
   opacity: 1;
   transform: translateX(-100%);
   animation: gw-sweep 4s linear infinite;
@@ -151,7 +105,7 @@
 }
 @keyframes gw-sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 
-/* variantes de texto neon */
+/* variantes */
 .neon-text { text-shadow: 0 0 5px rgba(74, 222, 128, 0.7); }
 .neon-text-blue { text-shadow: 0 0 5px rgba(59, 130, 246, 0.7); }
 .neon-text-purple { text-shadow: 0 0 5px rgba(139, 92, 246, 0.7); }
@@ -208,6 +162,8 @@ body {
 /* =========================================
    💫 Rolagem contínua das plataformas
    ========================================= */
+
+/* keyframes para rolagem infinita */
 @keyframes scroll-left-seamless {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
@@ -217,7 +173,9 @@ body {
   100% { transform: translateX(0); }
 }
 
-/* classes de rolagem contínua */
+/* ====== Classes com correção (inclui animation-name nas variantes) ====== */
+
+/* esquerda */
 .animate-scroll-left-seamless {
   animation: scroll-left-seamless var(--speed, 28s) linear infinite;
   will-change: transform;
@@ -257,7 +215,7 @@ body {
   will-change: transform;
 }
 
-/* manter rolagem no hover */
+/* 🔒 força continuar rodando mesmo no hover (sem pausa) */
 #integracoes .animate-scroll-left-seamless,
 #integracoes .animate-scroll-right-seamless,
 #integracoes .animate-scroll-left-seamless-slow,
@@ -267,7 +225,7 @@ body {
   animation-play-state: running !important;
 }
 
-/* respeita preferências de movimento */
+/* respeita “reduzir movimento” */
 @media (prefers-reduced-motion: reduce) {
   .animate-scroll-left-seamless,
   .animate-scroll-right-seamless,

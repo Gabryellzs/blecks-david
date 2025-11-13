@@ -9,8 +9,8 @@ export const HeroSection = memo(function HeroSection() {
       id="hero"
       className="relative py-12 md:py-20 lg:py-32 overflow-hidden min-h-screen flex items-center"
     >
-      {/* Fundo gradiente */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-background" />
+      {/* Fundo bem escuro premium */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black via-black/95 to-black/90 backdrop-blur-[2px]" />
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-6xl mx-auto">
@@ -20,12 +20,12 @@ export const HeroSection = memo(function HeroSection() {
               <div className="space-y-4">
                 <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white leading-tight">
                   DOMINE CADA DETALHE DA SUA{" "}
-                  <span className="text-gray-600">OPERAÇÃO</span>
+                  <span className="text-gray-400">OPERAÇÃO</span>
                 </h1>
                 <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-white/90 leading-tight">
-                  E ESCALE SUA <span className="text-gray-600">OPERAÇÃO</span> COM TOTAL PRECISÃO
+                  E ESCALE SUA <span className="text-gray-400">OPERAÇÃO</span> COM TOTAL PRECISÃO
                 </h2>
-                <p className="text-lg md:text-xl text-muted-foreground leading-relaxed max-w-lg mx-auto lg:mx-0">
+                <p className="text-lg md:text-xl text-neutral-400 leading-relaxed max-w-lg mx-auto lg:mx-0">
                   A solução completa que você precisa para automatizar processos, aumentar produtividade e escalar seu
                   negócio de forma inteligente.
                 </p>
@@ -102,7 +102,7 @@ export const HeroSection = memo(function HeroSection() {
                       <rect width="640" height="102" rx="51" fill="#000000" filter="url(#noise)" opacity="0.25" />
                     </g>
 
-                    {/* Texto maior (somente ajuste de tamanho e espaçamento) */}
+                    {/* Texto maior */}
                     <text
                       x="380"
                       y="101"

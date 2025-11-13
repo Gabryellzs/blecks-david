@@ -40,48 +40,60 @@ const courseModules = [
   },
 ] as const
 
+type FeatureCardProps = {
+  module: (typeof courseModules)[number]
+  index: number
+  isVisible: boolean
+  active: boolean
+}
+
 // =============================
 // CARD INDIVIDUAL
 // =============================
-function FeatureCard({ module, index, isVisible, active }) {
+function FeatureCard({ module, index, isVisible, active }: FeatureCardProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const [tilt, setTilt] = useState({ rx: 0, ry: 0 })
   const [hovered, setHovered] = useState(false)
   const angleRef = useRef(0)
 
-  // Movimento suave automático
+  // Movimento suave automático (AGORA SÓ QUANDO O CARD ESTÁ ATIVO)
   useEffect(() => {
-    let frameId: number
+    let frameId: number | null = null
 
     const animate = () => {
+      // só anima se for o card ativo e não tiver hover
+      if (!active || hovered) {
+        frameId = null
+        return
+      }
+
       angleRef.current += 0.015
 
-      setTilt((prev) => {
-        let rx = prev.rx
-        let ry = prev.ry
+      const amp = 3 // amplitude mais baixa
+      const rx = Math.sin(angleRef.current) * amp
+      const ry = Math.cos(angleRef.current * 0.8) * amp
 
-        if (active && !hovered) {
-          const amp = 3
-          rx = Math.sin(angleRef.current) * amp
-          ry = Math.cos(angleRef.current * 0.8) * amp
-        } else if (!hovered) {
-          const easing = 0.08
-          rx = rx + (0 - rx) * easing
-          ry = ry + (0 - ry) * easing
-        }
-
-        return { rx, ry }
-      })
-
+      setTilt({ rx, ry })
       frameId = requestAnimationFrame(animate)
     }
 
-    animate()
-    return () => cancelAnimationFrame(frameId)
+    if (active && !hovered) {
+      frameId = requestAnimationFrame(animate)
+    } else {
+      // quando deixar de ser ativo/hover, volta pro zero suavemente
+      setTilt((prev) => ({
+        rx: prev.rx * 0.5,
+        ry: prev.ry * 0.5,
+      }))
+    }
+
+    return () => {
+      if (frameId) cancelAnimationFrame(frameId)
+    }
   }, [active, hovered])
 
-  // Movimento com o mouse
-  const handleMouseMove = (e) => {
+  // Movimento com o mouse (menos intenso e mais leve)
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = wrapperRef.current?.getBoundingClientRect()
     if (!rect) return
 
@@ -90,7 +102,7 @@ function FeatureCard({ module, index, isVisible, active }) {
     const px = x / rect.width
     const py = y / rect.height
 
-    const maxTilt = 10
+    const maxTilt = 6 // antes era 10, agora mais suave
     const ry = (px - 0.5) * maxTilt * 2
     const rx = (0.5 - py) * maxTilt * 2
 
@@ -99,11 +111,17 @@ function FeatureCard({ module, index, isVisible, active }) {
 
   const isHoveredOrActive = hovered || active
 
+  // ===== EFEITO DE ENTRADA DE BAIXO PRA CIMA =====
+  const enterOffset = 40 // distância inicial pra baixo
+  const translateY = isVisible ? 0 : enterOffset
+  const scale = isVisible ? (isHoveredOrActive ? 1.02 : 1) : 0.96
+  const opacity = isVisible ? 1 : 0
+
   const transform = `
-    translateY(${isVisible ? 0 : 18}px)
+    translateY(${translateY}px)
     rotateX(${tilt.rx}deg)
     rotateY(${tilt.ry}deg)
-    scale(${isHoveredOrActive ? 1.04 : 1})
+    scale(${scale})
   `
 
   return (
@@ -112,18 +130,20 @@ function FeatureCard({ module, index, isVisible, active }) {
       className="group relative"
       style={{
         perspective: "1200px",
+        // delay em cascata quando a seção aparecer
         transitionDelay: isVisible ? `${index * 110}ms` : "0ms",
       }}
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* halo externo elegante - agora controlado só por CSS, sem piscar */}
+      {/* halo externo elegante - neon mais leve */}
       <div
         className="
-          pointer-events-none absolute -inset-px rounded-[26px] blur-xl
-          bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_65%)]
-          opacity-0 group-hover:opacity-100
+          pointer-events-none absolute -inset-[0.5px] rounded-[26px]
+          bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),transparent_65%)]
+          blur-lg opacity-0
+          group-hover:opacity-100
           transition-opacity duration-500
         "
       />
@@ -132,16 +152,19 @@ function FeatureCard({ module, index, isVisible, active }) {
       <Card
         className={[
           "relative overflow-hidden flex flex-col h-full",
-          "bg-white/5 backdrop-blur-2xl border border-white/12 rounded-3xl",
-          "px-6 pt-7 pb-8 shadow-[0_20px_50px_rgba(0,0,0,0.55)]",
-          isHoveredOrActive ? "border-neutral-200/50 shadow-[0_0_30px_rgba(255,255,255,0.18)]" : "",
+          "bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl",
+          "px-6 pt-7 pb-8 shadow-[0_14px_32px_rgba(0,0,0,0.55)]",
+          isHoveredOrActive
+            ? "border-neutral-200/40 shadow-[0_0_22px_rgba(255,255,255,0.16)]"
+            : "",
         ].join(" ")}
         style={{
           transform,
-          opacity: isVisible ? 1 : 0,
+          opacity,
           transformStyle: "preserve-3d",
+          willChange: "transform, box-shadow, border-color, opacity",
           transition:
-            "transform 320ms ease-out, border-color 280ms ease-out, box-shadow 280ms ease-out, opacity 600ms ease-out",
+            "transform 320ms ease-out, border-color 240ms ease-out, box-shadow 240ms ease-out, opacity 520ms ease-out",
         }}
       >
         {/* borda interna */}
@@ -154,10 +177,10 @@ function FeatureCard({ module, index, isVisible, active }) {
             <div
               className={[
                 "w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20",
-                "flex items-center justify-center shadow-[0_6px_22px_rgba(0,0,0,0.5)]",
-                "group-hover:shadow-[0_0_18px_rgba(255,255,255,0.22)] group-hover:border-white/35",
+                "flex items-center justify-center shadow-[0_6px_18px_rgba(0,0,0,0.45)]",
+                "group-hover:shadow-[0_0_16px_rgba(255,255,255,0.20)] group-hover:border-white/30",
               ].join(" ")}
-              style={{ transform: "translateZ(30px)" }}
+              style={{ transform: "translateZ(26px)" }}
             >
               <Image
                 src={`/icons-siderbar/${module.icon}.png`}
@@ -165,14 +188,14 @@ function FeatureCard({ module, index, isVisible, active }) {
                 width={52}
                 height={52}
                 className="h-12 w-12 object-contain opacity-95"
-                style={{ transform: "translateZ(40px)" }}
+                style={{ transform: "translateZ(34px)" }}
               />
             </div>
 
             {/* TÍTULO + SUBTÍTULO */}
             <div
               className="flex flex-col items-center text-center gap-1"
-              style={{ transform: "translateZ(22px)" }}
+              style={{ transform: "translateZ(20px)" }}
             >
               <CardTitle
                 className="
@@ -189,17 +212,17 @@ function FeatureCard({ module, index, isVisible, active }) {
               </div>
             </div>
 
-            {/* FAIXA DE NEON PREMIUM - estável, sem bug */}
+            {/* FAIXA DE NEON PREMIUM - mais suave */}
             <div
               className="
                 h-[2px] w-32 md:w-40 lg:w-48 mt-3
-                bg-gradient-to-r from-transparent via-white/50 to-transparent
+                bg-gradient-to-r from-transparent via-white/40 to-transparent
                 transition-all duration-500
-                group-hover:via-white/90
+                group-hover:via-white/80
               "
               style={{
-                transform: "translateZ(18px)",
-                boxShadow: "0 0 10px rgba(255,255,255,0.25)",
+                transform: "translateZ(16px)",
+                boxShadow: "0 0 6px rgba(255,255,255,0.20)",
               }}
             />
           </CardHeader>
@@ -226,15 +249,21 @@ export const FeaturesSection = memo(function FeaturesSection() {
 
   // aparece quando entra na tela
   useEffect(() => {
-    const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) setIsVisible(true)
-    })
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setIsVisible(true)
+      },
+      {
+        threshold: 0.2,
+        rootMargin: "0px 0px -10% 0px",
+      },
+    )
 
     if (sectionRef.current) obs.observe(sectionRef.current)
     return () => obs.disconnect()
   }, [])
 
-  // troca automática dos cards
+  // troca automática dos cards (continua igual)
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveCard((prev) => (prev + 1) % courseModules.length)

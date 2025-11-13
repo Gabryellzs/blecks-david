@@ -237,3 +237,58 @@ body {
     transform: none !important;
   }
 }
+
+/* =====================
+   🧊 Glassmorphism Cards
+   ===================== */
+.glass-card {
+  position: relative;
+  border-radius: 1rem;
+  background: radial-gradient(
+      circle at top left,
+      rgba(255, 255, 255, 0.20),
+      rgba(255, 255, 255, 0.02)
+    )
+    border-box;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 18px 35px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  overflow: hidden;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease,
+    background 0.25s ease;
+}
+
+.glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.18),
+    transparent 40%,
+    transparent 60%,
+    rgba(255, 255, 255, 0.06)
+  );
+  opacity: 0.45;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.glass-card:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow:
+    0 22px 40px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+/* opcional: combina com neon-card se usar junto */
+.glass-card.neon-card {
+  --gw: #9ca3af; /* neon cinza neutro nas logos */
+}

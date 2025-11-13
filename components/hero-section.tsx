@@ -7,7 +7,7 @@ export const HeroSection = memo(function HeroSection() {
   return (
     <section
       id="hero"
-      className="relative py-12 md:py-20 lg:py-32 overflow-hidden min-h-screen flex items-center"
+      className="relative py-12 md:py-20 lg:py-25 overflow-hidden min-h-screen flex items-center"
     >
       {/* Fundo bem escuro premium */}
       <div className="absolute inset-0 bg-gradient-to-br from-black via-black/95 to-black/90 backdrop-blur-[2px]" />
@@ -20,12 +20,12 @@ export const HeroSection = memo(function HeroSection() {
               <div className="space-y-4">
                 <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white leading-tight">
                   DOMINE CADA DETALHE DA SUA{" "}
-                  <span className="text-gray-400">OPERAÇÃO</span>
+                  <span className="text-gray-600">OPERAÇÃO</span>
                 </h1>
-                <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-white/90 leading-tight">
-                  E ESCALE SUA <span className="text-gray-400">OPERAÇÃO</span> COM TOTAL PRECISÃO
+                <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-white leading-tight">
+                  E ESCALE SUA <span className="text-gray-600">OPERAÇÃO</span> COM TOTAL PRECISÃO
                 </h2>
-                <p className="text-lg md:text-xl text-neutral-400 leading-relaxed max-w-lg mx-auto lg:mx-0">
+                <p className="text-lg md:text-xl text-neutral-200 leading-relaxed max-w-lg mx-auto lg:mx-0">
                   A solução completa que você precisa para automatizar processos, aumentar produtividade e escalar seu
                   negócio de forma inteligente.
                 </p>
@@ -45,7 +45,7 @@ export const HeroSection = memo(function HeroSection() {
                     <defs>
                       <linearGradient id="outer" x1="0" x2="1" y1="0" y2="0">
                         <stop offset="0" stopColor="#141414" />
-                        <stop offset="0.55" stopColor="#232323" />
+                        <stop offset="0.55" stopColor="#111111ff" />
                         <stop offset="1" stopColor="#141414" />
                       </linearGradient>
                       <linearGradient id="inner" x1="0" x2="1" y1="0" y2="0">
@@ -61,7 +61,7 @@ export const HeroSection = memo(function HeroSection() {
                       {/* Neon Glow expandido */}
                       <filter id="neon-glow" x="-100%" y="-100%" width="300%" height="300%">
                         <feGaussianBlur stdDeviation="10" result="blur" />
-                        <feFlood floodColor="#C8C8C8" floodOpacity="0.75" />
+                        <feFlood floodColor="#aba7a7ff" floodOpacity="0.75" />
                         <feComposite in2="blur" operator="in" />
                         <feMerge>
                           <feMergeNode />

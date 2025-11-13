@@ -11,28 +11,28 @@ const INTERVAL_TIME = 7000 // 7 segundos
 // =============================
 const courseModules = [
   {
-    icon: "revenue-analysis",
+    icon: "Análise De Faturamento",
     title: "ANÁLISE DE FATURAMENTO",
     subtitle: "Análise completa e precisa do seu faturamento",
     description:
       "Tenha clareza total sobre seus números e tome decisões estratégicas para aumentar seus lucros mês após mês com dados precisos e insights acionáveis.",
   },
   {
-    icon: "notebook-diary",
+    icon: "diario-semanal",
     title: "DIÁRIO SEMANAL",
     subtitle: "Tenha uma visão clara da sua semana",
     description:
       "Mantenha consistência, disciplina e crescimento constante. Organize seus pensamentos, acompanhe sua evolução e mantenha o foco no que realmente importa.",
   },
   {
-    icon: "calendar",
+    icon: "calendario",
     title: "CALENDÁRIO",
     subtitle: "Chega de ter a sua agenda desorganizada",
     description:
       "Transforme sua rotina: planeje, acompanhe e execute suas metas com muito mais eficiência.",
   },
   {
-    icon: "ai-brain",
+    icon: "ias",
     title: "IA'S",
     subtitle: "Tenha todas as IA's em um só lugar",
     description:
@@ -118,14 +118,14 @@ function FeatureCard({ module, index, isVisible, active }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* halo externo elegante */}
+      {/* halo externo elegante - agora controlado só por CSS, sem piscar */}
       <div
-        className={`
+        className="
           pointer-events-none absolute -inset-px rounded-[26px] blur-xl
           bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_65%)]
-          transition-opacity duration-700
-          ${isHoveredOrActive ? "opacity-100" : "opacity-0"}
-        `}
+          opacity-0 group-hover:opacity-100
+          transition-opacity duration-500
+        "
       />
 
       {/* CARD */}
@@ -150,13 +150,12 @@ function FeatureCard({ module, index, isVisible, active }) {
         {/* CONTEÚDO */}
         <div className="relative z-10 flex flex-col h-full">
           <CardHeader className="pb-6 flex flex-col items-center text-center gap-4">
-
             {/* QUADRADO DO ÍCONE */}
             <div
               className={[
                 "w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20",
                 "flex items-center justify-center shadow-[0_6px_22px_rgba(0,0,0,0.5)]",
-                isHoveredOrActive ? "shadow-[0_0_18px_rgba(255,255,255,0.22)] border-white/35" : "",
+                "group-hover:shadow-[0_0_18px_rgba(255,255,255,0.22)] group-hover:border-white/35",
               ].join(" ")}
               style={{ transform: "translateZ(30px)" }}
             >
@@ -171,7 +170,10 @@ function FeatureCard({ module, index, isVisible, active }) {
             </div>
 
             {/* TÍTULO + SUBTÍTULO */}
-            <div className="flex flex-col items-center text-center gap-1" style={{ transform: "translateZ(22px)" }}>
+            <div
+              className="flex flex-col items-center text-center gap-1"
+              style={{ transform: "translateZ(22px)" }}
+            >
               <CardTitle
                 className="
                   text-[14px] font-semibold 
@@ -187,19 +189,17 @@ function FeatureCard({ module, index, isVisible, active }) {
               </div>
             </div>
 
-            {/* FAIXA DE NEON PREMIUM */}
+            {/* FAIXA DE NEON PREMIUM - estável, sem bug */}
             <div
-              className={`
+              className="
                 h-[2px] w-32 md:w-40 lg:w-48 mt-3
-                bg-gradient-to-r from-transparent via-white/45 to-transparent
-                transition-all duration-400
-                ${isHoveredOrActive ? "via-white/90" : "via-white/45"}
-              `}
+                bg-gradient-to-r from-transparent via-white/50 to-transparent
+                transition-all duration-500
+                group-hover:via-white/90
+              "
               style={{
                 transform: "translateZ(18px)",
-                boxShadow: isHoveredOrActive
-                  ? "0 0 12px rgba(255,255,255,0.35)"
-                  : "0 0 6px rgba(255,255,255,0.18)",
+                boxShadow: "0 0 10px rgba(255,255,255,0.25)",
               }}
             />
           </CardHeader>
@@ -243,9 +243,12 @@ export const FeaturesSection = memo(function FeaturesSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} id="features" className="py-20 relative">
+    <section
+      ref={sectionRef}
+      id="features"
+      className="py-20 relative bg-gradient-to-b from-black/90 via-black/80 to-black/95"
+    >
       <div className="container mx-auto px-4">
-
         {/* ===== TÍTULO LUXO FUTURISTA ===== */}
         <div className="text-center mb-14 md:mb-20">
           <h2 className="text-[36px] md:text-[44px] lg:text-[52px] font-bold uppercase tracking-[0.18em]">

@@ -4,30 +4,58 @@ import PlacasPremiacao from "./placas-premiacao"
 
 export function CleanSectionFour() {
   return (
-    <section className="relative pb-5 md:pb-6 lg:pb-8 bg-background overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-background" />
+    <section className="relative pb-5 md:pb-6 lg:pb-8 bg-black/80 overflow-hidden">
+      {/* Fundo escuro com degradê */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black via-black/90 to-black/80 z-0" />
 
-      <div className="absolute top-10 md:top-20 left-10 md:left-20 w-16 h-16 md:w-32 md:h-32 bg-primary/20 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-16 md:bottom-32 right-16 md:right-32 w-12 h-12 md:w-24 md:h-24 bg-primary/30 rounded-full blur-2xl"></div>
-      <div className="absolute top-1/2 left-1/3 w-8 h-8 md:w-16 md:h-16 bg-primary/15 rounded-full blur-xl"></div>
+      {/* FEIXE DE LUZ CINZA NO CANTO ESQUERDO */}
+      <div
+        className="
+          pointer-events-none
+          absolute -left-24 md:-left-32 top-0
+          h-[120%] w-40 md:w-56
+          bg-gradient-to-b from-neutral-400/45 via-neutral-500/10 to-transparent
+          blur-3xl
+          opacity-80
+          mix-blend-screen
+          z-10
+        "
+      />
 
-      <div className="container mx-auto px-4 relative z-10">
+      {/* Luz suave à direita (opcional, só complementa o visual) */}
+      <div
+        className="
+          pointer-events-none
+          absolute bottom-10 md:bottom-24 right-0 md:right-10
+          h-40 w-32 md:h-52 md:w-40
+          bg-gradient-to-t from-primary/30 via-primary/10 to-transparent
+          blur-3xl
+          opacity-80
+          mix-blend-screen
+          z-10
+        "
+      />
+
+      {/* Conteúdo principal */}
+      <div className="container mx-auto px-4 relative z-20">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Lado esquerdo - Placas */}
           <div className="relative">
             <PlacasPremiacao />
           </div>
 
-          {/* Lado direito - Conteúdo */}
+          {/* Lado direito - Texto e botões */}
           <div className="text-center lg:text-left">
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6">
               CONQUISTE SUAS
               <span className="block text-primary"> METAS DE FATURAMENTO</span>
             </h2>
+
             <p className="text-lg md:text-xl text-gray-300 leading-relaxed mb-8">
               Cada marco alcançado merece ser celebrado. Nossa plataforma te ajuda a escalar seu negócio de forma
               consistente e atingir patamares cada vez maiores de faturamento com total controle e precisão.
             </p>
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <button className="shiny-button px-8 py-3 rounded-lg font-semibold transition-all duration-300">
                 COMEÇAR AGORA

@@ -1,9 +1,6 @@
-"use client"
-
 import Image from "next/image"
-import { memo } from "react"
 
-export const HeroSection = memo(function HeroSection() {
+export function HeroSection() {
   return (
     <section
       id="hero"
@@ -147,8 +144,8 @@ export const HeroSection = memo(function HeroSection() {
                     priority
                   />
                 </div>
-                <div className="absolute -top-4 -right-4 w-16 h-16 md:w-20 md:h-20 bg-primary/20 rounded-full blur-xl"></div>
-                <div className="absolute -bottom-4 -left-4 w-12 h-12 md:w-16 md:h-16 bg-primary/30 rounded-full blur-lg"></div>
+                <div className="absolute -top-4 -right-4 w-16 h-16 md:w-20 md:h-20 bg-primary/20 rounded-full blur-xl" />
+                <div className="absolute -bottom-4 -left-4 w-12 h-12 md:w-16 md:h-16 bg-primary/30 rounded-full blur-lg" />
               </div>
             </div>
           </div>
@@ -156,4 +153,4 @@ export const HeroSection = memo(function HeroSection() {
       </div>
     </section>
   )
-})
+}

@@ -1,29 +1,33 @@
 "use client"
 
 import { useEffect, useRef, useState, memo } from "react"
+import Image from "next/image"
 
 export const CleanSection = memo(function CleanSection() {
   const [isVisible, setIsVisible] = useState(false)
-  const sectionRef = useRef<HTMLElement>(null)
+  const sectionRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
+    const element = sectionRef.current
+    if (!element) return
+
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !isVisible) {
+        if (entry.isIntersecting) {
           setIsVisible(true)
-          observer.disconnect()
+          observer.unobserve(entry.target)
         }
       },
       {
         threshold: 0.3,
         rootMargin: "-50px 0px",
-      }
+      },
     )
 
-    if (sectionRef.current) observer.observe(sectionRef.current)
+    observer.observe(element)
 
     return () => observer.disconnect()
-  }, [isVisible])
+  }, [])
 
   return (
     <section
@@ -55,18 +59,20 @@ export const CleanSection = memo(function CleanSection() {
       {/* ======= CONTEÚDO ======= */}
       <div className="container mx-auto px-4 relative z-10">
         <div className="min-h-[100px] flex flex-col lg:flex-row items-center justify-between gap-4 lg:gap-6">
-
           {/* IMAGEM */}
           <div
             className={`w-full max-w-2xl transition-all duration-1000 ease-out ${
               isVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
             }`}
           >
-            <img
+            <Image
               src="/images/design-mode/Captura%20de%20Tela%202025-09-05%20a%CC%80s%2019.28.46.png"
               alt="Dashboard Analytics"
+              width={1280}
+              height={720}
               className="w-full h-auto rounded-lg shadow-2xl border border-gray-800 neon-card neon-glow neon-pulse"
               loading="lazy"
+              sizes="(min-width: 1024px) 640px, 100vw"
             />
           </div>
 

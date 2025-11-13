@@ -1,8 +1,17 @@
 "use client"
 
-import PlacasPremiacao from "./placas-premiacao"
+import { memo } from "react"
+import dynamic from "next/dynamic"
 
-export function CleanSectionFour() {
+// Lazy load das placas (carrega só quando essa seção aparecer na tela)
+const PlacasPremiacao = dynamic(() => import("./placas-premiacao"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[260px] md:h-[320px] lg:h-[360px] rounded-2xl bg-white/5 border border-white/10 animate-pulse" />
+  ),
+})
+
+export const CleanSectionFour = memo(function CleanSectionFour() {
   return (
     <section className="relative pb-5 md:pb-6 lg:pb-8 bg-black/80 overflow-hidden">
       {/* Fundo escuro com degradê */}
@@ -22,7 +31,7 @@ export function CleanSectionFour() {
         "
       />
 
-      {/* Luz suave à direita (opcional, só complementa o visual) */}
+      {/* Luz suave à direita */}
       <div
         className="
           pointer-events-none
@@ -46,7 +55,7 @@ export function CleanSectionFour() {
 
           {/* Lado direito - Texto e botões */}
           <div className="text-center lg:text-left">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6 leading-tight">
               CONQUISTE SUAS
               <span className="block text-primary"> METAS DE FATURAMENTO</span>
             </h2>
@@ -69,4 +78,4 @@ export function CleanSectionFour() {
       </div>
     </section>
   )
-}
+})

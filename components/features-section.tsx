@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useEffect, useRef, useState } from "react"
+import { memo, useEffect, useRef, useState, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Image from "next/image"
 
@@ -35,8 +35,7 @@ const courseModules = [
     icon: "ias",
     title: "IA'S",
     subtitle: "Tenha todas as IA's em um só lugar",
-    description:
-      "Acesse as melhores inteligências artificiais para acelerar seu trabalho.",
+    description: "Acesse as melhores inteligências artificiais para acelerar seu trabalho.",
   },
 ] as const
 
@@ -50,69 +49,48 @@ type FeatureCardProps = {
 // =============================
 // CARD INDIVIDUAL
 // =============================
-function FeatureCard({ module, index, isVisible, active }: FeatureCardProps) {
+const FeatureCard = memo(function FeatureCard({
+  module,
+  index,
+  isVisible,
+  active,
+}: FeatureCardProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const [tilt, setTilt] = useState({ rx: 0, ry: 0 })
   const [hovered, setHovered] = useState(false)
-  const angleRef = useRef(0)
 
-  // Movimento suave automático (AGORA SÓ QUANDO O CARD ESTÁ ATIVO)
-  useEffect(() => {
-    let frameId: number | null = null
+  // Movimento com o mouse (apenas quando hover, bem mais leve)
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!hovered) return
 
-    const animate = () => {
-      // só anima se for o card ativo e não tiver hover
-      if (!active || hovered) {
-        frameId = null
-        return
-      }
+      const rect = wrapperRef.current?.getBoundingClientRect()
+      if (!rect) return
 
-      angleRef.current += 0.015
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      const px = x / rect.width
+      const py = y / rect.height
 
-      const amp = 3 // amplitude mais baixa
-      const rx = Math.sin(angleRef.current) * amp
-      const ry = Math.cos(angleRef.current * 0.8) * amp
+      const maxTilt = 6
+      const ry = (px - 0.5) * maxTilt * 2
+      const rx = (0.5 - py) * maxTilt * 2
 
       setTilt({ rx, ry })
-      frameId = requestAnimationFrame(animate)
-    }
+    },
+    [hovered],
+  )
 
-    if (active && !hovered) {
-      frameId = requestAnimationFrame(animate)
-    } else {
-      // quando deixar de ser ativo/hover, volta pro zero suavemente
-      setTilt((prev) => ({
-        rx: prev.rx * 0.5,
-        ry: prev.ry * 0.5,
-      }))
-    }
-
-    return () => {
-      if (frameId) cancelAnimationFrame(frameId)
-    }
-  }, [active, hovered])
-
-  // Movimento com o mouse (menos intenso e mais leve)
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = wrapperRef.current?.getBoundingClientRect()
-    if (!rect) return
-
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    const px = x / rect.width
-    const py = y / rect.height
-
-    const maxTilt = 6 // antes era 10, agora mais suave
-    const ry = (px - 0.5) * maxTilt * 2
-    const rx = (0.5 - py) * maxTilt * 2
-
-    setTilt({ rx, ry })
-  }
+  const handleMouseLeave = useCallback(() => {
+    setHovered(false)
+    // volta suavemente pro “zero”
+    setTilt({ rx: 0, ry: 0 })
+  }, [])
 
   const isHoveredOrActive = hovered || active
 
   // ===== EFEITO DE ENTRADA DE BAIXO PRA CIMA =====
-  const enterOffset = 40 // distância inicial pra baixo
+  const enterOffset = 40
   const translateY = isVisible ? 0 : enterOffset
   const scale = isVisible ? (isHoveredOrActive ? 1.02 : 1) : 0.96
   const opacity = isVisible ? 1 : 0
@@ -130,12 +108,11 @@ function FeatureCard({ module, index, isVisible, active }: FeatureCardProps) {
       className="group relative"
       style={{
         perspective: "1200px",
-        // delay em cascata quando a seção aparecer
         transitionDelay: isVisible ? `${index * 110}ms` : "0ms",
       }}
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={handleMouseLeave}
     >
       {/* halo externo elegante - neon mais leve */}
       <div
@@ -189,6 +166,7 @@ function FeatureCard({ module, index, isVisible, active }: FeatureCardProps) {
                 height={52}
                 className="h-12 w-12 object-contain opacity-95"
                 style={{ transform: "translateZ(34px)" }}
+                loading="lazy"
               />
             </div>
 
@@ -212,7 +190,7 @@ function FeatureCard({ module, index, isVisible, active }: FeatureCardProps) {
               </div>
             </div>
 
-            {/* FAIXA DE NEON PREMIUM - mais suave */}
+            {/* FAIXA DE NEON PREMIUM */}
             <div
               className="
                 h-[2px] w-32 md:w-40 lg:w-48 mt-3
@@ -237,7 +215,7 @@ function FeatureCard({ module, index, isVisible, active }: FeatureCardProps) {
       </Card>
     </div>
   )
-}
+})
 
 // =============================
 // SEÇÃO COMPLETA
@@ -263,11 +241,12 @@ export const FeaturesSection = memo(function FeaturesSection() {
     return () => obs.disconnect()
   }, [])
 
-  // troca automática dos cards (continua igual)
+  // troca automática dos cards (só muda destaque visual, sem animação pesada)
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveCard((prev) => (prev + 1) % courseModules.length)
     }, INTERVAL_TIME)
+
     return () => clearInterval(interval)
   }, [])
 
@@ -278,7 +257,7 @@ export const FeaturesSection = memo(function FeaturesSection() {
       className="py-20 relative bg-gradient-to-b from-black/90 via-black/80 to-black/95"
     >
       <div className="container mx-auto px-4">
-        {/* ===== TÍTULO LUXO FUTURISTA ===== */}
+        {/* ===== TÍTULO ===== */}
         <div className="text-center mb-14 md:mb-20">
           <h2 className="text-[36px] md:text-[44px] lg:text-[52px] font-bold uppercase tracking-[0.18em]">
             <span className="bg-gradient-to-r from-white via-neutral-200 to-white/60 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(255,255,255,0.28)]">

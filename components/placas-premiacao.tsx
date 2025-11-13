@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, memo } from "react"
+import { useEffect, useState, memo, useRef } from "react"
 import { motion } from "framer-motion"
 
 const placas = [
@@ -23,44 +23,74 @@ const placas = [
 
 const PlacasPremiacao = memo(function PlacasPremiacao() {
   const [ordem, setOrdem] = useState([2, 0, 1])
+  const [isVisible, setIsVisible] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
+  // Só considera a seção "ativa" quando estiver visível na tela
   useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting)
+      },
+      { threshold: 0.2 },
+    )
+
+    observer.observe(el)
+
+    return () => observer.disconnect()
+  }, [])
+
+  // Rotaciona as placas apenas quando visível
+  useEffect(() => {
+    if (!isVisible) return
+
     const intervalo = setInterval(() => {
       setOrdem((prev) => {
         const nova = [...prev]
-        nova.push(nova.shift()!)
+        const primeiro = nova.shift()
+        if (primeiro === undefined) return prev
+        nova.push(primeiro)
         return nova
       })
     }, 10000)
 
     return () => clearInterval(intervalo)
-  }, [])
+  }, [isVisible])
 
   return (
-    <div className="relative w-full h-[450px] flex items-end justify-center">
+    <div
+      ref={containerRef}
+      className="relative w-full h-[380px] md:h-[430px] lg:h-[460px] flex items-end justify-center"
+    >
       {ordem.map((i, pos) => {
         const zIndex = 10 - pos
 
+        // posição e escala de cada placa (centro / esquerda / direita)
         const transform = {
           0: { scale: 1, x: 0, y: 0 },
-          1: { scale: 0.9, x: -200, y: 0 },
-          2: { scale: 0.85, x: 200, y: 0 },
-        }
+          1: { scale: 0.9, x: -180, y: 0 },
+          2: { scale: 0.9, x: 180, y: 0 },
+        } as const
+
+        const current = transform[pos as 0 | 1 | 2]
 
         return (
           <motion.img
             key={placas[i].id}
             src={placas[i].img}
             alt={placas[i].titulo}
-            initial={{ opacity: 0 }}
+            initial={{ opacity: 0, scale: 0.85 }}
             animate={{
               opacity: 1,
-              scale: transform[pos as keyof typeof transform].scale,
-              x: transform[pos as keyof typeof transform].x,
-              y: transform[pos as keyof typeof transform].y,
+              scale: current.scale,
+              x: current.x,
+              y: current.y,
             }}
-            transition={{ duration: 0.8 }}
-            className="absolute w-72 h-auto rounded-xl shadow-2xl"
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="absolute w-64 md:w-72 h-auto rounded-xl shadow-2xl"
             style={{ zIndex, willChange: "transform, opacity" }}
             loading="lazy"
           />

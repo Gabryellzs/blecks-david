@@ -233,7 +233,7 @@ export function RegisterForm() {
       {/* ANIMAÇÃO DA LOGO */}
       <style jsx>{`
         .logo-floating {
-          animation: floatLogo 8s ease-in-out infinite;
+          animation: floatLogo 7s ease-in-out infinite;
           transform-origin: center center;
         }
 

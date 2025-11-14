@@ -281,14 +281,9 @@ body {
 }
 
 .glass-card:hover {
-  transform: translateY(-3px) scale(1.02);
+  transform: translateY(3px) scale(1.02);
   box-shadow:
     0 22px 40px rgba(0, 0, 0, 0.7),
     0 0 0 1px rgba(255, 255, 255, 0.06) inset;
   border-color: rgba(255, 255, 255, 0.28);
-}
-
-/* opcional: combina com neon-card se usar junto */
-.glass-card.neon-card {
-  --gw: #9ca3af; /* neon cinza neutro nas logos */
 }

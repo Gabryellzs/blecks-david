@@ -79,6 +79,7 @@ export function RegisterForm() {
   }
 
   return (
+    // ÚNICA MUDANÇA REAL: esse container virou fixed + inset-0
     <div className="fixed inset-0 flex w-full items-center justify-center bg-black px-4 overflow-hidden">
       {/* FUNDO CINZA LUXO */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black via-[#0b0b0c] to-black" />
@@ -96,7 +97,7 @@ export function RegisterForm() {
       {/* TEXTURA CINZA (ruído leve) */}
       <div className="pointer-events-none absolute inset-0 opacity-[0.08] mix-blend-soft-light [background-image:radial-gradient(circle_at_1px_1px,#ffffff_0.5px,transparent_0)] [background-size:6px_6px]" />
 
-      {/* CONTEÚDO */}
+      {/* CONTEÚDO – IGUAL AO SEU ORIGINAL */}
       <div className="relative z-10 flex h-full w-full max-w-7xl flex-col items-center gap-10 lg:flex-row lg:items-stretch">
         {/* LOGO */}
         <div className="flex h-full w-full items-center justify-center lg:w-5/12">
@@ -109,7 +110,7 @@ export function RegisterForm() {
           </div>
         </div>
 
-        {/* CARD (sem alterações no card) */}
+        {/* CARD – MESMAS CLASSES QUE VOCÊ MANDOU (central + translate-x-8) */}
         <div className="flex h-full w-full items-center justify-center lg:w-7/12 translate-x-8">
           <div className="relative w-full max-w-[800px]">
             {/* AURA CINZA DISCRETA AO REDOR DO CARD */}

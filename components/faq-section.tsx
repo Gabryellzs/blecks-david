@@ -48,40 +48,86 @@ const faqs = [
 
 export const FAQSection = React.memo(function FAQSection() {
   return (
-    <section className="py-16 md:py-20 lg:py-24 bg-black">
-      <div className="container mx-auto px-4 md:px-6 max-w-4xl">
+    <section className="relative py-12 md:py-16 bg-black overflow-hidden">
+      {/* Glow metálico suave no topo */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(180,180,180,0.12),rgba(0,0,0,0)_70%)] pointer-events-none" />
+
+      <div className="container mx-auto px-4 md:px-6 max-w-4xl relative z-10">
         {/* Título */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">Ficou com alguma dúvida?</h2>
-          <p className="text-lg md:text-xl text-gray-400">Dê uma olhada nas perguntas mais frequentes abaixo:</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-white">
+            Ficou com alguma dúvida?
+          </h2>
+          <p className="text-gray-400 text-lg mt-3">
+            Confira as perguntas mais frequentes abaixo:
+          </p>
         </div>
 
-        {/* Accordion de perguntas */}
+        {/* FAQ */}
         <Accordion type="single" collapsible className="w-full space-y-4">
           {faqs.map((faq, index) => (
             <AccordionItem
               key={index}
               value={`item-${index}`}
-              className="border border-gray-800 rounded-lg px-6 bg-gray-900/30 backdrop-blur-sm hover:bg-gray-900/50 transition-colors"
+              className={`
+                border border-gray-700/40 
+                rounded-xl 
+                px-5 py-1
+                bg-black/40 
+                backdrop-blur-sm 
+                shadow-[0_0_18px_rgba(255,255,255,0.03)]
+                hover:shadow-[0_0_26px_rgba(255,255,255,0.06)]
+                transition-all duration-300
+                ${index === faqs.length - 1 ? "mb-4 border-b-gray-600/60" : ""}
+              `}
             >
-              <AccordionTrigger className="text-left text-white hover:text-gray-300 text-base md:text-lg font-semibold">
+              <AccordionTrigger className="text-left text-white text-lg font-semibold hover:text-gray-300 transition-colors">
                 {faq.question}
               </AccordionTrigger>
-              <AccordionContent className="text-gray-400 text-sm md:text-base leading-relaxed">
+
+              <AccordionContent className="text-gray-400 text-base leading-relaxed pb-3">
                 {faq.answer}
               </AccordionContent>
             </AccordionItem>
           ))}
         </Accordion>
 
-        {/* CTA adicional */}
+        {/* CTA */}
         <div className="text-center mt-12">
-          <p className="text-gray-400 mb-4">Ainda tem dúvidas?</p>
+          <p className="text-gray-100 mb-3">Ainda tem dúvidas?</p>
+
           <a
             href="#"
-            className="inline-block px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors font-medium"
+            className="
+              relative inline-flex items-center justify-center
+              rounded-2xl p-[1px]
+              bg-gradient-to-r from-zinc-300/80 via-zinc-600/40 to-zinc-300/80
+              shadow-[0_0_22px_rgba(200,200,200,0.35)]
+              hover:shadow-[0_0_40px_rgba(220,220,220,0.6)]
+              transition-all duration-300
+            "
           >
-            Entre em contato conosco
+            {/* Glow suave pulsando */}
+            <span
+              aria-hidden="true"
+              className="
+                pointer-events-none absolute inset-0 rounded-2xl
+                bg-white/10 blur-xl opacity-25
+                animate-pulse
+              "
+            />
+
+            {/* Conteúdo do botão */}
+            <span
+              className="
+                relative inline-flex items-center justify-center
+                px-8 py-3 rounded-[1rem]
+                bg-gradient-to-b from-black via-black/90 to-neutral-950
+                text-white text-lg tracking-wide font-semibold
+              "
+            >
+              Falar com o suporte
+            </span>
           </a>
         </div>
       </div>

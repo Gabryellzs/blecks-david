@@ -21,7 +21,7 @@ export const CleanSection = memo(function CleanSection() {
       {
         threshold: 0.3,
         rootMargin: "-50px 0px",
-      },
+      }
     )
 
     observer.observe(element)
@@ -59,7 +59,8 @@ export const CleanSection = memo(function CleanSection() {
       {/* ======= CONTEÚDO ======= */}
       <div className="container mx-auto px-4 relative z-10">
         <div className="min-h-[100px] flex flex-col lg:flex-row items-center justify-between gap-4 lg:gap-6">
-          {/* IMAGEM */}
+
+          {/* IMAGEM COM NEON ATIVADO */}
           <div
             className={`w-full max-w-2xl transition-all duration-1000 ease-out ${
               isVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
@@ -70,7 +71,12 @@ export const CleanSection = memo(function CleanSection() {
               alt="Dashboard Analytics"
               width={1280}
               height={720}
-              className="w-full h-auto rounded-lg shadow-2xl border border-gray-800 neon-card neon-glow neon-pulse"
+              className="
+                w-full h-auto rounded-xl
+                shadow-[0_0_25px_rgba(0,200,255,0.45)]
+                border border-[rgba(155, 156, 157, 1)]
+                neon-glow
+              "
               loading="lazy"
               sizes="(min-width: 1024px) 640px, 100vw"
             />

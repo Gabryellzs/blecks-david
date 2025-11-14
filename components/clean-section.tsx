@@ -39,7 +39,7 @@ export const CleanSection = memo(function CleanSection() {
         className="
           pointer-events-none
           absolute inset-0
-          bg-[radial-gradient(circle_at_top_left,rgba(130,130,130,0.28),rgba(0,0,0,1)_65%)]
+          bg-[radial-gradient(circle_at_top_left,rgba(14, 14, 14, 1),rgba(0,0,0,1)_65%)]
           opacity-90
           z-0
         "
@@ -50,7 +50,7 @@ export const CleanSection = memo(function CleanSection() {
         className="
           pointer-events-none
           absolute inset-0
-          bg-[radial-gradient(circle_at_right,rgba(80,80,80,0.18),transparent_70%)]
+          bg-[radial-gradient(circle_at_right,rgba(24, 24, 24, 1),transparent_70%)]
           opacity-60
           z-0
         "

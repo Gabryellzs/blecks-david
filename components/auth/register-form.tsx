@@ -79,7 +79,7 @@ export function RegisterForm() {
   }
 
   return (
-    <div className="relative flex h-screen w-full items-center justify-center bg-black px-4 overflow-hidden">
+    <div className="fixed inset-0 flex w-full items-center justify-center bg-black px-4 overflow-hidden">
       {/* FUNDO CINZA LUXO */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black via-[#0b0b0c] to-black" />
 
@@ -109,7 +109,7 @@ export function RegisterForm() {
           </div>
         </div>
 
-        {/* CARD */}
+        {/* CARD (sem alterações no card) */}
         <div className="flex h-full w-full items-center justify-center lg:w-7/12 translate-x-8">
           <div className="relative w-full max-w-[800px]">
             {/* AURA CINZA DISCRETA AO REDOR DO CARD */}

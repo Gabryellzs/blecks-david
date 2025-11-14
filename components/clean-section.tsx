@@ -21,7 +21,7 @@ export const CleanSection = memo(function CleanSection() {
       {
         threshold: 0.3,
         rootMargin: "-50px 0px",
-      }
+      },
     )
 
     observer.observe(element)
@@ -34,33 +34,32 @@ export const CleanSection = memo(function CleanSection() {
       ref={sectionRef}
       className="relative py-4 md:py-6 lg:py-8 overflow-hidden bg-black"
     >
-      {/* ======= LUZ CINZA DO CANTO ESQUERDO SUPERIOR ======= */}
+      {/* LUZ CINZA DO CANTO ESQUERDO SUPERIOR */}
       <div
         className="
           pointer-events-none
           absolute inset-0
-          bg-[radial-gradient(circle_at_top_left,rgba(130,130,130,0.28),rgba(0,0,0,1) 65%)]
+          bg-[radial-gradient(circle_at_top_left,rgba(130,130,130,0.28),rgba(0,0,0,1)_65%)]
           opacity-90
           z-0
         "
       />
 
-      {/* ======= LUZ SUAVE NO CANTO DIREITO ======= */}
+      {/* LUZ SUAVE NO CANTO DIREITO */}
       <div
         className="
           pointer-events-none
           absolute inset-0
-          bg-[radial-gradient(circle_at_right,rgba(80,80,80,0.18),transparent 70%)]
+          bg-[radial-gradient(circle_at_right,rgba(80,80,80,0.18),transparent_70%)]
           opacity-60
           z-0
         "
       />
 
-      {/* ======= CONTEÚDO ======= */}
+      {/* CONTEÚDO */}
       <div className="container mx-auto px-4 relative z-10">
         <div className="min-h-[100px] flex flex-col lg:flex-row items-center justify-between gap-4 lg:gap-6">
-
-          {/* IMAGEM COM NEON ATIVADO */}
+          {/* IMAGEM COM NEON */}
           <div
             className={`w-full max-w-2xl transition-all duration-1000 ease-out ${
               isVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
@@ -73,10 +72,10 @@ export const CleanSection = memo(function CleanSection() {
               height={720}
               className="
                 w-full h-auto rounded-xl
-                shadow-[0_0_25px_rgba(0,200,255,0.45)]
-                border border-[rgba(155, 156, 157, 1)]
-                neon-glow
               "
+              style={{
+                boxShadow: "0 0 20px rgba(158, 159, 159, 1)", // 👈 MUDE A COR DO NEON AQUI
+              }}
               loading="lazy"
               sizes="(min-width: 1024px) 640px, 100vw"
             />

@@ -91,7 +91,7 @@ export default function AssinaturasPage() {
       <main className="relative z-10 container mx-auto px-4 py-16">
 
         {/* HERO */}
-        <div className="text-center mb-12 space-y-4 mt-[40px]">
+        <div className="text-center mb-12 space-y-4 mt-[50px]">
           <h1 className="text-4xl md:text-6xl font-bold mb-2">
             ESCOLHA O PLANO
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d1d1d1] via-[#e5e5e5] to-[#f2f2f2]">

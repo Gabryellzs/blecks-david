@@ -70,12 +70,15 @@ export function Header() {
             >
               Outras Abas
             </button>
+
+            {/* 🔥 SEMPRE /assinaturas (plural) */}
             <button
               onClick={() => router.push("/assinaturas")}
               className="text-zinc-400 hover:text-zinc-100 transition-colors"
             >
               Assinaturas
             </button>
+
             <button
               onClick={() => navigateToSection("integracoes")}
               className="text-zinc-400 hover:text-zinc-100 transition-colors"
@@ -130,7 +133,7 @@ export function Header() {
 
       {/* MENU MOBILE ABAIXO DO CARD, TAMBÉM FLUTUANTE */}
       {isMenuOpen && (
-        <div className="pointer-events-auto md:hidden px-4 pt- pb-4">
+        <div className="pointer-events-auto md:hidden px-4 pt-2 pb-4">
           <div
             className="
               max-w-6xl mx-auto
@@ -152,6 +155,8 @@ export function Header() {
               >
                 Outras Abas
               </button>
+
+              {/* 🔥 MOBILE TAMBÉM /assinaturas */}
               <button
                 onClick={() => {
                   router.push("/assinaturas")
@@ -161,6 +166,7 @@ export function Header() {
               >
                 Assinaturas
               </button>
+
               <button
                 onClick={() => {
                   navigateToSection("integracoes")

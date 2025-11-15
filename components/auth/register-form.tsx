@@ -79,25 +79,27 @@ export function RegisterForm() {
   }
 
   return (
-    // ÚNICA MUDANÇA REAL: esse container virou fixed + inset-0
-    <div className="fixed inset-0 flex w-full items-center justify-center bg-black px-4 overflow-hidden">
-      {/* FUNDO CINZA LUXO */}
+    <div className="relative flex h-screen w-full items-center justify-center bg-black px-4 overflow-hidden">
+      {/* FUNDO CINZA LUXO ESTÁTICO */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black via-[#0b0b0c] to-black" />
-
-      {/* CINZA CENTRAL SUAVE */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(180,180,185,0.16),transparent_60%)] opacity-80" />
-
-      {/* FAIXA DIAGONAL CINZA */}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(200,200,210,0.14),transparent_40%)]" />
-
-      {/* LINHAS METÁLICAS */}
       <div className="pointer-events-none absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-zinc-600/30 to-transparent" />
       <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-zinc-700/30 to-transparent" />
-
-      {/* TEXTURA CINZA (ruído leve) */}
       <div className="pointer-events-none absolute inset-0 opacity-[0.08] mix-blend-soft-light [background-image:radial-gradient(circle_at_1px_1px,#ffffff_0.5px,transparent_0)] [background-size:6px_6px]" />
 
-      {/* CONTEÚDO – IGUAL AO SEU ORIGINAL */}
+      {/* LUZES E FAIXA ANIMADAS */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        {/* Orbes flutuando */}
+        <div className="animated-orb orb-1" />
+        <div className="animated-orb orb-2" />
+        <div className="animated-orb orb-3" />
+
+        {/* Faixa metálica varrendo o fundo */}
+        <div className="animated-stripe" />
+      </div>
+
+      {/* CONTEÚDO */}
       <div className="relative z-10 flex h-full w-full max-w-7xl flex-col items-center gap-10 lg:flex-row lg:items-stretch">
         {/* LOGO */}
         <div className="flex h-full w-full items-center justify-center lg:w-5/12">
@@ -110,7 +112,7 @@ export function RegisterForm() {
           </div>
         </div>
 
-        {/* CARD – MESMAS CLASSES QUE VOCÊ MANDOU (central + translate-x-8) */}
+        {/* CARD */}
         <div className="flex h-full w-full items-center justify-center lg:w-7/12 translate-x-8">
           <div className="relative w-full max-w-[800px]">
             {/* AURA CINZA DISCRETA AO REDOR DO CARD */}
@@ -231,10 +233,10 @@ export function RegisterForm() {
         </div>
       </div>
 
-      {/* ANIMAÇÃO DA LOGO */}
+      {/* ANIMAÇÕES */}
       <style jsx>{`
         .logo-floating {
-          animation: floatLogo 7s ease-in-out infinite;
+          animation: floatLogo 8s ease-in-out infinite;
           transform-origin: center center;
         }
 
@@ -247,6 +249,91 @@ export function RegisterForm() {
           }
           100% {
             transform: translateY(0px) scale(1);
+          }
+        }
+
+        .animated-orb {
+          position: absolute;
+          width: 420px;
+          height: 420px;
+          border-radius: 9999px;
+          filter: blur(40px);
+          opacity: 0.32;
+          mix-blend-mode: screen;
+          background: radial-gradient(
+            circle at 30% 30%,
+            rgba(255, 255, 255, 0.2),
+            transparent 60%
+          );
+          animation: orbFloat 18s ease-in-out infinite alternate;
+        }
+
+        .orb-1 {
+          top: -120px;
+          left: -80px;
+          animation-delay: 0s;
+        }
+
+        .orb-2 {
+          bottom: -160px;
+          right: -60px;
+          animation-delay: -6s;
+        }
+
+        .orb-3 {
+          top: 30%;
+          right: 35%;
+          opacity: 0.22;
+          animation-duration: 24s;
+          animation-delay: -3s;
+        }
+
+        @keyframes orbFloat {
+          0% {
+            transform: translate3d(0, 0, 0) scale(1);
+          }
+          50% {
+            transform: translate3d(30px, -20px, 0) scale(1.05);
+          }
+          100% {
+            transform: translate3d(-10px, 25px, 0) scale(1.02);
+          }
+        }
+
+        .animated-stripe {
+          position: absolute;
+          inset: -40%;
+          background: linear-gradient(
+            120deg,
+            transparent 0%,
+            rgba(200, 200, 210, 0.22) 45%,
+            rgba(255, 255, 255, 0.1) 50%,
+            rgba(180, 180, 190, 0.2) 55%,
+            transparent 100%
+          );
+          opacity: 0.18;
+          mix-blend-mode: screen;
+          transform: translate3d(-30%, 0, 0) rotate(-10deg);
+          animation: stripeSweep 26s linear infinite;
+        }
+
+        @keyframes stripeSweep {
+          0% {
+            transform: translate3d(-30%, 0, 0) rotate(-10deg);
+          }
+          50% {
+            transform: translate3d(0%, 0, 0) rotate(-12deg);
+          }
+          100% {
+            transform: translate3d(30%, 0, 0) rotate(-10deg);
+          }
+        }
+
+        @media (max-width: 768px) {
+          .animated-orb {
+            width: 260px;
+            height: 260px;
+            filter: blur(32px);
           }
         }
       `}</style>

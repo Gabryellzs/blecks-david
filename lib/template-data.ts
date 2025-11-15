@@ -49,7 +49,13 @@ const createIconNode = (
 })
 
 // Função para criar uma conexão entre nós
-const createEdge = (source: string, target: string, color = "#ffffff", animated = false, style = "solid"): Edge => ({
+const createEdge = (
+  source: string,
+  target: string,
+  color = "#ffffff",
+  animated = false,
+  style: "solid" | "dashed" | "dotted" = "solid",
+): Edge => ({
   id: `e-${source}-${target}`,
   source,
   target,
@@ -72,7 +78,7 @@ export const exactReferenceTemplate: TemplateData = {
   name: "Funil de Marketing Completo",
   description: "Funil completo com múltiplos canais, webinar, segmentação e follow-up",
   nodes: [
-    // Canais de aquisição (lado esquerdo) - AJUSTADOS COM MAIS ESPAÇO VERTICAL
+    // Canais de aquisição (lado esquerdo)
     createIconNode("search", "Pesquisa", "search", "#FF5252", { x: 60, y: 100 }),
     createIconNode("program-affiliates", "Programa de Afiliados", "affiliates", "#2ecc71", { x: 60, y: 200 }),
     createIconNode("facebook-ad", "Facebook Ad", "facebook", "#4267B2", { x: 60, y: 300 }),
@@ -81,7 +87,7 @@ export const exactReferenceTemplate: TemplateData = {
     createIconNode("youtube-ads", "YouTube Ads", "youtube", "#FF0000", { x: 60, y: 600 }),
     createIconNode("linkedin", "LinkedIn", "linkedin", "#0077B5", { x: 60, y: 700 }),
 
-    // Primeira coluna de páginas - MAIS ESPAÇADAS
+    // Primeira coluna de páginas
     createPageNode("blog-post", "Blog Post", "Artigo de blog", "blog", { x: 300, y: 180 }),
     createPageNode("webinar-registration", "Webinar Registration", "Registro para webinar", "webinar", {
       x: 300,
@@ -89,32 +95,32 @@ export const exactReferenceTemplate: TemplateData = {
     }),
     createPageNode("survey", "Survey", "Pesquisa com visitantes", "landing", { x: 300, y: 700 }),
 
-    // Nós de lead e email - AJUSTADOS PARA ALINHAR COM AS NOVAS POSIÇÕES
+    // Nós de lead e email
     createIconNode("lead", "Lead", "lead", "#f39c12", { x: 550, y: 250 }),
     createIconNode("email-follow-ups", "Email Follow Ups", "email", "#3498db", { x: 550, y: 370 }),
 
-    // Nós de segmentação - AJUSTADOS PARA ALINHAR COM AS NOVAS POSIÇÕES
+    // Nós de segmentação
     createIconNode("segment-2", "Segment #2", "segment", "#e74c3c", { x: 550, y: 650 }),
     createIconNode("segment-3", "Segment #3", "segment", "#e74c3c", { x: 550, y: 750 }),
 
-    // Segunda coluna de páginas - AJUSTADA
+    // Segunda coluna de páginas
     createPageNode("live-webinar", "Live Webinar", "Webinar ao vivo", "webinar", { x: 550, y: 450 }),
 
-    // Terceira coluna - páginas e ícones - MAIS ESPAÇADAS HORIZONTALMENTE
+    // Terceira coluna
     createIconNode("retargeting", "Retargeting", "retargeting", "#34495e", { x: 800, y: 200 }),
     createPageNode("sales-page-video", "Sales Page Video", "Página de vendas com vídeo", "sales", { x: 800, y: 300 }),
     createIconNode("front-end-customer", "Front-end Customer", "front-end", "#2ecc71", { x: 800, y: 450 }),
     createIconNode("report", "Report", "report", "#7f8c8d", { x: 800, y: 650 }),
 
-    // Quarta coluna - páginas e ícones - MAIS ESPAÇADAS HORIZONTALMENTE
+    // Quarta coluna
     createPageNode("upsell-oto", "Upsell OTO", "Oferta única de upsell", "sales", { x: 1050, y: 450 }),
     createIconNode("watch-video", "Watch Video", "video", "#e74c3c", { x: 1050, y: 650 }),
 
-    // Quinta coluna - ícones e páginas - MAIS ESPAÇADAS HORIZONTALMENTE
+    // Quinta coluna
     createIconNode("email", "Email", "email", "#3498db", { x: 1300, y: 530 }),
     createIconNode("sms", "SMS", "sms", "#9b59b6", { x: 1300, y: 650 }),
 
-    // Sexta coluna - páginas e ícones - MAIS ESPAÇADAS HORIZONTALMENTE
+    // Sexta coluna
     createPageNode("calendar", "Calendar", "Página de agendamento", "landing", { x: 1550, y: 180 }),
     createIconNode("deal-lost", "Deal Lost", "deal-lost", "#e74c3c", { x: 1550, y: 280 }),
     createIconNode("sales-pipeline", "Sales Pipeline", "pipeline", "#e74c3c", { x: 1300, y: 320 }),
@@ -202,7 +208,7 @@ export const exactReferenceTemplate: TemplateData = {
   ],
 }
 
-// Template de Funil de Vendas Básico - AJUSTADO COM MAIS ESPAÇO
+// Template de Funil de Vendas Básico
 export const basicSalesFunnelTemplate: TemplateData = {
   id: "funnel-basic",
   name: "Funil de Vendas Básico",
@@ -232,7 +238,7 @@ export const basicSalesFunnelTemplate: TemplateData = {
   ],
 }
 
-// Template de Webinar - AJUSTADO COM MAIS ESPAÇO
+// Template de Webinar
 export const webinarFunnelTemplate: TemplateData = {
   id: "webinar-funnel",
   name: "Funil de Webinar Profissional",
@@ -273,7 +279,7 @@ export const webinarFunnelTemplate: TemplateData = {
   ],
 }
 
-// Template de Blog para Lead - AJUSTADO COM MAIS ESPAÇO
+// Template de Blog para Lead
 export const blogLeadTemplate: TemplateData = {
   id: "blog-lead",
   name: "Blog para Lead",
@@ -316,7 +322,7 @@ export const blogLeadTemplate: TemplateData = {
   ],
 }
 
-// Template de Lançamento de Produto - AJUSTADO COM MAIS ESPAÇO
+// Template de Lançamento de Produto
 export const productLaunchTemplate: TemplateData = {
   id: "product-launch",
   name: "Lançamento de Produto",
@@ -358,8 +364,6 @@ export const productLaunchTemplate: TemplateData = {
     createEdge("checkout", "customer", "#3498db"),
   ],
 }
-
-// Adicionar novos templates mais robustos após os templates existentes
 
 // Template de Funil de Vendas Avançado
 export const advancedSalesFunnelTemplate: TemplateData = {
@@ -631,7 +635,10 @@ export const contentMarketingTemplate: TemplateData = {
     createIconNode("customer-community", "Comunidade", "users", "#2ecc71", { x: 2850, y: 450 }),
 
     // Análise e otimização
-    createIconNode("content-analytics", "Análise de Conteúdo", "marketingAnalysisNode", "#f39c12", { x: 3100, y: 350 }),
+    createIconNode("content-analytics", "Análise de Conteúdo", "marketingAnalysisNode", "#f39c12", {
+      x: 3100,
+      y: 350,
+    }),
   ],
   edges: [
     // Pesquisa e planejamento para criação
@@ -707,7 +714,10 @@ export const affiliateMarketingTemplate: TemplateData = {
 
     // Criação de conteúdo
     createPageNode("review-content", "Reviews de Produtos", "Análises detalhadas", "blog", { x: 350, y: 150 }),
-    createPageNode("comparison-content", "Comparativos", "Comparação entre produtos", "comparison", { x: 350, y: 350 }),
+    createPageNode("comparison-content", "Comparativos", "Comparação entre produtos", "comparison", {
+      x: 350,
+      y: 350,
+    }),
     createPageNode("tutorial-content", "Tutoriais", "Como usar os produtos", "blog", { x: 350, y: 550 }),
 
     // Distribuição
@@ -879,7 +889,6 @@ export const b2bSalesFunnelTemplate: TemplateData = {
 
     // Referências e casos de sucesso
     createIconNode("testimonial", "Depoimento", "report", "#7f8c8d", { x: 2850, y: 375 }),
-    createEdge("testimonial", "case-studies", "#7f8c8d", true, "dashed"),
   ],
   edges: [
     // Canais para conteúdo
@@ -940,14 +949,15 @@ export const b2bSalesFunnelTemplate: TemplateData = {
     // Expansão e renovação para depoimento
     createEdge("upsell", "testimonial", "#e74c3c"),
     createEdge("renewal", "testimonial", "#27ae60"),
+
+    // Depoimento voltando para estudos de caso (ciclo de prova social)
+    createEdge("testimonial", "case-studies", "#7f8c8d", true, "dashed"),
   ],
 }
 
-// Importar o template B2B aprimorado
-import { b2bSalesFunnelTemplateEnhanced } from "./template-data-b2b"
+// ===== LISTA DE TEMPLATES =====
 
-// Substituir o template B2B existente pelo aprimorado na lista allTemplates
-export const allTemplates = [
+export const allTemplates: TemplateData[] = [
   exactReferenceTemplate,
   basicSalesFunnelTemplate,
   webinarFunnelTemplate,
@@ -957,17 +967,10 @@ export const allTemplates = [
   infoProductLaunchTemplate,
   contentMarketingTemplate,
   affiliateMarketingTemplate,
-  b2bSalesFunnelTemplateEnhanced, // Substituir pelo template aprimorado
+  b2bSalesFunnelTemplate,
 ]
 
-// Atualizar a função getTemplateById para incluir o template aprimorado
+// Buscar template por ID
 export const getTemplateById = (id: string): TemplateData | undefined => {
-  // Se o ID for b2b-sales-funnel, retornar o template aprimorado
-  if (id === "b2b-sales-funnel") {
-    return b2bSalesFunnelTemplateEnhanced
-  }
   return allTemplates.find((template) => template.id === id)
 }
-
-// ⚠️ Importante: Removido o componente Rocket com JSX, pois `.ts` não suporta JSX.
-// Se precisar do ícone como componente React, mova-o para um arquivo `.tsx` e exporte de lá.

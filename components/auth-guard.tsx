@@ -5,8 +5,17 @@ import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
-// ✅ Inclui "/" e trata prefixos (ex.: /login/qualquer-coisa)
-const PUBLIC_PATHS = ["/", "/login", "/register", "/reset-password", "/update-password"]
+// ✅ Rotas públicas (inclui "/", auth e ASSINATURAS)
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/register",
+  "/reset-password",
+  "/update-password",
+  "/assinaturas", // 👈 AGORA É PÚBLICA
+]
+
+// match por exato ou prefixo (ex.: /login/xyz)
 const isPublic = (pathname: string) =>
   PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
 
@@ -25,13 +34,20 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
       const publicRoute = isPublic(pathname)
 
-      // 🔒 Sem sessão e não é rota pública → login
+      // 🔒 Sem sessão e NÃO é rota pública → manda pro login
       if (!session && !publicRoute && pathname !== "/login") {
         router.replace("/login")
       }
 
-      // 🔓 Com sessão e em rota pública (exceto update-password) → dashboard
-      if (session && publicRoute && pathname !== "/update-password" && pathname !== "/dashboard") {
+      // 🔓 Com sessão e em rota pública → normalmente iria pro dashboard,
+      // MAS queremos permitir que o usuário logado veja /assinaturas também.
+      const isExceptionRoute =
+        pathname === "/update-password" ||
+        pathname === "/dashboard" ||
+        pathname === "/assinaturas" || // 👈 NÃO REDIRECIONA /assinaturas MESMO LOGADO
+        pathname.startsWith("/assinaturas/")
+
+      if (session && publicRoute && !isExceptionRoute) {
         router.replace("/dashboard")
       }
 

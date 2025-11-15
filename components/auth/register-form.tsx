@@ -4,6 +4,7 @@ import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { Mail, Phone, User } from "lucide-react"
 
 import { supabase } from "@/lib/supabase"
@@ -95,9 +96,28 @@ export function RegisterForm() {
       <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-zinc-700/30 to-transparent" />
       <div className="pointer-events-none absolute inset-0 opacity-[0.08] mix-blend-soft-light [background-image:radial-gradient(circle_at_1px_1px,#ffffff_0.5px,transparent_0)] [background-size:6px_6px]" />
 
-      {/* LUZES E FAIXA ANIMADAS */}
+      {/* LUZES + IMAGEM ENTRE OS EFEITOS */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/* Orbes flutuando */}
+        {/* IMAGEM DO LADO ESQUERDO ENTRE OS EFEITOS */}
+        <div className="absolute inset-0 flex">
+          {/* metade esquerda com a imagem */}
+          <div className="w-1/2 relative">
+            <Image
+              src="/images/dark-login-background.png" // <- sua imagem em /public/images
+              alt="Background BLECK'S"
+              fill
+              className="
+                object-cover
+                opacity-100         /* <<< ajuste aqui a opacidade: 20, 30, 50... */
+                mix-blend-soft-light
+              "
+            />
+          </div>
+          {/* metade direita vazia */}
+          <div className="w-1/2" />
+        </div>
+
+        {/* ORBs flutuando */}
         <div className="animated-orb orb-1" />
         <div className="animated-orb orb-2" />
         <div className="animated-orb orb-3" />
@@ -298,16 +318,16 @@ export function RegisterForm() {
 
         .animated-orb {
           position: absolute;
-          width: 420px;
-          height: 420px;
+          width: 320px;
+          height: 320px;
           border-radius: 9999px;
           filter: blur(40px);
-          opacity: 0.32;
+          opacity: 0.22;
           mix-blend-mode: screen;
           background: radial-gradient(
             circle at 30% 30%,
-            rgba(255, 255, 255, 0.2),
-            transparent 60%
+            rgba(94, 94, 94, 0.2),
+            transparent 50%
           );
           animation: orbFloat 18s ease-in-out infinite alternate;
         }

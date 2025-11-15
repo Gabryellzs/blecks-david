@@ -78,8 +78,7 @@ export default function AssinaturasPage() {
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
-
-      {/* Fundo premium cinza metálico */}
+      {/* Fundo premium cinza metálico (MANTIDO) */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-40 -left-20 h-72 w-72 rounded-full bg-[#d1d1d1]/15 blur-3xl" />
         <div className="absolute -bottom-40 right-[-60px] h-80 w-80 rounded-full bg-[#e5e5e5]/15 blur-3xl" />
@@ -89,8 +88,7 @@ export default function AssinaturasPage() {
       <Header />
 
       <main className="relative z-10 container mx-auto px-4 py-16">
-
-        {/* HERO */}
+        {/* HERO (MANTIDO) */}
         <div className="text-center mb-12 space-y-4 mt-[50px]">
           <h1 className="text-4xl md:text-6xl font-bold mb-2">
             ESCOLHA O PLANO
@@ -112,8 +110,7 @@ export default function AssinaturasPage() {
 
             return (
               <div key={plan.name} className="group [perspective:1400px] relative">
-
-                {/* BADGE ESPECIAL */}
+                {/* BADGE ESPECIAL (MANTIDA) */}
                 {isFeatured && (
                   <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-20">
                     <div className="px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide
@@ -123,31 +120,43 @@ export default function AssinaturasPage() {
                   </div>
                 )}
 
+                {/* ====== AQUI É O VIDRO REALISTA ====== */}
                 <Card
                   className={`
-                    relative flex flex-col h-[480px] bg-white/6 backdrop-blur-xl rounded-2xl overflow-hidden
-                    border border-white/10 shadow-[0_0_0_2px_rgba(255,255,255,0.05)]
+                    relative flex flex-col h-[480px] rounded-3xl overflow-hidden
+                    bg-black/40 bg-clip-padding backdrop-blur-2xl
+                    border border-white/10
+                    shadow-[0_18px_40px_rgba(0,0,0,0.85)]
                     transition-all duration-500
 
-                    ${isFeatured
-                      ? `
-                        scale-[1.07]
-                        hover:scale-[1.10]
-                        border-[#d1d1d1]/50
-                        shadow-[0_0_40px_rgba(220,220,220,0.55)]
-                        hover:shadow-[0_0_55px_rgba(230,230,230,0.9)]
-                      `
-                      : `
-                        hover:-translate-y-2 hover:shadow-[0_0_28px_rgba(210,210,210,0.25)]
-                      `
-                    }
+                    before:absolute before:inset-0 before:pointer-events-none
+                    before:bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.20),transparent_58%)]
+                    before:opacity-70
+
+                    after:absolute after:inset-px after:rounded-[22px]
+                    after:border after:border-white/10 after:opacity-40 after:pointer-events-none
 
                     [transform-style:preserve-3d]
-                    hover:[transform:rotateX(6deg)_rotateY(-4deg)]
+                    hover:-translate-y-2 hover:[transform:rotateX(6deg)_rotateY(-4deg)]
+                    hover:shadow-[0_24px_55px_rgba(0,0,0,0.95)]
+
+                    ${
+                      isFeatured
+                        ? `
+                          scale-[1.05]
+                          border-[#d1d1d1]/60
+                          shadow-[0_0_40px_rgba(230,230,230,0.65)]
+                          hover:shadow-[0_0_55px_rgba(240,240,240,0.9)]
+                        `
+                        : `
+                          hover:border-white/30
+                          hover:shadow-[0_0_28px_rgba(210,210,210,0.3)]
+                        `
+                    }
                   `}
                 >
-
-                  <CardHeader className="text-center pb-4 pt-6 space-y-2">
+                  {/* Conteúdo por cima do vidro */}
+                  <CardHeader className="relative z-10 text-center pb-4 pt-6 space-y-2">
                     <CardTitle className="text-xl font-bold text-white">
                       {plan.name}
                     </CardTitle>
@@ -162,7 +171,7 @@ export default function AssinaturasPage() {
                     </CardDescription>
                   </CardHeader>
 
-                  <CardContent className="px-5 pb-5 space-y-3 flex-1 flex flex-col">
+                  <CardContent className="relative z-10 px-5 pb-5 space-y-3 flex-1 flex flex-col">
                     <ul className="space-y-2 flex-1 text-xs">
                       {plan.features.map((feature, idx) => (
                         <li key={idx} className="flex items-start gap-2">
@@ -172,31 +181,28 @@ export default function AssinaturasPage() {
                       ))}
                     </ul>
 
-                    {/* BOTÃO NEON */}
+                    {/* Botão só com leve neon, sem mexer no layout */}
                     <Button
-                      className={`w-full py-2.5 text-sm font-semibold rounded-xl 
-                        transition-all duration-300 relative overflow-hidden
-                        bg-black/40 text-white border border-[#d1d1d1]/40 
-                        before:absolute before:inset-0 before:rounded-xl 
-                        before:bg-[linear-gradient(90deg,transparent,rgba(209,209,209,0.35),transparent)] 
-                        before:opacity-70 before:blur-[6px] 
-                        before:transition-opacity before:duration-500
-                        hover:before:opacity-100
-                        shadow-[0_0_12px_rgba(209,209,209,0.45)] 
-                        hover:shadow-[0_0_22px_rgba(209,209,209,0.8)]
+                      className={`
+                        w-full py-2.5 text-sm font-semibold rounded-xl 
+                        relative overflow-hidden
+                        bg-black/60 text-white border border-[#d1d1d1]/40 
+                        shadow-[0_0_14px_rgba(209,209,209,0.45)]
+                        transition-all duration-300
+                        hover:shadow-[0_0_26px_rgba(209,209,209,0.9)]
+                        hover:bg-black/70
                       `}
                     >
                       {plan.buttonText}
                     </Button>
                   </CardContent>
-
                 </Card>
               </div>
             )
           })}
         </div>
 
-        {/* Info adicional */}
+        {/* Info adicional (MANTIDA) */}
         <div className="text-center mt-12 space-y-2">
           <p className="text-gray-400 text-sm">
             Todos os planos incluem teste gratuito de 7 dias. Cancele a qualquer momento.
@@ -217,7 +223,6 @@ export default function AssinaturasPage() {
             </span>
           </div>
         </div>
-
       </main>
 
       <Footer />

@@ -79,7 +79,14 @@ export function RegisterForm() {
   }
 
   return (
-    <div className="relative flex h-screen w-full items-center justify-center bg-black px-4 overflow-hidden">
+    <div
+      className="
+        relative flex min-h-screen w-full items-center justify-center 
+        bg-black px-4 py-8 
+        overflow-y-auto 
+        lg:h-screen lg:py-0 lg:overflow-hidden
+      "
+    >
       {/* FUNDO CINZA LUXO ESTÁTICO */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black via-[#0b0b0c] to-black" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(180,180,185,0.16),transparent_60%)] opacity-80" />
@@ -100,38 +107,67 @@ export function RegisterForm() {
       </div>
 
       {/* CONTEÚDO */}
-      <div className="relative z-10 flex h-full w-full max-w-7xl flex-col items-center gap-10 lg:flex-row lg:items-stretch">
+      <div
+        className="
+          relative z-10 flex w-full max-w-7xl flex-col items-center 
+          gap-8 
+          pt-4 
+          lg:h-full lg:flex-row lg:items-stretch lg:gap-10 lg:pt-0
+        "
+      >
         {/* LOGO */}
-        <div className="flex h-full w-full items-center justify-center lg:w-5/12">
-          <div className="relative flex items-center justify-center">
+        <div className="flex w-full items-center justify-center lg:h-full lg:w-5/12">
+          <div className="relative flex items-center justify-center mb-4 lg:mb-0">
             <img
               src="/favicon.ico"
               alt="BLECK'S"
-              className="logo-floating relative max-h-[100vh] w-auto max-w-[500px] object-contain drop-shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+              className="
+                logo-floating relative 
+                w-full max-w-[220px]
+                sm:max-w-[260px]
+                md:max-w-[320px]
+                lg:max-w-[500px]
+                max-h-[100vh]
+                object-contain 
+                drop-shadow-[0_20px_60px_rgba(0,0,0,0.6)]
+              "
             />
           </div>
         </div>
 
         {/* CARD */}
-        <div className="flex h-full w-full items-center justify-center lg:w-7/12 translate-x-8">
+        <div
+          className="
+            flex w-full items-center justify-center 
+            lg:h-full lg:w-7/12 lg:translate-x-8
+          "
+        >
           <div className="relative w-full max-w-[800px]">
             {/* AURA CINZA DISCRETA AO REDOR DO CARD */}
             <div className="pointer-events-none absolute -inset-[3px] rounded-[24px] bg-[linear-gradient(135deg,rgba(180,180,185,0.45),rgba(10,10,12,0.9),rgba(160,160,170,0.45))] opacity-45 blur-[7px]" />
 
             {/* CARD PRINCIPAL */}
-            <div className="relative w-full rounded-[18px] border border-zinc-600/70 bg-[#050506] px-6 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12 shadow-[0_40px_120px_rgba(0,0,0,0.85)]">
+            <div
+              className="
+                relative w-full rounded-[18px] border border-zinc-600/70 bg-[#050506] 
+                px-5 py-7 
+                sm:px-8 sm:py-10 
+                lg:px-10 lg:py-12 
+                shadow-[0_40px_120px_rgba(0,0,0,0.85)]
+              "
+            >
               {/* HEAD DO CARD */}
-              <div className="mb-8 space-y-2 text-center lg:text-left">
+              <div className="mb-7 space-y-2 text-center lg:mb-8 lg:text-left">
                 <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-50">
                   Criar sua conta
                 </h2>
-                <p className="text-sm text-zinc-400 max-w-md lg:max-w-none mx-auto lg:mx-0">
+                <p className="text-xs sm:text-sm text-zinc-400 max-w-md mx-auto lg:max-w-none lg:mx-0">
                   Leva menos de 1 minuto. Preencha seus dados para liberar o acesso à plataforma.
                 </p>
               </div>
 
               {/* FORM */}
-              <form onSubmit={onSubmit} className="space-y-7">
+              <form onSubmit={onSubmit} className="space-y-6 sm:space-y-7">
                 {/* NOME */}
                 <div className="space-y-2">
                   <Label className="text-xs sm:text-sm font-medium text-zinc-100">
@@ -213,7 +249,15 @@ export function RegisterForm() {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="group relative mt-1 h-11 sm:h-12 w-full overflow-hidden rounded-2xl bg-zinc-100 text-base sm:text-lg font-semibold tracking-tight text-black shadow-[0_20px_40px_rgba(0,0,0,0.9)] transition-all duration-300 hover:bg-zinc-200 hover:shadow-[0_26px_70px_rgba(0,0,0,1)]"
+                  className="
+                    group relative mt-1 h-11 sm:h-12 w-full overflow-hidden 
+                    rounded-2xl bg-zinc-100 
+                    text-sm sm:text-base md:text-lg 
+                    font-semibold tracking-tight text-black 
+                    shadow-[0_20px_40px_rgba(0,0,0,0.9)] 
+                    transition-all duration-300 
+                    hover:bg-zinc-200 hover:shadow-[0_26px_70px_rgba(0,0,0,1)]
+                  "
                 >
                   <span className="relative z-10">
                     {isLoading ? "Registrando..." : "Registrar agora"}
@@ -222,7 +266,7 @@ export function RegisterForm() {
               </form>
 
               {/* LINK LOGIN */}
-              <div className="mt-7 text-center text-xs sm:text-sm text-zinc-300">
+              <div className="mt-6 sm:mt-7 text-center text-xs sm:text-sm text-zinc-300">
                 Já tem uma conta?{" "}
                 <Link href="/login" className="font-medium text-zinc-200 hover:underline">
                   Faça login
@@ -334,6 +378,12 @@ export function RegisterForm() {
             width: 260px;
             height: 260px;
             filter: blur(32px);
+          }
+        }
+
+        @media (max-width: 480px) {
+          .animated-orb {
+            opacity: 0.22;
           }
         }
       `}</style>

@@ -36,6 +36,11 @@ export default function DashboardPage() {
   const [authError, setAuthError] = useState<string | null>(null)
   const [userName, setUserName] = useState<string>("")
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null)
+
+  // 🆕 controle por usuário
+  const [userId, setUserId] = useState<string | null>(null)
+  const [rewardClaimedAt, setRewardClaimedAt] = useState<string | null>(null)
+
   const { theme } = useTheme()
   const router = useRouter()
 
@@ -50,18 +55,52 @@ export default function DashboardPage() {
     { value: 100_000, label: "R$ 100 Mil" },
     { value: 500_000, label: "R$ 500 Mil" },
     { value: 1_000_000, label: "R$ 1 Milhão" },
+    { value: 5_000_000, label: "R$ 5 Milhão" },
+    { value: 10_000_000, label: "R$ 10 Milhão" },
+    { value: 15_000_000, label: "R$ 15 Milhão" },
+    { value: 20_000_000, label: "R$ 20 Milhão" },
   ]
 
   const hitMilestone =
     [...MILESTONES].reverse().find((m) => totalNetSales >= m.value) || null
 
-  // === WHATSAPP ===
-  const handleClaimReward = () => {
+  // 🕒 lógica das 24h
+  const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
+
+  const isWithin24h =
+    rewardClaimedAt
+      ? Date.now() - new Date(rewardClaimedAt).getTime() < TWENTY_FOUR_HOURS_MS
+      : true
+
+  const canShowClaimButton = !!hitMilestone && isWithin24h
+
+  // === WHATSAPP + salvar hora do clique ===
+  const handleClaimReward = async () => {
     const message = encodeURIComponent(
-      "🎉 Conquistei minha meta no painel e quero resgatar minha premiação!"
+      "🎉 Conquistei minha meta no painel e quero resgatar minha premiação!",
     )
     const phone = "556293183069" // seu número internacional
+
+    // abre o WhatsApp
     window.open(`https://wa.me/${phone}?text=${message}`, "_blank")
+
+    // salva o horário do clique no Supabase
+    if (!userId) return
+
+    try {
+      const now = new Date().toISOString()
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ reward_claimed_at: now })
+        .eq("id", userId)
+
+      if (!error) {
+        setRewardClaimedAt(now)
+      }
+    } catch (error) {
+      console.error("Erro ao salvar reward_claimed_at:", error)
+    }
   }
 
   // === AUTENTICAÇÃO ===
@@ -80,9 +119,11 @@ export default function DashboardPage() {
         return
       }
 
+      setUserId(session.user.id)
+
       const { data: userProfile, error: profileError } = await supabase
         .from("profiles")
-        .select("first_name, full_name, avatar_url")
+        .select("first_name, full_name, avatar_url, reward_claimed_at")
         .eq("id", session.user.id)
         .single()
 
@@ -95,12 +136,16 @@ export default function DashboardPage() {
         else setUserName(session.user.email?.split("@")[0] || "Usuário")
 
         setUserAvatarUrl(userProfile?.avatar_url || null)
+        setRewardClaimedAt(userProfile?.reward_claimed_at || null)
       }
 
       setAuthenticated(true)
       setAuthError(null)
       setLoading(false)
-      toast({ title: "Bem-vindo ao Dashboard!", description: "Você está logado com sucesso." })
+      toast({
+        title: "Bem-vindo ao Dashboard!",
+        description: "Você está logado com sucesso.",
+      })
     } catch (error: any) {
       setAuthError(error.message || "Erro desconhecido ao verificar autenticação")
       setLoading(false)
@@ -124,7 +169,7 @@ export default function DashboardPage() {
           setAuthError(null)
           setLoading(false)
         }
-      }
+      },
     )
 
     const handleAvatarUpdate = (event: CustomEvent) => {
@@ -141,7 +186,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         <p className="ml-2">Carregando dashboard...</p>
       </div>
     )
@@ -244,7 +289,7 @@ export default function DashboardPage() {
                   />
 
                   {/* PROGRESSO DE CONQUISTAS */}
-                  <div className="mt-3 w-full px-1 text-center">
+                  <div className="mt-14 w-full px-1 text-center">
                     <h3 className="text-[18px] md:text-sm font-semibold leading-none tracking-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap mb-1">
                       Progresso de Conquistas
                     </h3>
@@ -270,8 +315,8 @@ export default function DashboardPage() {
                         : achievementData.goalText}
                     </p>
 
-                    {/* BOTÃO DE RESGATE COMPACTO */}
-                    {hitMilestone && (
+                    {/* BOTÃO DE RESGATE (só aparece se canShowClaimButton for true) */}
+                    {canShowClaimButton && (
                       <>
                         <style jsx>{`
                           @keyframes pulseGlow {
@@ -302,7 +347,11 @@ export default function DashboardPage() {
                           "
                           style={{ animation: "pulseGlow 2.2s ease-in-out infinite" }}
                         >
-                          <span className="relative z-10">🎉 Parabéns!<br />Clique e resgate</span>
+                          <span className="relative z-10">
+                            🎉 Parabéns!
+                            <br />
+                            Clique e resgate
+                          </span>
                           <span
                             className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
                             style={{
@@ -314,7 +363,7 @@ export default function DashboardPage() {
                         </button>
 
                         <div className="text-[11px] text-white/60 mt-1 text-center">
-                          {hitMilestone.label} atingido
+                          {hitMilestone?.label} atingido
                         </div>
                       </>
                     )}

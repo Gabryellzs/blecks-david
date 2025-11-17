@@ -12,26 +12,62 @@ import { SessionKeeper } from "@/components/session-keeper"
 import { AuthGuard } from "@/components/auth-guard"
 import { AuthProvider } from "@/lib/auth"
 
-// 🔓 Rotas públicas (SEM AuthGuard)
-const PUBLIC_ROUTES = [
-  "/",
+// 🟢 Páginas 100% marketing (SEM auth, SEM providers pesados)
+const LANDING_ROUTES = ["/", "/assinaturas"]
+
+// 🟡 Páginas públicas de autenticação (precisam do AuthProvider)
+const AUTH_ROUTES = [
   "/login",
   "/register",
   "/reset-password",
   "/update-password",
-  "/debug",
-  "/assinaturas",
 ]
 
-const isPublicRoute = (pathname: string) =>
-  PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/"),
-  )
+// Helperzinhos
+const isRoute = (pathname: string, list: string[]) =>
+  list.some((route) => pathname === route || pathname.startsWith(route + "/"))
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const publicRoute = isPublicRoute(pathname)
 
+  const isLanding = isRoute(pathname, LANDING_ROUTES)
+  const isAuthPage = isRoute(pathname, AUTH_ROUTES)
+
+  // 🟢 1) LANDING / ASSINATURAS → o mais leve possível
+  if (isLanding) {
+    return (
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="dark"
+        enableSystem={false}
+        disableTransitionOnChange
+      >
+        {children}
+        <Toaster />
+      </ThemeProvider>
+    )
+  }
+
+  // 🟡 2) LOGIN / REGISTER / RESET → precisam de AuthProvider, mas sem migração
+  if (isAuthPage) {
+    return (
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="dark"
+        enableSystem={false}
+        disableTransitionOnChange
+      >
+        <AuthProvider>
+          <NotificationProvider>
+            {children}
+            <Toaster />
+          </NotificationProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    )
+  }
+
+  // 🔴 3) ÁREA LOGADA → tudo completo
   return (
     <ThemeProvider
       attribute="class"
@@ -41,23 +77,14 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     >
       <SessionKeeper />
       <AuthProvider>
-        <NotificationProvider>
-          {publicRoute ? (
-            // 🔓 HOME, LOGIN, REGISTER, ASSINATURAS...
-            <>
-              {children}
-              <Toaster />
-            </>
-          ) : (
-            // 🔒 DASHBOARD / ADMIN / OUTRAS ROTAS PRIVADAS
-            <AuthGuard>
-              <DataMigrationDialog />
-              <MigrationInitializer />
-              {children}
-              <Toaster />
-            </AuthGuard>
-          )}
-        </NotificationProvider>
+        <AuthGuard>
+          <DataMigrationDialog />
+          <MigrationInitializer />
+          <NotificationProvider>
+            {children}
+            <Toaster />
+          </NotificationProvider>
+        </AuthGuard>
       </AuthProvider>
     </ThemeProvider>
   )

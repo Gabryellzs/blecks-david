@@ -10,16 +10,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PenLine, Copy, Save, Sparkles, AlertCircle, RefreshCw, Lightbulb, Info } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { Badge } from "@/components/ui/badge"
 import ChatView from "./chat-view"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
-// Componentes adicionais
 import HeadlineLibrary from "../copywriting/headline-library"
 import CopyComparator from "../copywriting/copy-comparator"
 
-// Tipo para o histórico de copies (mantido para botão “Salvar”, caso queira persistir)
 type CopyItem = {
   id: string
   copyType: string
@@ -31,7 +28,6 @@ type CopyItem = {
   createdAt: Date
 }
 
-// Templates pré-definidos para diferentes tipos de copy
 const copyTemplates = {
   anúncio: {
     formal:
@@ -105,7 +101,6 @@ const copyTemplates = {
   },
 }
 
-// Dicas
 const copywritingTips = {
   anúncio: [
     "Use números específicos em vez de generalizações",
@@ -144,7 +139,6 @@ const copywritingTips = {
   ],
 }
 
-// Exemplos de preenchimento
 const fieldExamples = {
   productInfo: {
     title: "Exemplos de Descrições de Produto",
@@ -165,20 +159,15 @@ const fieldExamples = {
 }
 
 export default function CopywritingView() {
-  // Estados do formulário
   const [copyType, setCopyType] = useState<string>("")
   const [tone, setTone] = useState<string>("")
   const [productInfo, setProductInfo] = useState<string>("")
   const [targetAudience, setTargetAudience] = useState<string>("")
   const [length, setLength] = useState<string>("")
 
-  // Resultado
   const [generatedText, setGeneratedText] = useState<string>("")
-
-  // (Opcional) Histórico local — mantido para o botão Salvar
   const [history, setHistory] = useState<CopyItem[]>([])
 
-  // UI
   const [isGenerating, setIsGenerating] = useState<boolean>(false)
   const [isEditing, setIsEditing] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
@@ -186,7 +175,6 @@ export default function CopywritingView() {
 
   const { toast } = useToast()
 
-  // Carregar histórico (se quiser usar em outra tela/feature)
   useEffect(() => {
     const savedHistory = localStorage.getItem("copywritingHistory")
     if (savedHistory) {
@@ -204,7 +192,6 @@ export default function CopywritingView() {
     }
   }, [history])
 
-  // Gerar via template local (fallback)
   const generateWithTemplate = useCallback(() => {
     if (!copyType || !tone || !productInfo || !targetAudience) return ""
 
@@ -229,7 +216,6 @@ export default function CopywritingView() {
     return text
   }, [copyType, tone, productInfo, targetAudience, length])
 
-  // Gerar (chama API e usa fallback)
   const generateCopy = async () => {
     if (!copyType || !tone || !productInfo || !targetAudience || !length) {
       setError("Todos os campos são obrigatórios")
@@ -257,7 +243,6 @@ export default function CopywritingView() {
 
       setGeneratedText(data.text)
     } catch (err: any) {
-      // fallback local
       const fallback = generateWithTemplate()
       if (fallback) {
         setGeneratedText(fallback)
@@ -273,6 +258,7 @@ export default function CopywritingView() {
   }
 
   const copyToClipboard = (text: string) => {
+    if (!text) return
     navigator.clipboard.writeText(text)
     toast({ title: "Copiado!", description: "Texto copiado para a área de transferência" })
   }
@@ -306,16 +292,14 @@ export default function CopywritingView() {
     if (!copyType) return null
     const tips = copywritingTips[copyType as keyof typeof copywritingTips] || []
     return (
-      <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+      <div className="bg-muted/60 border border-white/10 p-4 rounded-xl space-y-2">
         <div className="flex items-center gap-2">
-          <Lightbulb className="h-5 w-5 text-yellow-500" />
+          <Lightbulb className="h-5 w-5 text-yellow-400" />
           <h3 className="font-medium">Dicas para {copyType}</h3>
         </div>
-        <ul className="list-disc pl-5 space-y-1">
+        <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
           {tips.map((tip, index) => (
-            <li key={index} className="text-sm">
-              {tip}
-            </li>
+            <li key={index}>{tip}</li>
           ))}
         </ul>
       </div>
@@ -323,43 +307,75 @@ export default function CopywritingView() {
   }
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Copywriting</h1>
-          <p className="text-muted-foreground">Crie textos persuasivos para suas campanhas de marketing</p>
-        </div>
+    <div className="max-w-6xl mx-auto px-4 sm:px-3 py-0 sm:py-0 space-y-0 sm:space-y-2">
+      {/* TOPO LIMPO, SEM TÍTULO E DESCRIÇÃO */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="space-y-1" />
       </div>
 
       <div className="overflow-x-auto pb-2">
         <Tabs defaultValue="create" className="space-y-4">
-          <TabsList className="w-full min-w-max">
-            <TabsTrigger value="create">Criar Copy</TabsTrigger>
-            <TabsTrigger value="chat">Chat IA</TabsTrigger>
-            {/* Removidos: Histórico e Templates */}
-            <TabsTrigger value="tips">Dicas Avançadas</TabsTrigger>
-            <TabsTrigger value="headlines">Headlines</TabsTrigger>
-            <TabsTrigger value="comparator">Comparador</TabsTrigger>
+          <TabsList className="flex flex-wrap gap-2 bg-transparent p-0 justify-start mt-2">
+            <TabsTrigger
+              value="create"
+              className="rounded-full border border-white/10 bg-black/40 px-4 py-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg"
+            >
+              Criar Copy
+            </TabsTrigger>
+            <TabsTrigger
+              value="chat"
+              className="rounded-full border border-white/10 bg-black/40 px-4 py-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg"
+            >
+              Chat IA
+            </TabsTrigger>
+            <TabsTrigger
+              value="tips"
+              className="rounded-full border border-white/10 bg-black/40 px-4 py-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg"
+            >
+              Dicas Avançadas
+            </TabsTrigger>
+            <TabsTrigger
+              value="headlines"
+              className="rounded-full border border-white/10 bg-black/40 px-4 py-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg"
+            >
+              Headlines
+            </TabsTrigger>
+            <TabsTrigger
+              value="comparator"
+              className="rounded-full border border-white/10 bg-black/40 px-4 py-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg"
+            >
+              Comparador
+            </TabsTrigger>
           </TabsList>
 
-          {/* Criar Copy */}
-          <TabsContent value="create" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gerador de Copywriting</CardTitle>
-                <CardDescription>Configure os parâmetros para gerar seu texto persuasivo</CardDescription>
+          <TabsContent value="create" className="space-y-4 sm:space-y-6">
+            <Card className="border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-white/0 backdrop-blur-xl shadow-xl">
+              <CardHeader className="pb-4 sm:pb-5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      Gerador de Copywriting
+                    </CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      Configure os parâmetros para gerar seu texto persuasivo
+                    </CardDescription>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 sm:space-y-5">
                 {error && (
-                  <div className="bg-destructive/10 text-destructive p-3 rounded-md flex items-center gap-2">
+                  <div className="bg-destructive/10 text-destructive p-3 rounded-lg flex items-center gap-2 text-sm border border-destructive/30">
                     <AlertCircle className="h-4 w-4" />
-                    <p className="text-sm">{error}</p>
+                    <p>{error}</p>
                   </div>
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="copy-type">Tipo de Copy</Label>
+                    <Label htmlFor="copy-type" className="text-xs sm:text-sm">
+                      Tipo de Copy
+                    </Label>
                     <Select
                       value={copyType}
                       onValueChange={(value) => {
@@ -367,7 +383,7 @@ export default function CopywritingView() {
                         setShowTips(true)
                       }}
                     >
-                      <SelectTrigger id="copy-type">
+                      <SelectTrigger id="copy-type" className="bg-black/40 border-white/15">
                         <SelectValue placeholder="Selecione o tipo" />
                       </SelectTrigger>
                       <SelectContent>
@@ -381,9 +397,11 @@ export default function CopywritingView() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="tone">Tom de Voz</Label>
+                    <Label htmlFor="tone" className="text-xs sm:text-sm">
+                      Tom de Voz
+                    </Label>
                     <Select value={tone} onValueChange={setTone}>
-                      <SelectTrigger id="tone">
+                      <SelectTrigger id="tone" className="bg-black/40 border-white/15">
                         <SelectValue placeholder="Selecione o tom" />
                       </SelectTrigger>
                       <SelectContent>
@@ -400,29 +418,34 @@ export default function CopywritingView() {
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="product-info">Informações do Produto/Serviço</Label>
+                    <Label htmlFor="product-info" className="text-xs sm:text-sm">
+                      Informações do Produto/Serviço
+                    </Label>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 rounded-full hover:bg-white/10 text-muted-foreground"
+                        >
                           <Info className="h-4 w-4" />
                           <span className="sr-only">Exemplos</span>
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-80">
+                      <PopoverContent className="w-80 text-xs">
                         <div className="space-y-2">
-                          <h4 className="font-medium">{fieldExamples.productInfo.title}</h4>
+                          <h4 className="font-medium text-sm">{fieldExamples.productInfo.title}</h4>
                           <ul className="list-disc pl-5 space-y-1">
                             {fieldExamples.productInfo.examples.map((example, index) => (
-                              <li key={index} className="text-sm">
-                                {example}
+                              <li key={index} className="flex items-start gap-1">
+                                <span className="flex-1">{example}</span>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-6 ml-1 p-0"
+                                  className="h-5 ml-1 px-1"
                                   onClick={() => setProductInfo(example)}
                                 >
                                   <Copy className="h-3 w-3" />
-                                  <span className="sr-only">Usar</span>
                                 </Button>
                               </li>
                             ))}
@@ -434,7 +457,7 @@ export default function CopywritingView() {
                   <Textarea
                     id="product-info"
                     placeholder="Descreva seu produto ou serviço em detalhes..."
-                    className="min-h-[100px]"
+                    className="min-h-[100px] bg-black/40 border-white/15"
                     value={productInfo}
                     onChange={(e) => setProductInfo(e.target.value)}
                   />
@@ -442,29 +465,34 @@ export default function CopywritingView() {
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="target-audience">Público-Alvo</Label>
+                    <Label htmlFor="target-audience" className="text-xs sm:text-sm">
+                      Público-Alvo
+                    </Label>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 rounded-full hover:bg-white/10 text-muted-foreground"
+                        >
                           <Info className="h-4 w-4" />
                           <span className="sr-only">Exemplos</span>
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-80">
+                      <PopoverContent className="w-80 text-xs">
                         <div className="space-y-2">
-                          <h4 className="font-medium">{fieldExamples.targetAudience.title}</h4>
+                          <h4 className="font-medium text-sm">{fieldExamples.targetAudience.title}</h4>
                           <ul className="list-disc pl-5 space-y-1">
                             {fieldExamples.targetAudience.examples.map((example, index) => (
-                              <li key={index} className="text-sm">
-                                {example}
+                              <li key={index} className="flex items-start gap-1">
+                                <span className="flex-1">{example}</span>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-6 ml-1 p-0"
+                                  className="h-5 ml-1 px-1"
                                   onClick={() => setTargetAudience(example)}
                                 >
                                   <Copy className="h-3 w-3" />
-                                  <span className="sr-only">Usar</span>
                                 </Button>
                               </li>
                             ))}
@@ -476,15 +504,18 @@ export default function CopywritingView() {
                   <Input
                     id="target-audience"
                     placeholder="Descreva seu público-alvo (idade, interesses, etc.)"
+                    className="bg-black/40 border-white/15"
                     value={targetAudience}
                     onChange={(e) => setTargetAudience(e.target.value)}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="length">Comprimento</Label>
+                  <Label htmlFor="length" className="text-xs sm:text-sm">
+                    Comprimento
+                  </Label>
                   <Select value={length} onValueChange={setLength}>
-                    <SelectTrigger id="length">
+                    <SelectTrigger id="length" className="bg-black/40 border-white/15">
                       <SelectValue placeholder="Selecione o comprimento" />
                     </SelectTrigger>
                     <SelectContent>
@@ -498,19 +529,27 @@ export default function CopywritingView() {
                 {showTips && copyType && (
                   <Collapsible defaultOpen={true} className="w-full">
                     <CollapsibleTrigger asChild>
-                      <Button variant="ghost" size="sm" className="flex items-center justify-between w-full">
-                        <span className="flex items-center">
-                          <Lightbulb className="h-4 w-4 mr-2 text-yellow-500" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex items-center justify-between w-full hover:bg-white/5"
+                      >
+                        <span className="flex items-center text-xs sm:text-sm">
+                          <Lightbulb className="h-4 w-4 mr-2 text-yellow-400" />
                           Dicas para {copyType}
                         </span>
                       </Button>
                     </CollapsibleTrigger>
-                    <CollapsibleContent>{renderTips()}</CollapsibleContent>
+                    <CollapsibleContent className="pt-2">{renderTips()}</CollapsibleContent>
                   </Collapsible>
                 )}
 
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <Button className="flex-1" onClick={generateCopy} disabled={isGenerating}>
+                  <Button
+                    className="flex-1 shadow-lg shadow-primary/30"
+                    onClick={generateCopy}
+                    disabled={isGenerating}
+                  >
                     {isGenerating ? (
                       <>
                         <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -525,7 +564,7 @@ export default function CopywritingView() {
                   </Button>
 
                   {!isGenerating && (
-                    <Button variant="outline" onClick={clearForm}>
+                    <Button variant="outline" onClick={clearForm} className="border-white/20">
                       Limpar
                     </Button>
                   )}
@@ -533,15 +572,17 @@ export default function CopywritingView() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Resultado</CardTitle>
-                <CardDescription>Seu texto gerado aparecerá aqui</CardDescription>
+            <Card className="border border-white/10 bg-gradient-to-br from-white/5 via-white/0 to-white/5 backdrop-blur-xl shadow-xl">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Resultado</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Seu texto gerado aparecerá aqui. Edite, copie ou salve para usar depois.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Textarea
                   placeholder="O texto gerado aparecerá aqui..."
-                  className="min-h-[200px]"
+                  className="min-h-[220px] bg-black/40 border-white/15 text-sm"
                   value={generatedText}
                   onChange={(e) => setGeneratedText(e.target.value)}
                   readOnly={!isEditing}
@@ -553,6 +594,7 @@ export default function CopywritingView() {
                     size="sm"
                     onClick={() => copyToClipboard(generatedText)}
                     disabled={!generatedText}
+                    className="border-white/30"
                   >
                     <Copy className="mr-2 h-4 w-4" />
                     Copiar
@@ -562,11 +604,18 @@ export default function CopywritingView() {
                     size="sm"
                     onClick={() => setIsEditing(!isEditing)}
                     disabled={!generatedText}
+                    className="border-white/30"
                   >
                     <PenLine className="mr-2 h-4 w-4" />
                     {isEditing ? "Concluir Edição" : "Editar"}
                   </Button>
-                  <Button variant="outline" size="sm" onClick={saveToHistory} disabled={!generatedText}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={saveToHistory}
+                    disabled={!generatedText}
+                    className="border-white/30"
+                  >
                     <Save className="mr-2 h-4 w-4" />
                     Salvar
                   </Button>
@@ -575,14 +624,12 @@ export default function CopywritingView() {
             </Card>
           </TabsContent>
 
-          {/* Chat IA */}
           <TabsContent value="chat">
             <ChatView />
           </TabsContent>
 
-          {/* Dicas Avançadas */}
           <TabsContent value="tips">
-            <Card>
+            <Card className="border border-white/10 bg-gradient-to-br from-white/5 via-white/0 to-white/5 backdrop-blur-xl shadow-xl">
               <CardHeader>
                 <CardTitle>Dicas Avançadas de Copywriting</CardTitle>
                 <CardDescription>Aprenda técnicas profissionais para melhorar seus textos</CardDescription>
@@ -617,7 +664,7 @@ export default function CopywritingView() {
                           "Dobre suas vendas em 30 dias (P). Imagine sua empresa crescendo enquanto você dorme (P). Mais de 200 clientes já conseguiram (P). Comece hoje com 50% de desconto (P).",
                       },
                     ].map((formula, index) => (
-                      <Card key={index} className="overflow-hidden">
+                      <Card key={index} className="overflow-hidden border-white/10 bg-black/40 backdrop-blur-md">
                         <CardHeader className="p-4">
                           <CardTitle className="text-base">{formula.title}</CardTitle>
                           <CardDescription>{formula.description}</CardDescription>
@@ -665,7 +712,7 @@ export default function CopywritingView() {
                         example: "Descubra o segredo que 90% dos empreendedores desconhecem...",
                       },
                     ].map((trigger, index) => (
-                      <Card key={index} className="overflow-hidden">
+                      <Card key={index} className="overflow-hidden border-white/10 bg-black/40 backdrop-blur-md">
                         <CardHeader className="p-3">
                           <CardTitle className="text-base">{trigger.title}</CardTitle>
                           <CardDescription className="text-xs">{trigger.description}</CardDescription>
@@ -680,7 +727,7 @@ export default function CopywritingView() {
 
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">Como Maximizar os Resultados do Gerador de Copy</h3>
-                  <ol className="list-decimal pl-5 space-y-2">
+                  <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
                     <li>Seja específico na descrição do produto - quanto mais detalhes, melhores os resultados</li>
                     <li>Descreva seu público-alvo com características demográficas e psicográficas</li>
                     <li>Edite e refine o texto gerado para adicionar seu toque pessoal</li>
@@ -692,12 +739,10 @@ export default function CopywritingView() {
             </Card>
           </TabsContent>
 
-          {/* Headlines */}
           <TabsContent value="headlines">
             <HeadlineLibrary />
           </TabsContent>
 
-          {/* Comparador */}
           <TabsContent value="comparator">
             <CopyComparator />
           </TabsContent>

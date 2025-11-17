@@ -4,8 +4,19 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { PenLine, Copy, Trash2, FileText, Send, Bot, PlusCircle, Loader2 } from "lucide-react"
+import {
+  PenLine,
+  Copy,
+  Trash2,
+  FileText,
+  Send,
+  Bot,
+  PlusCircle,
+  Loader2,
+  Mic,
+  History,
+  MessagesSquare,
+} from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -45,59 +56,124 @@ export default function ChatView() {
   const [savedConversations, setSavedConversations] = useState<SavedConversation[]>([])
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const [conversationTitle, setConversationTitle] = useState<string>("")
-  const [isCreatingNewChat, setIsCreatingNewChat] = useState<boolean>(false)
 
   // Estados para edição de mensagens
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editedMessageContent, setEditedMessageContent] = useState<string>("")
 
+  // Estados para reconhecimento de voz
+  const [isRecording, setIsRecording] = useState<boolean>(false)
+  const [isSpeechSupported, setIsSpeechSupported] = useState<boolean>(false)
+  const recognitionRef = useRef<any | null>(null)
+  const isRecordingRef = useRef<boolean>(false)
+
   const chatEndRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
 
-  // Função para salvar a conversa atual
-  const saveCurrentConversation = useCallback(
-    (messages: ChatMessage[] = chatMessages) => {
-      if (messages.length === 0) return
+  // Configurar reconhecimento de voz
+  useEffect(() => {
+    if (typeof window === "undefined") return
 
-      const now = new Date()
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
 
-      if (currentConversationId) {
-        // Atualizar conversa existente
-        setSavedConversations((prev) =>
-          prev.map((conv) => {
-            return conv.id === currentConversationId
-              ? {
-                  ...conv,
-                  messages,
-                  title: conversationTitle || conv.title,
-                  updatedAt: now,
-                }
-              : conv
-          }),
-        )
-      } else {
-        // Criar nova conversa
-        const newConversation: SavedConversation = {
-          id: Date.now().toString(),
-          title: conversationTitle || `Conversa ${savedConversations.length + 1}`,
-          messages,
-          createdAt: now,
-          updatedAt: now,
-        }
+    if (!SpeechRecognition) {
+      setIsSpeechSupported(false)
+      return
+    }
 
-        setSavedConversations((prev) => [newConversation, ...prev])
-        setCurrentConversationId(newConversation.id)
+    setIsSpeechSupported(true)
+
+    const recognition = new SpeechRecognition()
+    recognition.lang = "pt-BR"
+    recognition.continuous = true
+    recognition.interimResults = false
+
+    recognition.onresult = (event: any) => {
+      try {
+        // Pega apenas o ÚLTIMO resultado para não repetir tudo
+        const result = event.results[event.resultIndex]
+        if (!result || !result[0]) return
+
+        const transcript = result[0].transcript
+
+        setInputMessage((prev) => (prev ? `${prev} ${transcript}` : transcript))
+      } catch (err) {
+        console.error("Erro ao processar resultado de voz:", err)
       }
-    },
-    [chatMessages, conversationTitle, currentConversationId, savedConversations],
-  )
+    }
+
+    recognition.onerror = (event: any) => {
+      console.error("Erro no reconhecimento de voz:", event)
+      isRecordingRef.current = false
+      setIsRecording(false)
+      toast({
+        title: "Erro no microfone",
+        description: "Não foi possível capturar o áudio. Verifique as permissões do navegador.",
+        variant: "destructive",
+      })
+    }
+
+    recognition.onend = () => {
+      // Só reinicia se ainda deveria estar gravando
+      if (isRecordingRef.current) {
+        try {
+          recognition.start()
+        } catch (err) {
+          console.error("Erro ao reiniciar reconhecimento de voz:", err)
+          isRecordingRef.current = false
+          setIsRecording(false)
+        }
+      }
+    }
+
+    recognitionRef.current = recognition
+
+    return () => {
+      recognition.stop?.()
+    }
+  }, [toast])
+
+  const toggleRecording = () => {
+    if (!isSpeechSupported || !recognitionRef.current) {
+      toast({
+        title: "Microfone não disponível",
+        description: "Seu navegador não suporta reconhecimento de voz ou o recurso está desativado.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Parar
+    if (isRecordingRef.current) {
+      isRecordingRef.current = false
+      setIsRecording(false)
+      try {
+        recognitionRef.current.stop()
+      } catch (error) {
+        console.error("Erro ao parar gravação:", error)
+      }
+      return
+    }
+
+    // Iniciar
+    try {
+      isRecordingRef.current = true
+      setIsRecording(true)
+      recognitionRef.current.start()
+    } catch (error) {
+      console.error("Erro ao iniciar gravação:", error)
+      isRecordingRef.current = false
+      setIsRecording(false)
+    }
+  }
 
   // Carregar conversas do localStorage ao iniciar
   useEffect(() => {
-    const savedConversations = localStorage.getItem("copywritingConversations")
-    if (savedConversations) {
+    const saved = localStorage.getItem("copywritingConversations")
+    if (saved) {
       try {
-        setSavedConversations(JSON.parse(savedConversations))
+        setSavedConversations(JSON.parse(saved))
       } catch (e) {
         console.error("Erro ao carregar conversas:", e)
       }
@@ -111,18 +187,17 @@ export default function ChatView() {
     }
   }, [savedConversations])
 
-  // Rolar para o final do chat quando novas mensagens são adicionadas
+  // Scroll automático
   useEffect(() => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: "smooth" })
     }
   }, [chatMessages])
 
-  // Função para enviar mensagem no chat
+  // Enviar mensagem
   const sendMessage = useCallback(async () => {
     if (!inputMessage.trim()) return
 
-    // Criar nova mensagem do usuário
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: "user",
@@ -130,7 +205,6 @@ export default function ChatView() {
       timestamp: new Date(),
     }
 
-    // Adicionar mensagem do usuário ao chat
     const updatedMessages = [...chatMessages, userMessage]
     setChatMessages(updatedMessages)
     setInputMessage("")
@@ -139,22 +213,18 @@ export default function ChatView() {
     let assistantMessage: ChatMessage | null = null
 
     try {
-      // Preparar mensagens para a API (apenas as últimas 10 para evitar tokens excessivos)
       const recentMessages = updatedMessages.slice(-10).map((msg) => ({
         role: msg.role,
         content: msg.content,
       }))
 
-      // Chamar a API
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Cache-Control": "no-cache, no-store, must-revalidate",
         },
-        body: JSON.stringify({
-          messages: recentMessages,
-        }),
+        body: JSON.stringify({ messages: recentMessages }),
       })
 
       if (!response.ok) {
@@ -163,19 +233,38 @@ export default function ChatView() {
 
       const data = await response.json()
 
-      // Adicionar resposta do assistente
       assistantMessage = {
-        id: Date.now().toString(),
+        id: (Date.now() + 1).toString(),
         role: "assistant",
         content: data.message,
         timestamp: new Date(),
       }
 
-      setChatMessages([...updatedMessages, assistantMessage])
+      const finalMessages = [...updatedMessages, assistantMessage]
+      setChatMessages(finalMessages)
 
-      // Se for uma nova conversa, criar um título automático
-      if (currentConversationId === null && !conversationTitle) {
-        setConversationTitle(`Conversa sobre ${inputMessage.substring(0, 20)}${inputMessage.length > 20 ? "..." : ""}`)
+      if (!conversationTitle) {
+        setConversationTitle(
+          `Conversa sobre ${userMessage.content.substring(0, 20)}${
+            userMessage.content.length > 20 ? "..." : ""
+          }`,
+        )
+      }
+
+      if (currentConversationId) {
+        const now = new Date()
+        setSavedConversations((prev) =>
+          prev.map((conv) =>
+            conv.id === currentConversationId
+              ? {
+                  ...conv,
+                  messages: finalMessages,
+                  title: conversationTitle || conv.title,
+                  updatedAt: now,
+                }
+              : conv,
+          ),
+        )
       }
     } catch (error: any) {
       console.error("Erro ao enviar mensagem:", error)
@@ -185,49 +274,95 @@ export default function ChatView() {
         variant: "destructive",
       })
 
-      // Adicionar mensagem de erro como resposta do assistente
-      assistantMessage = {
-        id: Date.now().toString(),
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 2).toString(),
         role: "assistant",
         content: "Desculpe, não consegui processar sua mensagem. Por favor, tente novamente mais tarde.",
         timestamp: new Date(),
       }
 
-      setChatMessages([...updatedMessages, assistantMessage])
+      const finalMessages = [...updatedMessages, errorMessage]
+      setChatMessages(finalMessages)
+
+      if (currentConversationId) {
+        const now = new Date()
+        setSavedConversations((prev) =>
+          prev.map((conv) =>
+            conv.id === currentConversationId
+              ? {
+                  ...conv,
+                  messages: finalMessages,
+                  title: conversationTitle || conv.title,
+                  updatedAt: now,
+                }
+              : conv,
+          ),
+        )
+      }
     } finally {
       setIsSendingMessage(false)
-      if (assistantMessage) {
-        saveCurrentConversation([...updatedMessages, assistantMessage])
+    }
+  }, [chatMessages, inputMessage, currentConversationId, conversationTitle, toast])
+
+  const startNewConversation = () => {
+    if (chatMessages.length > 0) {
+      const now = new Date()
+
+      if (currentConversationId) {
+        setSavedConversations((prev) =>
+          prev.map((conv) =>
+            conv.id === currentConversationId
+              ? {
+                  ...conv,
+                  messages: chatMessages,
+                  title: conversationTitle || conv.title,
+                  updatedAt: now,
+                }
+              : conv,
+          ),
+        )
       } else {
-        saveCurrentConversation(updatedMessages)
+        const newId = now.getTime().toString()
+        const newConversation: SavedConversation = {
+          id: newId,
+          title: conversationTitle || `Conversa ${savedConversations.length + 1}`,
+          messages: chatMessages,
+          createdAt: now,
+          updatedAt: now,
+        }
+        setSavedConversations((prev) => [newConversation, ...prev])
       }
     }
-  }, [chatMessages, inputMessage, currentConversationId, conversationTitle, saveCurrentConversation, toast])
 
-  // Função para iniciar uma nova conversa
-  const startNewConversation = () => {
     setChatMessages([])
     setCurrentConversationId(null)
     setConversationTitle("")
-    setIsCreatingNewChat(false)
+    setEditingMessageId(null)
+    setEditedMessageContent("")
+    setInputMessage("")
   }
 
-  // Função para carregar uma conversa salva
   const loadConversation = (id: string) => {
     const conversation = savedConversations.find((conv) => conv.id === id)
     if (conversation) {
       setChatMessages(conversation.messages)
       setCurrentConversationId(conversation.id)
       setConversationTitle(conversation.title)
+      setEditingMessageId(null)
+      setEditedMessageContent("")
+      setInputMessage("")
     }
   }
 
-  // Função para excluir uma conversa
   const deleteConversation = (id: string) => {
     setSavedConversations((prev) => prev.filter((conv) => conv.id !== id))
 
     if (currentConversationId === id) {
-      startNewConversation()
+      setChatMessages([])
+      setCurrentConversationId(null)
+      setConversationTitle("")
+      setEditingMessageId(null)
+      setEditedMessageContent("")
     }
 
     toast({
@@ -236,13 +371,11 @@ export default function ChatView() {
     })
   }
 
-  // Função para iniciar a edição de uma mensagem
   const startEditingMessage = useCallback((message: ChatMessage) => {
     setEditingMessageId(message.id)
     setEditedMessageContent(message.content)
   }, [])
 
-  // Função para salvar a mensagem editada
   const saveEditedMessage = useCallback(() => {
     if (!editingMessageId) return
 
@@ -251,9 +384,23 @@ export default function ChatView() {
     )
 
     setChatMessages(updatedMessages)
-    saveCurrentConversation(updatedMessages)
 
-    // Resetar o estado de edição
+    if (currentConversationId) {
+      const now = new Date()
+      setSavedConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === currentConversationId
+            ? {
+                ...conv,
+                messages: updatedMessages,
+                title: conversationTitle || conv.title,
+                updatedAt: now,
+              }
+            : conv,
+        ),
+      )
+    }
+
     setEditingMessageId(null)
     setEditedMessageContent("")
 
@@ -261,15 +408,13 @@ export default function ChatView() {
       title: "Mensagem atualizada",
       description: "Sua mensagem foi editada com sucesso",
     })
-  }, [chatMessages, editingMessageId, editedMessageContent, saveCurrentConversation, toast])
+  }, [chatMessages, editingMessageId, editedMessageContent, currentConversationId, conversationTitle, toast])
 
-  // Função para cancelar a edição
   const cancelEditing = () => {
     setEditingMessageId(null)
     setEditedMessageContent("")
   }
 
-  // Função para copiar o texto
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     toast({
@@ -278,10 +423,8 @@ export default function ChatView() {
     })
   }
 
-  // Função para usar texto do chat no gerador de copy
   const useTextFromChat = useCallback(
     (text: string) => {
-      // Aqui você pode implementar a lógica para transferir o texto para o editor
       toast({
         title: "Texto transferido",
         description: "O texto foi transferido para o editor",
@@ -291,74 +434,84 @@ export default function ChatView() {
   )
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[600px]">
-      {/* Sidebar com conversas salvas */}
-      <Card className="md:col-span-1 h-full flex flex-col">
-        <CardHeader className="p-4">
-          <CardTitle className="text-lg">Conversas</CardTitle>
+    <div
+      className="
+        grid grid-cols-1 md:grid-cols-3 gap-6
+        h-[calc(100vh-160px)] max-h-[calc(100vh-160px)]
+        overflow-hidden
+      "
+    >
+      {/* Sidebar com histórico */}
+      <Card className="md:col-span-1 h-full flex flex-col overflow-hidden bg-zinc-950/70 border border-white/5 backdrop-blur-xl rounded-2xl shadow-lg">
+        <CardHeader className="px-4 pt-4 pb-2 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center">
+              <History className="h-4 w-4 text-zinc-200" />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-semibold tracking-wide">Histórico</CardTitle>
+              <p className="text-xs text-zinc-500">Seus chats recentes com a IA</p>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="p-2 flex-1 overflow-hidden">
-          <div className="mb-2">
-            <Button variant="outline" className="w-full justify-start" onClick={() => setIsCreatingNewChat(true)}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Nova Conversa
+        <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col overflow-hidden">
+          <div className="mb-3">
+            <Button
+              variant="outline"
+              className="w-full justify-center text-xs rounded-full border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+              onClick={startNewConversation}
+            >
+              <PlusCircle className="mr-1 h-4 w-4" />
+              Novo chat
             </Button>
           </div>
 
-          {isCreatingNewChat && (
-            <div className="mb-2 p-2 border rounded-md">
-              <Input
-                placeholder="Nome da conversa"
-                value={conversationTitle}
-                onChange={(e) => setConversationTitle(e.target.value)}
-                className="mb-2"
-              />
-              <div className="flex gap-2">
-                <Button size="sm" onClick={startNewConversation}>
-                  Criar
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setIsCreatingNewChat(false)}>
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <ScrollArea className="h-[calc(100%-40px)]">
-            <div className="space-y-2 pr-2">
+          <ScrollArea className="flex-1 pr-1">
+            <div className="space-y-2">
               {savedConversations.length > 0 ? (
-                savedConversations.map((conv) => (
-                  <div
-                    key={conv.id}
-                    className={`p-2 rounded-md cursor-pointer flex items-center ${
-                      currentConversationId === conv.id ? "bg-muted" : "hover:bg-muted/50"
-                    }`}
-                  >
-                    {/* Área clicável para carregar a conversa */}
-                    <div className="flex-1 min-w-0 mr-2" onClick={() => loadConversation(conv.id)}>
-                      <p className="font-medium truncate text-sm" style={{ maxWidth: "100%" }}>
-                        {conv.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(conv.updatedAt).toLocaleDateString().split("/")[0]}/
-                        {new Date(conv.updatedAt).toLocaleDateString().split("/")[1]}
-                      </p>
-                    </div>
-
-                    {/* Botão de excluir separado da área clicável */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="flex-shrink-0 w-8 h-8 p-0"
-                      onClick={() => deleteConversation(conv.id)}
+                savedConversations.map((conv) => {
+                  const isActive = currentConversationId === conv.id
+                  return (
+                    <button
+                      key={conv.id}
+                      type="button"
+                      onClick={() => loadConversation(conv.id)}
+                      className={`
+                        w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-left
+                        transition-all border
+                        ${
+                          isActive
+                            ? "bg-white/10 border-primary/40 shadow-inner"
+                            : "bg-white/0 border-white/5 hover:bg-white/5"
+                        }
+                      `}
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-xs truncate">{conv.title}</p>
+                        <p className="text-[11px] text-zinc-500">
+                          {new Date(conv.updatedAt).toLocaleDateString().split("/")[0]}/
+                          {new Date(conv.updatedAt).toLocaleDateString().split("/")[1]}
+                        </p>
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 flex-shrink-0 text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteConversation(conv.id)
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </button>
+                  )
+                })
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>Nenhuma conversa salva</p>
+                <div className="text-center py-10 text-zinc-600 text-xs">
+                  <p>Nenhuma conversa salva ainda.</p>
+                  <p>Clique em &quot;Novo chat&quot; para começar.</p>
                 </div>
               )}
             </div>
@@ -367,62 +520,83 @@ export default function ChatView() {
       </Card>
 
       {/* Chat principal */}
-      <Card className="md:col-span-2 h-full flex flex-col">
-        <CardHeader className="p-4 border-b">
-          <CardTitle className="text-lg">
-            {currentConversationId ? conversationTitle || "Conversa" : "Nova Conversa"}
-          </CardTitle>
-          <CardDescription>Converse com a IA para criar e melhorar seus textos de copywriting</CardDescription>
+      <Card className="md:col-span-2 h-full flex flex-col overflow-hidden bg-zinc-950/70 border border-white/5 backdrop-blur-xl rounded-2xl shadow-lg">
+        <CardHeader className="px-5 pt-4 pb-3 border-b border-white/5 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/40">
+              <MessagesSquare className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-semibold tracking-wide">
+                {currentConversationId ? conversationTitle || "Conversa" : "Conversa"}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Converse com a IA para criar e melhorar seus textos de copywriting
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
 
-        <CardContent className="p-0 flex-1 flex flex-col">
+        <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
           {/* Área de mensagens */}
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="flex-1 px-5 py-4">
             {chatMessages.length > 0 ? (
               <div className="space-y-4">
                 {chatMessages.map((message) => (
-                  <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    key={message.id}
+                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
                     <div
-                      className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
-                      style={{ maxWidth: "60%" }}
+                      className={`flex gap-3 ${
+                        message.role === "user" ? "flex-row-reverse" : ""
+                      } max-w-[70%]`}
                     >
-                      <Avatar className="h-8 w-8 flex-shrink-0">
+                      <Avatar className="h-8 w-8 flex-shrink-0 border border-white/10 bg-zinc-900">
                         {message.role === "user" ? (
                           <>
-                            <AvatarFallback>U</AvatarFallback>
+                            <AvatarFallback className="text-[10px]">VC</AvatarFallback>
                             <AvatarImage src="/vibrant-street-market.png" />
                           </>
                         ) : (
                           <>
-                            <AvatarFallback>AI</AvatarFallback>
+                            <AvatarFallback className="text-[10px]">AI</AvatarFallback>
                             <AvatarImage src="/futuristic-helper-bot.png" />
                           </>
                         )}
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         {editingMessageId === message.id ? (
-                          // Modo de edição
                           <div className="space-y-2">
                             <Textarea
                               value={editedMessageContent}
                               onChange={(e) => setEditedMessageContent(e.target.value)}
-                              className="min-h-[100px] w-full"
+                              className="min-h-[100px] w-full text-sm bg-zinc-900/80 border border-white/10 rounded-xl"
                             />
                             <div className="flex gap-2">
-                              <Button size="sm" onClick={saveEditedMessage}>
+                              <Button size="sm" className="text-xs h-8 px-3" onClick={saveEditedMessage}>
                                 Salvar
                               </Button>
-                              <Button size="sm" variant="outline" onClick={cancelEditing}>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs h-8 px-3"
+                                onClick={cancelEditing}
+                              >
                                 Cancelar
                               </Button>
                             </div>
                           </div>
                         ) : (
-                          // Modo de visualização
                           <div
-                            className={`rounded-lg p-3 ${
-                              message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
-                            }`}
+                            className={`
+                              rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-sm
+                              ${
+                                message.role === "user"
+                                  ? "bg-primary/90 text-primary-foreground border border-primary/50"
+                                  : "bg-zinc-900/80 text-zinc-100 border border-white/10"
+                              }
+                            `}
                             style={{
                               overflowWrap: "break-word",
                               wordWrap: "break-word",
@@ -432,29 +606,41 @@ export default function ChatView() {
                               maxWidth: "100%",
                             }}
                           >
-                            <p style={{ maxWidth: "100%" }}>{message.content}</p>
+                            <p className="max-w-full">{message.content}</p>
                           </div>
                         )}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(message.timestamp).toLocaleTimeString()}
-                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-[11px] text-zinc-500">
+                            {new Date(message.timestamp).toLocaleTimeString()}
+                          </p>
 
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          {message.role === "assistant" && (
-                            <>
-                              <Button variant="ghost" size="sm" onClick={() => copyToClipboard(message.content)}>
-                                <Copy className="h-3 w-3 mr-1" />
-                                Copiar
+                          <div className="flex flex-wrap gap-1">
+                            {message.role === "assistant" && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-[11px] text-zinc-400 hover:text-zinc-100"
+                                  onClick={() => copyToClipboard(message.content)}
+                                >
+                                  <Copy className="h-3 w-3 mr-1" />
+                                  Copiar
+                                </Button>
+                                <UseTextButton text={message.content} />
+                              </>
+                            )}
+                            {message.role === "user" && !editingMessageId && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-[11px] text-zinc-400 hover:text-zinc-100"
+                                onClick={() => startEditingMessage(message)}
+                              >
+                                <PenLine className="h-3 w-3 mr-1" />
+                                Editar
                               </Button>
-                              <UseTextButton text={message.content} />
-                            </>
-                          )}
-                          {message.role === "user" && !editingMessageId && (
-                            <Button variant="ghost" size="sm" onClick={() => startEditingMessage(message)}>
-                              <PenLine className="h-3 w-3 mr-1" />
-                              Editar
-                            </Button>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -463,11 +649,14 @@ export default function ChatView() {
                 <div ref={chatEndRef} />
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center p-4">
-                <Bot className="h-12 w-12 mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-medium">Assistente de Copywriting</h3>
-                <p className="text-muted-foreground mb-4">
-                  Converse com a IA para criar textos persuasivos, anúncios, emails e muito mais.
+              <div className="h-full flex flex-col items-center justify-center text-center px-4">
+                <div className="h-14 w-14 rounded-2xl bg-primary/10 border border-primary/40 flex items-center justify-center mb-3">
+                  <Bot className="h-7 w-7 text-primary" />
+                </div>
+                <h3 className="text-base font-medium mb-1">Assistente de Copywriting</h3>
+                <p className="text-xs text-zinc-400 mb-4 max-w-md">
+                  Use a IA para criar anúncios, headlines, emails, scripts de vídeo e qualquer texto persuasivo que
+                  você precisar.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full max-w-md">
@@ -475,7 +664,7 @@ export default function ChatView() {
                     <Button
                       key={index}
                       variant="outline"
-                      className="justify-start text-left h-auto py-2"
+                      className="justify-start text-left h-auto py-2 text-xs rounded-xl border-white/10 bg-white/0 hover:bg-white/5"
                       onClick={() => setInputMessage(suggestion)}
                     >
                       <span className="truncate">{suggestion}</span>
@@ -487,33 +676,60 @@ export default function ChatView() {
           </ScrollArea>
 
           {/* Área de input */}
-          <div className="p-4 border-t">
+          <div className="px-5 pb-3 pt-3 border-t border-white/5 bg-zinc-950/80">
             <form
               onSubmit={(e) => {
                 e.preventDefault()
                 sendMessage()
               }}
-              className="flex gap-2"
+              className="flex items-center gap-3"
             >
-              <Textarea
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Digite sua mensagem..."
-                className="min-h-[60px] resize-none"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    sendMessage()
-                  }
-                }}
-              />
-              <Button type="submit" disabled={isSendingMessage || !inputMessage.trim()}>
-                {isSendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </Button>
+              {/* Card apenas do texto */}
+              <div className="flex-1 rounded-2xl bg-zinc-900/80 border border-white/10 px-3 py-2">
+                <Textarea
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder="Digite sua mensagem ou use o microfone..."
+                  className="min-h-[40px] max-h-[120px] w-full resize-none border-0 bg-transparent px-0 py-1 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault()
+                      sendMessage()
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Botões fora do card de texto, centralizados */}
+              <div className="flex items-center gap-2">
+                {/* Botão microfone */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={toggleRecording}
+                  className={`
+                    h-9 w-9 flex items-center justify-center rounded-full
+                    border ${
+                      isRecording
+                        ? "border-emerald-500/70 bg-emerald-500/20 shadow-[0_0_12px_rgba(16,185,129,0.7)]"
+                        : "border-white/10 bg-zinc-900/80 hover:bg-zinc-800"
+                    }
+                  `}
+                  title={isRecording ? "Parar gravação" : "Falar por áudio"}
+                >
+                  <Mic className={`h-4 w-4 ${isRecording ? "text-emerald-400" : ""}`} />
+                </Button>
+
+                {/* Botão enviar */}
+                <Button
+                  type="submit"
+                  disabled={isSendingMessage || !inputMessage.trim()}
+                  className="h-9 w-9 flex items-center justify-center rounded-full shadow-[0_0_12px_rgba(59,130,246,0.6)]"
+                >
+                  {isSendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </div>
             </form>
-            <p className="text-xs text-muted-foreground mt-2">
-              Pressione Enter para enviar, Shift+Enter para nova linha
-            </p>
           </div>
         </CardContent>
       </Card>
@@ -525,7 +741,6 @@ function UseTextButton({ text }: { text: string }) {
   const { toast } = useToast()
   const useTextFromChat = useCallback(
     (text: string) => {
-      // Aqui você pode implementar a lógica para transferir o texto para o editor
       toast({
         title: "Texto transferido",
         description: "O texto foi transferido para o editor",
@@ -534,7 +749,12 @@ function UseTextButton({ text }: { text: string }) {
     [toast],
   )
   return (
-    <Button variant="ghost" size="sm" onClick={() => useTextFromChat(text)}>
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-7 px-2 text-[11px] text-zinc-400 hover:text-zinc-100"
+      onClick={() => useTextFromChat(text)}
+    >
       <FileText className="h-3 w-3 mr-1" />
       Usar no Editor
     </Button>

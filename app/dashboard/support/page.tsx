@@ -139,7 +139,7 @@ export default function SupportPage() {
           {/* Layout com header fixo e conteúdo rolável */}
           <div className="flex h-screen flex-col overflow-hidden">
             {/* HEADER fixo */}
-            <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
+            <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 ">
               <div className="flex h-16 items-center justify-between px-4">
                 <div className="flex items-center" />
                 <div className="flex items-center gap-4">
@@ -278,12 +278,12 @@ export default function SupportPage() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Instagram className="h-4 w-4" />
-                            <span>@blecks.com.br</span>
+                            <span>@blecks.combr</span>
                           </div>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open("https://instagram.com/blecks.com.br", "_blank")}
+                            onClick={() => window.open("https://instagram.com/blecks.combr", "_blank")}
                           >
                             <ExternalLink className="h-3 w-3" />
                           </Button>

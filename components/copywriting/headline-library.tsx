@@ -177,7 +177,6 @@ export default function HeadlineLibrary() {
   const [selectedCategory, setSelectedCategory] = useState<HeadlineCategory | "todas">("todas")
   const { toast } = useToast()
 
-  // Filtrar headlines com base na pesquisa e categoria
   const filteredHeadlines = headlines.filter((headline) => {
     const matchesSearch =
       headline.text.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -186,7 +185,6 @@ export default function HeadlineLibrary() {
     return matchesSearch && matchesCategory
   })
 
-  // Função para copiar headline
   const copyHeadline = (text: string) => {
     navigator.clipboard.writeText(text)
     toast({
@@ -195,82 +193,126 @@ export default function HeadlineLibrary() {
     })
   }
 
-  // Cores para as categorias
+  // Cores para as categorias (mantém colorido, mas sem neon azul no card)
   const categoryColors: Record<HeadlineCategory, string> = {
-    curiosidade: "bg-purple-100 text-purple-800 hover:bg-purple-200",
-    benefício: "bg-green-100 text-green-800 hover:bg-green-200",
-    urgência: "bg-red-100 text-red-800 hover:bg-red-200",
-    problema: "bg-orange-100 text-orange-800 hover:bg-orange-200",
-    social: "bg-blue-100 text-blue-800 hover:bg-blue-200",
-    "como fazer": "bg-teal-100 text-teal-800 hover:bg-teal-200",
+    curiosidade: "bg-purple-500/10 text-purple-300 border-purple-500/30",
+    benefício: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+    urgência: "bg-red-500/10 text-red-300 border-red-500/30",
+    problema: "bg-amber-500/10 text-amber-300 border-amber-500/30",
+    social: "bg-sky-500/10 text-sky-300 border-sky-500/30",
+    "como fazer": "bg-teal-500/10 text-teal-300 border-teal-500/30",
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Biblioteca de Headlines</CardTitle>
-        <CardDescription>Headlines comprovadamente eficazes para aumentar suas taxas de conversão</CardDescription>
+    <Card className="relative overflow-hidden border border-white/10 bg-gradient-to-br from-white/5 via-white/0 to-white/5 backdrop-blur-xl shadow-[0_18px_45px_rgba(0,0,0,0.55)]">
+      <CardHeader className="relative pb-4">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <CardTitle className="text-lg font-semibold tracking-tight">
+              Biblioteca de Headlines
+            </CardTitle>
+            <CardDescription className="mt-1 text-sm text-muted-foreground">
+              Modelos prontos para você adaptar em anúncios, páginas e campanhas.
+            </CardDescription>
+          </div>
+          <Badge className="border border-white/15 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+            {filteredHeadlines.length} modelos
+          </Badge>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-2">
+
+      <CardContent className="relative space-y-5">
+        {/* Filtros */}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Pesquisar headlines..."
-              className="pl-8"
+              placeholder="Buscar por palavra-chave, tag ou tipo de headline..."
+              className="h-9 rounded-full border-white/10 bg-black/40 pl-9 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-white/40"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex flex-wrap gap-2">
+
+          <div className="flex flex-wrap gap-2 md:justify-end">
             <Button
               variant={selectedCategory === "todas" ? "default" : "outline"}
               size="sm"
+              className={`h-8 rounded-full border text-xs ${
+                selectedCategory === "todas"
+                  ? "border-white/40 bg-white text-black shadow-md"
+                  : "border-white/10 bg-black/40 hover:border-white/40 hover:bg-white/5"
+              }`}
               onClick={() => setSelectedCategory("todas")}
             >
               Todas
             </Button>
+
             {(Object.keys(categoryColors) as HeadlineCategory[]).map((category) => (
               <Button
                 key={category}
                 variant={selectedCategory === category ? "default" : "outline"}
                 size="sm"
+                className={`h-8 rounded-full border text-xs capitalize ${
+                  selectedCategory === category
+                    ? "border-white/40 bg-white text-black shadow-md"
+                    : "border-white/10 bg-black/40 hover:border-white/40 hover:bg-white/5"
+                }`}
                 onClick={() => setSelectedCategory(category)}
               >
-                {category.charAt(0).toUpperCase() + category.slice(1)}
+                {category.replace("-", " ")}
               </Button>
             ))}
           </div>
         </div>
 
-        <div className="space-y-3 mt-4">
+        {/* Lista de headlines */}
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
           {filteredHeadlines.length > 0 ? (
             filteredHeadlines.map((headline, index) => (
-              <div key={index} className="p-3 border rounded-md hover:bg-muted/50 transition-colors">
-                <div className="flex justify-between items-start gap-2">
-                  <div>
-                    <p className="font-medium">{headline.text}</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      <Badge className={`${categoryColors[headline.category]} border-none`} variant="outline">
-                        {headline.category}
+              <div
+                key={index}
+                className="group relative flex h-full flex-col justify-between rounded-xl border border-white/8 bg-gradient-to-br from-white/5 via-white/0 to-white/5 p-3.5 text-sm shadow-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-white/40 hover:shadow-[0_16px_40px_rgba(0,0,0,0.65)]"
+              >
+                <div>
+                  <p className="pr-8 text-[13px] font-medium leading-snug text-slate-50">
+                    {headline.text}
+                  </p>
+
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <Badge
+                      variant="outline"
+                      className={`${categoryColors[headline.category]} rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide`}
+                    >
+                      {headline.category}
+                    </Badge>
+
+                    {headline.tags.map((tag, tagIndex) => (
+                      <Badge
+                        key={tagIndex}
+                        variant="outline"
+                        className="rounded-full border-white/10 bg-black/40 px-2 py-0.5 text-[10px] text-muted-foreground"
+                      >
+                        {tag}
                       </Badge>
-                      {headline.tags.map((tag, tagIndex) => (
-                        <Badge key={tagIndex} variant="outline" className="bg-background">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
+                    ))}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => copyHeadline(headline.text)} className="h-8 w-8 p-0">
-                    <Copy className="h-4 w-4" />
-                    <span className="sr-only">Copiar</span>
-                  </Button>
                 </div>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => copyHeadline(headline.text)}
+                  className="absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-black/40 p-0 text-muted-foreground opacity-70 shadow-sm transition-all hover:border-white/50 hover:bg-white/10 hover:text-white hover:opacity-100 group-hover:opacity-100"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  <span className="sr-only">Copiar</span>
+                </Button>
               </div>
             ))
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>Nenhum headline encontrado com os filtros atuais.</p>
+            <div className="col-span-full rounded-xl border border-dashed border-white/10 bg-black/40 py-8 text-center text-sm text-muted-foreground">
+              Nenhum headline encontrado com os filtros atuais.
             </div>
           )}
         </div>

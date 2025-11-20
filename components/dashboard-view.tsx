@@ -217,7 +217,7 @@ function dedupById<T extends { id: string }>(arr: T[]): T[] {
 }
 
 // =============================
-// HOOK SUPABASE (fetch + realtime)
+// HOOK SUPABASE (fetch + realtime) – GATEWAYS
 // =============================
 export function useGatewayKpis(filter: KpiFilter) {
   const { userId, from, to, search } = filter
@@ -343,6 +343,68 @@ export function useGatewayKpis(filter: KpiFilter) {
   )
 
   return { rows, kpis, loading, error, refetch: fetchAll }
+}
+
+// =============================
+// HOOK DE MÉTRICAS DE ADS (PLACEHOLDER P/ SUPABASE / APIs)
+// =============================
+function useAdsMetricsByPlatform({
+  from,
+  to,
+  initialSalesByPlatform,
+}: {
+  from?: string
+  to?: string
+  initialSalesByPlatform?: Record<string, number>
+}) {
+  const zero: AdsMetrics = {
+    adSpend: 0,
+    pendingSales: 0,
+    profit: 0,
+    roi: 0,
+    roas: 0,
+    profitMargin: 0,
+    costPerConversation: 0,
+    conversations: 0,
+    tax: 0,
+  }
+
+  const [metricsByPlatform, setMetricsByPlatform] = useState<
+    Record<AdsPlatform, AdsMetrics>
+  >(() => {
+    const totalProfit = Object.values(initialSalesByPlatform || {}).reduce(
+      (sum, v) => sum + (v || 0),
+      0
+    )
+
+    const profitFor = (key: AdsPlatform) =>
+      key === "all" ? totalProfit : initialSalesByPlatform?.[key] ?? 0
+
+    return {
+      all: { ...zero, profit: profitFor("all") },
+      meta: { ...zero, profit: profitFor("meta") },
+      google: { ...zero, profit: profitFor("google") },
+      analytics: { ...zero, profit: profitFor("analytics") },
+      tiktok: { ...zero, profit: profitFor("tiktok") },
+      kwai: { ...zero, profit: profitFor("kwai") },
+    }
+  })
+
+  useEffect(() => {
+    // 🔗 TODO: aqui você conecta no Supabase / APIs de Ads.
+    //
+    // Exemplo:
+    // const { data, error } = await supabase
+    //   .from("ads_metrics")
+    //   .select("*")
+    //   .gte("date", from)
+    //   .lt("date", to)
+    //
+    // Depois monta Record<AdsPlatform, AdsMetrics>
+    // e chama setMetricsByPlatform(novoObjeto).
+  }, [from, to])
+
+  return { metricsByPlatform, setMetricsByPlatform }
 }
 
 // =============================
@@ -682,6 +744,7 @@ function makeRange(
 // COMPONENTE PRINCIPAL DO DASHBOARD
 // =============================
 export default function DashboardView({
+  userName,
   salesByPlatform = {},
   onRefresh,
   cardContent,
@@ -699,7 +762,7 @@ export default function DashboardView({
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
-  // 🔹 plataforma de anúncios selecionada
+  // plataforma de anúncios selecionada
   const [selectedPlatform, setSelectedPlatform] = useState<AdsPlatform>("all")
 
   const { from, to } = useMemo(
@@ -713,66 +776,24 @@ export default function DashboardView({
     to,
   })
 
+  const { metricsByPlatform } = useAdsMetricsByPlatform({
+    from,
+    to,
+    initialSalesByPlatform: salesByPlatform,
+  })
+
+  const adsMetricsByPlatform = metricsByPlatform
+  const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
+
   function brl(n: number) {
     return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
   }
+
   const greenPct = (p: string) => (
     <span className="text-green-600 dark:text-green-400 text-2xl font-semibold">
       {p}
     </span>
   )
-
-  // 🔹 métrica de ads por plataforma (estrutura pronta p/ integrar APIs)
-  const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
-    const zero: AdsMetrics = {
-      adSpend: 0,
-      pendingSales: 0,
-      profit: 0,
-      roi: 0,
-      roas: 0,
-      profitMargin: 0,
-      costPerConversation: 0,
-      conversations: 0,
-      tax: 0,
-    }
-
-    const totalProfit = Object.values(salesByPlatform || {}).reduce(
-      (sum, v) => sum + (v || 0),
-      0
-    )
-
-    const get = (key: AdsPlatform) =>
-      key === "all" ? 0 : (salesByPlatform?.[key] ?? 0)
-
-    return {
-      all: {
-        ...zero,
-        profit: totalProfit,
-      },
-      meta: {
-        ...zero,
-        profit: get("meta"),
-      },
-      google: {
-        ...zero,
-        profit: get("google"),
-      },
-      analytics: {
-        ...zero,
-        profit: get("analytics"),
-      },
-      tiktok: {
-        ...zero,
-        profit: get("tiktok"),
-      },
-      kwai: {
-        ...zero,
-        profit: get("kwai"),
-      },
-    }
-  }, [salesByPlatform])
-
-  const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
 
   const selectedPlatformLabel = useMemo(() => {
     switch (selectedPlatform) {
@@ -791,7 +812,13 @@ export default function DashboardView({
     }
   }, [selectedPlatform])
 
+  // classe padrão para o label das plataformas
+  const platformLabelClass =
+    "ml-2 text-[9px] leading-none text-black/50 dark:text-white/50 whitespace-nowrap"
+
+  // =====================
   // conteúdo padrão dos cards
+  // =====================
   const defaultContent: CardContentMap = {
     "top-1": (_slotId, ctx, key) => {
       const loading = ctx.loading || isRefreshing
@@ -848,16 +875,14 @@ export default function DashboardView({
       )
     },
 
+    // ✅ VENDAS – sem "Todas plataformas"
     "top-2": (_slotId, ctx, key) => {
       const value = ctx.kpis.vendas ?? 0
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`kpi-top2-${key}`} className="p-3 text-black dark:text-white">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70">Vendas</div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
-            </span>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+            Vendas
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -869,16 +894,15 @@ export default function DashboardView({
         </div>
       )
     },
+
+    // ✅ REEMBOLSOS – sem "Todas plataformas"
     "top-3": (_slotId, ctx, key) => {
       const value = ctx.kpis.reembolsosTotal ?? 0
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`kpi-top3-${key}`} className="p-3 text-black dark:text-white">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70">Reembolsos</div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
-            </span>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+            Reembolsos
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -890,18 +914,15 @@ export default function DashboardView({
         </div>
       )
     },
+
+    // ✅ CHARGEBACKS – sem "Todas plataformas"
     "top-4": (_slotId, ctx, key) => {
       const value = ctx.kpis.chargebacksTotal ?? 0
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text-white">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70">
-              Chargebacks
-            </div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
-            </span>
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+            Chargebacks
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -917,17 +938,30 @@ export default function DashboardView({
     // =====================
     // CARDS DE MÉTRICAS DE ADS
     // =====================
+    // 🔥 AQUI está o card com o layout exato que você pediu
     r1: (_slot, _ctx, key) => {
       const loading = isRefreshing
+
+      const allPlatformsLabel = (
+        <div className="text-[10px] text-black/50 dark:text-white/50 leading-tight text-right whitespace-pre-line">
+          {"Todas\nplataformas"}
+        </div>
+      )
+
+      const dynamicLabel =
+        selectedPlatform === "all" ? (
+          allPlatformsLabel
+        ) : (
+          <span className={platformLabelClass}>{selectedPlatformLabel}</span>
+        )
+
       return (
         <div key={`r1-${key}`} className="p-3 text-black dark:text-white">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70">
+          <div className="flex items-start justify-between mb-2">
+            <div className="text-xs text-black/70 dark:text-white/70 whitespace-nowrap">
               Gastos com anúncios
             </div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
-            </span>
+            {dynamicLabel}
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -939,15 +973,16 @@ export default function DashboardView({
         </div>
       )
     },
+
     r2: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
         <div key={`r2-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70">ROAS</div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
-            </span>
+            <div className="text-xs text-black/70 dark:text-white/70">
+              ROAS
+            </div>
+            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -959,6 +994,7 @@ export default function DashboardView({
         </div>
       )
     },
+
     r3: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
@@ -967,9 +1003,7 @@ export default function DashboardView({
             <div className="text-xs text-black/70 dark:text-white/70">
               Vendas Pendentes
             </div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
-            </span>
+            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -981,15 +1015,16 @@ export default function DashboardView({
         </div>
       )
     },
+
     r4: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
         <div key={`r4-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70">Lucro</div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
-            </span>
+            <div className="text-xs text-black/70 dark:text-white/70">
+              Lucro
+            </div>
+            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
           </div>
           <div className="text-2xl font-semibold text-green-600 dark:text-green-400">
             {loading ? (
@@ -1001,15 +1036,16 @@ export default function DashboardView({
         </div>
       )
     },
+
     r5: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
         <div key={`r5-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70">ROI</div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
-            </span>
+            <div className="text-xs text-black/70 dark:text-white/70">
+              ROI
+            </div>
+            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
           </div>
           {loading ? (
             <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
@@ -1019,6 +1055,7 @@ export default function DashboardView({
         </div>
       )
     },
+
     r6: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
@@ -1027,9 +1064,7 @@ export default function DashboardView({
             <div className="text-xs text-black/70 dark:text-white/70">
               Margem de Lucro
             </div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
-            </span>
+            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
           </div>
           {loading ? (
             <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
@@ -1049,9 +1084,7 @@ export default function DashboardView({
             <div className="text-xs text-black/70 dark:text-white/70">
               Custo por conversa
             </div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
-            </span>
+            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -1063,6 +1096,7 @@ export default function DashboardView({
         </div>
       )
     },
+
     b2: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
@@ -1071,9 +1105,7 @@ export default function DashboardView({
             <div className="text-xs text-black/70 dark:text-white/70">
               Conversa
             </div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
-            </span>
+            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -1085,6 +1117,7 @@ export default function DashboardView({
         </div>
       )
     },
+
     b3: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
@@ -1093,9 +1126,7 @@ export default function DashboardView({
             <div className="text-xs text-black/70 dark:text-white/70">
               Imposto
             </div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
-            </span>
+            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -1131,6 +1162,7 @@ export default function DashboardView({
         </div>
       )
     },
+
     b5: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
@@ -1153,6 +1185,7 @@ export default function DashboardView({
         </div>
       )
     },
+
     b6: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
@@ -1175,6 +1208,7 @@ export default function DashboardView({
         </div>
       )
     },
+
     b7: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
@@ -1197,6 +1231,7 @@ export default function DashboardView({
         </div>
       )
     },
+
     b8: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
@@ -1246,9 +1281,7 @@ export default function DashboardView({
   const rowsNeeded = useMemo(() => {
     const units = effectiveCards.reduce(
       (sum, c) =>
-        sum +
-        Math.max(1, Math.min(12, c.w)) *
-          Math.max(1, c.h),
+        sum + Math.max(1, Math.min(12, c.w)) * Math.max(1, c.h),
       0
     )
     return Math.max(6, Math.ceil(units / 12) + 1)
@@ -1358,7 +1391,7 @@ export default function DashboardView({
         <div className="flex flex-wrap items-end gap-3">
           <PeriodSelector />
 
-          {/* 🔹 Seletor de plataforma de anúncios AO LADO do período */}
+          {/* Seletor de plataforma de anúncios */}
           <div className="flex flex-wrap items-center gap-1 rounded-full border border-white/10 bg-black/40 px-1 py-1 shadow-inner">
             {adsPlatformOptions.map((opt) => (
               <button

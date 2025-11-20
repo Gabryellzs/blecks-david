@@ -80,7 +80,7 @@ export interface GatewayTransaction {
 export type KpiFilter = {
   userId?: string
   from?: string // ISO start inclusive
-  to?: string   // ISO end exclusive
+  to?: string // ISO end exclusive
   search?: string
 }
 
@@ -89,6 +89,23 @@ export type GatewayKpisLight = {
   vendas: number
   reembolsosTotal: number
   chargebacksTotal: number
+}
+
+// =============================
+// TIPOS DE PLATAFORMAS DE ADS
+// =============================
+type AdsPlatform = "all" | "meta" | "google" | "analytics" | "tiktok" | "kwai"
+
+type AdsMetrics = {
+  adSpend: number
+  pendingSales: number
+  profit: number
+  roi: number
+  roas: number
+  profitMargin: number
+  costPerConversation: number
+  conversations: number
+  tax: number
 }
 
 // =============================
@@ -219,13 +236,17 @@ export function useGatewayKpis(filter: KpiFilter) {
 
     const q = supabase
       .from("gateway_transactions")
-      .select("id,user_id,transaction_id,gateway_id,amount,currency,customer_name,customer_email,customer_phone,product_name,payment_method,fee,net_amount,event_type,status,raw_payload,created_at,updated_by,fees,updated_at,product_price")
+      .select(
+        "id,user_id,transaction_id,gateway_id,amount,currency,customer_name,customer_email,customer_phone,product_name,payment_method,fee,net_amount,event_type,status,raw_payload,created_at,updated_by,fees,updated_at,product_price"
+      )
       .order("created_at", { ascending: false })
 
     if (from) q.gte("created_at", from)
     if (to) q.lt("created_at", to)
     if (search && search.trim()) {
-      q.or(`customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,product_name.ilike.%${search}%`)
+      q.or(
+        `customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,product_name.ilike.%${search}%`
+      )
     }
 
     const { data, error } = await q
@@ -237,7 +258,7 @@ export function useGatewayKpis(filter: KpiFilter) {
     } else {
       const clean = dedupById((data || []) as GatewayTransaction[])
       setRows(clean)
-      seenIdsRef.current = new Set(clean.map(r => r.id))
+      seenIdsRef.current = new Set(clean.map((r) => r.id))
       initialLoadedRef.current = true
     }
 
@@ -257,11 +278,13 @@ export function useGatewayKpis(filter: KpiFilter) {
     }
 
     // canal único por range
-    const chanName = `gateway_transactions_dashboard_${(from||'min')}_${(to||'max')}_${Math.random().toString(36).slice(2)}`
+    const chanName = `gateway_transactions_dashboard_${from || "min"}_${
+      to || "max"
+    }_${Math.random().toString(36).slice(2)}`
     const channel = supabase.channel(chanName)
 
     const fromMs = from ? Date.parse(from) : null
-    const toMs   = to   ? Date.parse(to)   : null
+    const toMs = to ? Date.parse(to) : null
 
     channel
       .on(
@@ -274,9 +297,9 @@ export function useGatewayKpis(filter: KpiFilter) {
           if (fromMs !== null && rowMs < fromMs) return
           if (toMs !== null && rowMs >= toMs) return
 
-          setRows(prev => {
+          setRows((prev) => {
             if (seenIdsRef.current.has(row.id)) {
-              return prev.map(r => (r.id === row.id ? row : r))
+              return prev.map((r) => (r.id === row.id ? row : r))
             }
             seenIdsRef.current.add(row.id)
             return [row, ...prev]
@@ -290,17 +313,17 @@ export function useGatewayKpis(filter: KpiFilter) {
           const row = payload.new as GatewayTransaction
           const rowMs = Date.parse(row.created_at)
 
-          setRows(prev => {
+          setRows((prev) => {
             if ((fromMs !== null && rowMs < fromMs) || (toMs !== null && rowMs >= toMs)) {
               seenIdsRef.current.delete(row.id)
-              return prev.filter(r => r.id !== row.id)
+              return prev.filter((r) => r.id !== row.id)
             }
 
             if (!seenIdsRef.current.has(row.id)) {
               seenIdsRef.current.add(row.id)
               return [row, ...prev]
             }
-            return prev.map(r => (r.id === row.id ? row : r))
+            return prev.map((r) => (r.id === row.id ? row : r))
           })
         }
       )
@@ -323,7 +346,7 @@ export function useGatewayKpis(filter: KpiFilter) {
 }
 
 // =============================
-// DONUT CHART (labels no anel + tooltip + responsivo + size)
+// DONUT CHART
 // =============================
 function DonutChart({
   data,
@@ -607,14 +630,7 @@ function Placeholder({ slotId }: { slotId: string }) {
 // =============================
 // RANGE BUILDER (Período)
 // =============================
-type RangePreset =
-  | "maximo"
-  | "hoje"
-  | "ontem"
-  | "7d"
-  | "30d"
-  | "90d"
-  | "custom"
+type RangePreset = "maximo" | "hoje" | "ontem" | "7d" | "30d" | "90d" | "custom"
 
 function makeRange(
   preset: RangePreset,
@@ -683,6 +699,9 @@ export default function DashboardView({
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
+  // 🔹 plataforma de anúncios selecionada
+  const [selectedPlatform, setSelectedPlatform] = useState<AdsPlatform>("all")
+
   const { from, to } = useMemo(
     () => makeRange(preset, customStart, customEnd),
     [preset, customStart, customEnd]
@@ -703,64 +722,149 @@ export default function DashboardView({
     </span>
   )
 
+  // 🔹 métrica de ads por plataforma (estrutura pronta p/ integrar APIs)
+  const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
+    const zero: AdsMetrics = {
+      adSpend: 0,
+      pendingSales: 0,
+      profit: 0,
+      roi: 0,
+      roas: 0,
+      profitMargin: 0,
+      costPerConversation: 0,
+      conversations: 0,
+      tax: 0,
+    }
+
+    const totalProfit = Object.values(salesByPlatform || {}).reduce(
+      (sum, v) => sum + (v || 0),
+      0
+    )
+
+    const get = (key: AdsPlatform) =>
+      key === "all" ? 0 : (salesByPlatform?.[key] ?? 0)
+
+    return {
+      all: {
+        ...zero,
+        profit: totalProfit,
+      },
+      meta: {
+        ...zero,
+        profit: get("meta"),
+      },
+      google: {
+        ...zero,
+        profit: get("google"),
+      },
+      analytics: {
+        ...zero,
+        profit: get("analytics"),
+      },
+      tiktok: {
+        ...zero,
+        profit: get("tiktok"),
+      },
+      kwai: {
+        ...zero,
+        profit: get("kwai"),
+      },
+    }
+  }, [salesByPlatform])
+
+  const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
+
+  const selectedPlatformLabel = useMemo(() => {
+    switch (selectedPlatform) {
+      case "meta":
+        return "Meta ADS"
+      case "google":
+        return "Google ADS"
+      case "analytics":
+        return "Analytics"
+      case "tiktok":
+        return "TikTok ADS"
+      case "kwai":
+        return "Kwai ADS"
+      default:
+        return "Todas plataformas"
+    }
+  }, [selectedPlatform])
+
   // conteúdo padrão dos cards
   const defaultContent: CardContentMap = {
     "top-1": (_slotId, ctx, key) => {
-  const loading = ctx.loading || isRefreshing
+      const loading = ctx.loading || isRefreshing
 
-  const totalNet = React.useMemo(() => {
-    // colapsa por transaction_id (ou id), pegando o último evento aprovado
-    const byTxn = new Map<string, GatewayTransaction>()
+      const totalNet = React.useMemo(() => {
+        // colapsa por transaction_id (ou id), pegando o último evento aprovado
+        const byTxn = new Map<string, GatewayTransaction>()
 
-    for (const r of (ctx.rows || [])) {
-      if (!isApprovedSale(r)) continue
-      if (isRefund(r) || isChargeback(r)) continue
+        for (const r of ctx.rows || []) {
+          if (!isApprovedSale(r)) continue
+          if (isRefund(r) || isChargeback(r)) continue
 
-      const key = r.transaction_id || r.id
-      const prev = byTxn.get(key)
-      if (!prev || new Date(r.created_at) > new Date(prev.created_at)) {
-        byTxn.set(key, r)
-      }
-    }
+          const tKey = r.transaction_id || r.id
+          const prev = byTxn.get(tKey)
+          if (!prev || new Date(r.created_at) > new Date(prev.created_at)) {
+            byTxn.set(tKey, r)
+          }
+        }
 
-    let sum = 0
-    for (const r of byTxn.values()) {
-      const n = Number(r.net_amount ?? 0) || 0
-      if (n > 0) sum += n
-    }
-    return sum
-  }, [ctx.rows])
+        let sum = 0
+        for (const r of byTxn.values()) {
+          const n = Number(r.net_amount ?? 0) || 0
+          if (n > 0) sum += n
+        }
+        return sum
+      }, [ctx.rows])
 
-  return (
-    <div key={`kpi-top1-${key}`} className="p-3 text-black dark:text-white relative">
-      <div className="flex items-center gap-1 mb-2">
-        <span className="text-xs text-black/70 dark:text-white/70">Receita Total</span>
-        <div className="group relative flex items-center">
-          <Info size={13} className="text-black/50 dark:text-white/50 cursor-pointer hover:text-black dark:hover:text-white transition" />
-          <div className="absolute left-4 top-4 z-20 hidden w-56 rounded-md bg-black/80 text-white text-[11px] p-2 leading-tight group-hover:block shadow-lg">
-            Soma do <b>net_amount</b> das vendas aprovadas, 1x por transação, sem reembolsos/chargebacks.
+      return (
+        <div key={`kpi-top1-${key}`} className="p-3 text-black dark:text-white relative">
+          <div className="flex items-center gap-1 mb-2">
+            <span className="text-xs text-black/70 dark:text-white/70">
+              Receita Total
+            </span>
+            <div className="group relative flex items-center">
+              <Info
+                size={13}
+                className="text-black/50 dark:text-white/50 cursor-pointer hover:text-black dark:hover:text-white transition"
+              />
+              <div className="absolute left-4 top-4 z-20 hidden w-56 rounded-md bg-black/80 text-white text-[11px] p-2 leading-tight group-hover:block shadow-lg">
+                Soma do <b>net_amount</b> das vendas aprovadas, 1x por transação,
+                sem reembolsos/chargebacks.
+              </div>
+            </div>
+          </div>
+
+          <div className="text-2xl font-semibold">
+            {loading ? (
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(totalNet)
+            )}
           </div>
         </div>
-      </div>
-
-      <div className="text-2xl font-semibold">
-        {loading
-          ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-          : brl(totalNet)}
-      </div>
-    </div>
-  )
-},
-
+      )
+    },
 
     "top-2": (_slotId, ctx, key) => {
       const value = ctx.kpis.vendas ?? 0
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`kpi-top2-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Vendas</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-black/70 dark:text-white/70">Vendas</div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
+          </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : value.toLocaleString("pt-BR")}
+            {loading ? (
+              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              value.toLocaleString("pt-BR")
+            )}
           </div>
         </div>
       )
@@ -770,9 +874,18 @@ export default function DashboardView({
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`kpi-top3-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Reembolsos</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-black/70 dark:text-white/70">Reembolsos</div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
+          </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(value)}
+            {loading ? (
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(value)
+            )}
           </div>
         </div>
       )
@@ -782,179 +895,326 @@ export default function DashboardView({
       const loading = ctx.loading || isRefreshing
       return (
         <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Chargebacks</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-black/70 dark:text-white/70">
+              Chargebacks
+            </div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
+          </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(value)}
+            {loading ? (
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(value)
+            )}
           </div>
         </div>
       )
     },
 
-    r1: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    // =====================
+    // CARDS DE MÉTRICAS DE ADS
+    // =====================
+    r1: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`r1-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Gastos com anúncios</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-black/70 dark:text-white/70">
+              Gastos com anúncios
+            </div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
+          </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(currentAdsMetrics.adSpend)
+            )}
           </div>
         </div>
       )
     },
-    r2: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    r2: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`r2-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">ROAS</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-black/70 dark:text-white/70">ROAS</div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
+          </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : "0"}
+            {loading ? (
+              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              currentAdsMetrics.roas.toFixed(2)
+            )}
           </div>
         </div>
       )
     },
-    r3: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    r3: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`r3-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Vendas Pendentes</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-black/70 dark:text-white/70">
+              Vendas Pendentes
+            </div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
+          </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(currentAdsMetrics.pendingSales)
+            )}
           </div>
         </div>
       )
     },
-    r4: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    r4: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`r4-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Lucro</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-black/70 dark:text-white/70">Lucro</div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
+          </div>
           <div className="text-2xl font-semibold text-green-600 dark:text-green-400">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(currentAdsMetrics.profit)
+            )}
           </div>
         </div>
       )
     },
-    r5: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    r5: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`r5-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">ROI</div>
-          {loading ? <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : greenPct("0.0%")}
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-black/70 dark:text-white/70">ROI</div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
+          </div>
+          {loading ? (
+            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+          ) : (
+            greenPct(`${currentAdsMetrics.roi.toFixed(1)}%`)
+          )}
         </div>
       )
     },
-    r6: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    r6: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`r6-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Margem de Lucro</div>
-          {loading ? <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : greenPct("0.0%")}
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-black/70 dark:text-white/70">
+              Margem de Lucro
+            </div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
+          </div>
+          {loading ? (
+            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+          ) : (
+            greenPct(`${currentAdsMetrics.profitMargin.toFixed(1)}%`)
+          )}
         </div>
       )
     },
 
     // custo / conversa / imposto
-    b1: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    b1: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`b1-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Custo por conversa</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-black/70 dark:text-white/70">
+              Custo por conversa
+            </div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
+          </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(currentAdsMetrics.costPerConversation)
+            )}
           </div>
         </div>
       )
     },
-    b2: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    b2: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`b2-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Conversa</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-black/70 dark:text-white/70">
+              Conversa
+            </div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
+          </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : "0"}
+            {loading ? (
+              <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              currentAdsMetrics.conversations.toLocaleString("pt-BR")
+            )}
           </div>
         </div>
       )
     },
-    b3: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    b3: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`b3-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">Imposto</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-black/70 dark:text-white/70">
+              Imposto
+            </div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
+          </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(currentAdsMetrics.tax)
+            )}
           </div>
         </div>
       )
     },
 
-    // plataformas
-    b4: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    // plataformas individuais (cards de logos)
+    b4: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`b4-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
-            <img src="/ads-logos/meta-ads.png" alt="" className="w-4 h-4 object-contain" />
+            <img
+              src="/ads-logos/meta-ads.png"
+              alt=""
+              className="w-4 h-4 object-contain"
+            />
             <span className="leading-none">Meta ADS</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(adsMetricsByPlatform.meta.profit)
+            )}
           </div>
         </div>
       )
     },
-    b5: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    b5: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`b5-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
-            <img src="/ads-logos/google-ads.png" alt="" className="w-4 h-4 object-contain" />
+            <img
+              src="/ads-logos/google-ads.png"
+              alt=""
+              className="w-4 h-4 object-contain"
+            />
             <span className="leading-none">Google ADS</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(adsMetricsByPlatform.google.profit)
+            )}
           </div>
         </div>
       )
     },
-    b6: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    b6: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`b6-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
-            <img src="/ads-logos/google-analytics.png" alt="" className="w-4 h-4 object-contain" />
+            <img
+              src="/ads-logos/google-analytics.png"
+              alt=""
+              className="w-4 h-4 object-contain"
+            />
             <span className="leading-none">Analytics</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(adsMetricsByPlatform.analytics.profit)
+            )}
           </div>
         </div>
       )
     },
-    b7: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    b7: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`b7-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
-            <img src="/ads-logos/tiktok-ads.png" alt="" className="w-4 h-4 object-contain" />
+            <img
+              src="/ads-logos/tiktok-ads.png"
+              alt=""
+              className="w-4 h-4 object-contain"
+            />
             <span className="leading-none">TikTok ADS</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(adsMetricsByPlatform.tiktok.profit)
+            )}
           </div>
         </div>
       )
     },
-    b8: (_slot, ctx, key) => {
-      const loading = ctx.loading || isRefreshing
+    b8: (_slot, _ctx, key) => {
+      const loading = isRefreshing
       return (
         <div key={`b8-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
-            <img src="/ads-logos/kwai-ads.png" alt="" className="w-4 h-4 object-contain" />
+            <img
+              src="/ads-logos/kwai-ads.png"
+              alt=""
+              className="w-4 h-4 object-contain"
+            />
             <span className="leading-none">Kwai ADS</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" /> : brl(0)}
+            {loading ? (
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(adsMetricsByPlatform.kwai.profit)
+            )}
           </div>
         </div>
       )
@@ -977,37 +1237,49 @@ export default function DashboardView({
   const effectiveCards = useMemo(() => {
     const v = visibleSlots ?? {}
     const o = layoutOverrides ?? {}
-    return CARDS.filter((c) => v[c.id] !== false).map((c) => ({ ...c, ...o[c.id] }))
+    return CARDS.filter((c) => v[c.id] !== false).map((c) => ({
+      ...c,
+      ...o[c.id],
+    }))
   }, [visibleSlots, layoutOverrides])
 
   const rowsNeeded = useMemo(() => {
     const units = effectiveCards.reduce(
-      (sum, c) => sum + Math.max(1, Math.min(12, c.w)) * Math.max(1, c.h),
+      (sum, c) =>
+        sum +
+        Math.max(1, Math.min(12, c.w)) *
+          Math.max(1, c.h),
       0
     )
     return Math.max(6, Math.ceil(units / 12) + 1)
   }, [effectiveCards])
 
-  const doRefresh = useCallback(async () => {
-    try {
-      setIsRefreshing(true)
-      await data.refetch()
-      if (onRefresh) await onRefresh()
-      else if ("refresh" in router) {
-        // @ts-ignore
-        router.refresh?.()
+  const doRefresh = useCallback(
+    async () => {
+      try {
+        setIsRefreshing(true)
+        await data.refetch()
+        if (onRefresh) await onRefresh()
+        else if ("refresh" in router) {
+          // @ts-ignore
+          router.refresh?.()
+        }
+        setRefreshKey((k) => k + 1)
+      } finally {
+        setIsRefreshing(false)
       }
-      setRefreshKey((k) => k + 1)
-    } finally {
-      setIsRefreshing(false)
-    }
-  }, [onRefresh, router, data])
+    },
+    [onRefresh, router, data]
+  )
 
   function PeriodSelector() {
     return (
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="preset" className="text-black/70 dark:text-white/70 text-xs font-medium">
+          <label
+            htmlFor="preset"
+            className="text-black/70 dark:text-white/70 text-xs font-medium"
+          >
             Período
           </label>
 
@@ -1067,6 +1339,15 @@ export default function DashboardView({
     )
   }
 
+  const adsPlatformOptions: { value: AdsPlatform; label: string }[] = [
+    { value: "all", label: "Todas" },
+    { value: "meta", label: "Meta ADS" },
+    { value: "google", label: "Google ADS" },
+    { value: "analytics", label: "Analytics" },
+    { value: "tiktok", label: "TikTok ADS" },
+    { value: "kwai", label: "Kwai ADS" },
+  ]
+
   return (
     <div
       className="px-4 md:px-8 pt-2 md:pt-3 pb-0 overflow-hidden"
@@ -1074,7 +1355,29 @@ export default function DashboardView({
     >
       {/* HEADER */}
       <div className="mb-2 flex items-start justify-between gap-2 flex-wrap">
-        <PeriodSelector />
+        <div className="flex flex-wrap items-end gap-3">
+          <PeriodSelector />
+
+          {/* 🔹 Seletor de plataforma de anúncios AO LADO do período */}
+          <div className="flex flex-wrap items-center gap-1 rounded-full border border-white/10 bg-black/40 px-1 py-1 shadow-inner">
+            {adsPlatformOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setSelectedPlatform(opt.value)}
+                className={[
+                  "text-xs px-3 py-1 rounded-full transition-all",
+                  "border border-transparent",
+                  selectedPlatform === opt.value
+                    ? "bg-emerald-500 text-black font-semibold shadow-[0_0_20px_rgba(16,185,129,0.6)]"
+                    : "text-zinc-300 hover:bg-white/5",
+                ].join(" ")}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <button
           onClick={doRefresh}
@@ -1133,7 +1436,10 @@ export default function DashboardView({
             <Block key={`${card.id}-${idx}`} className={cls} style={style}>
               <div className="relative h-full">
                 <div
-                  className={(isRefreshing ? "opacity-60 " : "") + "transition-opacity h-full"}
+                  className={
+                    (isRefreshing ? "opacity-60 " : "") +
+                    "transition-opacity h-full"
+                  }
                   key={`content-${refreshKey}`}
                 >
                   {content ?? fallback}

@@ -166,7 +166,6 @@ export default function AdsDashboardView() {
   return acc?.name || "Contas"
 }, [adAccounts, selectedAccountId])
 
-// Mapeia o valor do seletor para o date_preset do Meta Ads
 const mapDateRangeToMetaPreset = (range: string): string => {
   switch (range) {
     case "today":
@@ -177,16 +176,21 @@ const mapDateRangeToMetaPreset = (range: string): string => {
       return "this_month"
     case "lastMonth":
       return "last_month"
+
     case "max":
-      return "lifetime"
+      // "Máximo" -> no máximo 1 ano pra trás
+      return "this_year"
+
     case "custom":
-      // enquanto não tiver seletor de datas personalizado, mantemos 7 dias
+      // até ter seletor de datas manual, usa 7 dias como padrão
       return "last_7d"
+
     case "7d":
     default:
       return "last_7d"
   }
 }
+
 
 
 const filteredCampaigns = useMemo(() => {
@@ -288,13 +292,13 @@ const handleSelectAccount = useCallback((accId: string) => {
     const { data } = await supabase.auth.getUser()
     const uuid = data?.user?.id || undefined
 
-    // usa o filtro selecionado na UI
+    // usa o filtro selecionado no topo (incluindo "Máximo" = 1 ano)
     const preset = mapDateRangeToMetaPreset(dateRange)
 
     const rows = await getFacebookCampaignsWithInsights(
-      accountId,  // ex: act_1283096579202144
-      uuid,       // uuid do usuário
-      preset      // agora vem do seletor de datas
+      accountId, // ex: act_1283096579202144
+      uuid,      // uuid do usuário
+      preset     // agora é dinâmico
     )
 
     setCampaigns(rows as any[])
@@ -313,7 +317,6 @@ const handleSelectAccount = useCallback((accId: string) => {
     setLoadingCampaigns(false)
   }
 }
-
 
 
   const getCurrentUuid = async (): Promise<string | undefined> => {

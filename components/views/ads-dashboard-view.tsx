@@ -3087,12 +3087,12 @@ useEffect(() => {
                   <SelectValue placeholder="Selecionar período" />
                 </SelectTrigger>
                 <SelectContent className="z-[200]">
-                  <SelectItem value="max">Máximo</SelectItem>
                   <SelectItem value="today">Hoje</SelectItem>
                   <SelectItem value="yesterday">Ontem</SelectItem>
                   <SelectItem value="7d">Últimos 7 Dias</SelectItem>
                   <SelectItem value="thisMonth">Esse Mês</SelectItem>
                   <SelectItem value="lastMonth">Mês passado</SelectItem>
+                  <SelectItem value="max">Esse Ano</SelectItem>
                   <SelectItem value="custom">Personalizado</SelectItem>
                 </SelectContent>
               </Select>

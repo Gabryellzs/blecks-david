@@ -40,7 +40,7 @@ const COUNTRY_TO_ISO2: Record<string, string> = {
 
 export default function HomePage() {
   const [offers, setOffers] = useState<Offer[]>([]);
-  const [loading, setLoading] = useState(true);        // só para carga inicial / troca de país
+  const [loading, setLoading] = useState(true); // só para carga inicial / troca de país
   const [loadingMore, setLoadingMore] = useState(false); // para paginação
   const [error, setError] = useState<string | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
@@ -120,14 +120,6 @@ export default function HomePage() {
     if (offer.link) window.open(offer.link, "_blank");
   };
 
-  const organizeIntoColumns = () => {
-    const columns: Offer[][] = [[], [], [], [], []];
-    offers.forEach((offer, index) => {
-      columns[index % 5].push(offer);
-    });
-    return columns;
-  };
-
   const getFireFillPercentage = (adCount: number) => Math.min((adCount / 50) * 100, 100);
 
   const filteredCountries = ["Todos", ...ALL_COUNTRIES].filter((country) =>
@@ -174,8 +166,6 @@ export default function HomePage() {
     );
   }
 
-  const columns = organizeIntoColumns();
-
   return (
     <div className="min-h-screen bg-background p-4 sm:p-6 lg:p-8 text-foreground">
       <div className="mx-auto max-w-[2000px]">
@@ -198,7 +188,13 @@ export default function HomePage() {
                 className="flex min-w-[180px] sm:min-w-[220px] items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-2.5 text-sm sm:text-base font-medium shadow-sm transition-colors hover:bg-card/80"
               >
                 <span>{selectedCountry === "all" ? "Todos" : selectedCountry}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className={`h-5 w-5 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  className={`h-5 w-5 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
@@ -235,7 +231,9 @@ export default function HomePage() {
                         </button>
                       ))
                     ) : (
-                      <div className="px-6 py-4 text-center text-sm text-muted-foreground">Nenhum país encontrado</div>
+                      <div className="px-6 py-4 text-center text-sm text-muted-foreground">
+                        Nenhum país encontrado
+                      </div>
                     )}
                   </div>
                 </div>
@@ -244,73 +242,103 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Grid responsiva */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
-          {columns.map((column, columnIndex) => (
-            <div key={columnIndex} className="flex flex-col gap-4 sm:gap-6">
-              {column.map((offer) => (
-                <div
-                  key={offer.id}
-                  className="group flex h-[320px] sm:h-[340px] lg:h-[350px] flex-col overflow-hidden rounded-lg border border-border bg-card shadow transition-all hover:scale-[1.01] hover:shadow-lg"
-                >
-                  {/* Header */}
-                  <div className="flex items-center gap-2 bg-muted/60 px-4 py-2 border-b border-border">
-                    <Image src="/meta-icon.png" alt="Meta" width={24} height={24} className="h-6 w-6 object-contain" />
-                    <span className="text-xs sm:text-sm font-semibold">META</span>
-                  </div>
+        {/* Grid responsiva: 1 (mobile) → 3 (médio) → 5 (desktop grande) */}
+        <div
+          className="
+            grid
+            grid-cols-1
+            md:grid-cols-3
+            2xl:grid-cols-5
+            gap-4
+            sm:gap-6
+            lg:gap-8
+          "
+        >
+          {offers.map((offer) => (
+            <div
+              key={offer.id}
+              className="group flex h-[320px] sm:h-[340px] lg:h-[350px] flex-col overflow-hidden rounded-lg border border-border bg-card shadow transition-all hover:scale-[1.01] hover:shadow-lg"
+            >
+              {/* Header */}
+              <div className="flex items-center gap-2 bg-muted/60 px-4 py-2 border-b border-border">
+                <Image
+                  src="/meta-icon.png"
+                  alt="Meta"
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 object-contain"
+                />
+                <span className="text-xs sm:text-sm font-semibold">META</span>
+              </div>
 
-                  {/* Imagem */}
-                  <div className="relative h-full w-full overflow-hidden">
-                    <Image
-                      src={offer.imageUrl || "/placeholder.svg"}
-                      alt={offer.title}
-                      fill
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1536px) 33vw, 20vw"
-                      className="object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                  </div>
+              {/* Imagem */}
+              <div className="relative flex-1 w-full overflow-hidden">
+                <Image
+                  src={offer.imageUrl || "/placeholder.svg"}
+                  alt={offer.title}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1536px) 33vw, 20vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-110"
+                />
+              </div>
 
-                  {/* CTA */}
-                  <button
-                    onClick={() => handleOfferClick(offer)}
-                    className="w-full bg-gradient-to-b from-card to-card/70 py-2.5 text-sm sm:text-base font-bold tracking-wide transition-colors hover:bg-card"
+              {/* CTA */}
+              <button
+                onClick={() => handleOfferClick(offer)}
+                className="w-full bg-gradient-to-b from-card to-card/70 py-2.5 text-sm sm:text-base font-bold tracking-wide transition-colors hover:bg-card"
+              >
+                VER OFERTA
+              </button>
+
+              {/* Rodapé */}
+              <div className="flex items-center justify-between border-t border-border bg-card/60 px-4 sm:px-5 py-3 sm:py-4">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-xs sm:text-sm font-medium">{offer.adCount} anúncios</span>
+                  <span className="text-[11px] sm:text-xs text-muted-foreground">
+                    Nicho: {offer.niche || "-"}
+                  </span>
+                </div>
+
+                {/* Termômetro */}
+                <div className="relative">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="h-7 w-7 sm:h-8 sm:w-8 opacity-30"
                   >
-                    VER OFERTA
-                  </button>
+                    <path
+                      fillRule="evenodd"
+                      d="M12.963 2.286a.75.75 0 00-1.071-.136 9.742 9.742 0 00-3.539 6.177A7.547 7.547 0 016.648 6.61a.75.75 0 00-1.152-.082A9 9 0 1015.68 4.534a7.46 7.46 0 01-2.717-2.248zM15.75 14.25a3.75 3.75 0 11-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 011.925-3.545 3.75 3.75 0 013.255 3.717z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
 
-                  {/* Rodapé */}
-                  <div className="flex items-center justify-between border-t border-border bg-card/60 px-4 sm:px-5 py-3 sm:py-4">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-xs sm:text-sm font-medium">{offer.adCount} anúncios</span>
-                      <span className="text-[11px] sm:text-xs text-muted-foreground">Nicho: {offer.niche || "-"}</span>
-                    </div>
-
-                    {/* Termômetro */}
-                    <div className="relative">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-7 w-7 sm:h-8 sm:w-8 opacity-30">
-                        <path
-                          fillRule="evenodd"
-                          d="M12.963 2.286a.75.75 0 00-1.071-.136 9.742 9.742 0 00-3.539 6.177A7.547 7.547 0 016.648 6.61a.75.75 0 00-1.152-.082A9 9 0 1015.68 4.534a7.46 7.46 0 01-2.717-2.248zM15.75 14.25a3.75 3.75 0 11-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 011.925-3.545 3.75 3.75 0 013.255 3.717z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-
-                      <div
-                        className="absolute inset-0 overflow-hidden"
-                        style={{ clipPath: `inset(${100 - getFireFillPercentage(offer.adCount)}% 0 0 0)` }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`h-7 w-7 sm:h-8 sm:w-8 transition-all ${offer.adCount >= 15 ? "text-red-500" : offer.adCount >= 10 ? "text-orange-500" : "text-yellow-500"}`}>
-                          <path
-                            fillRule="evenodd"
-                            d="M12.963 2.286a.75.75 0 00-1.071-.136 9.742 9.742 0 00-3.539 6.177A7.547 7.547 0 016.648 6.61a.75.75 0 00-1.152-.082A9 9 0 1015.68 4.534a7.46 7.46 0 01-2.717-2.248zM15.75 14.25a3.75 3.75 0 11-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 011.925-3.545 3.75 3.75 0 013.255 3.717z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
+                  <div
+                    className="absolute inset-0 overflow-hidden"
+                    style={{ clipPath: `inset(${100 - getFireFillPercentage(offer.adCount)}% 0 0 0)` }}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      className={`h-7 w-7 sm:h-8 sm:w-8 transition-all ${
+                        offer.adCount >= 15
+                          ? "text-red-500"
+                          : offer.adCount >= 10
+                          ? "text-orange-500"
+                          : "text-yellow-500"
+                      }`}
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M12.963 2.286a.75.75 0 00-1.071-.136 9.742 9.742 0 00-3.539 6.177A7.547 7.547 0 016.648 6.61a.75.75 0 00-1.152-.082A9 9 0 1015.68 4.534a7.46 7.46 0 01-2.717-2.248zM15.75 14.25a3.75 3.75 0 11-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 011.925-3.545 3.75 3.75 0 013.255 3.717z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
           ))}
         </div>

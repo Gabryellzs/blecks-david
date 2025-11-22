@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Edit, Plus, Save, Trash, X } from "lucide-react"
+import { Edit, Plus, Save, Trash, X, Star, Filter, SortAsc, SortDesc } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -11,6 +11,7 @@ import { toast } from "@/components/ui/use-toast"
 import { useLocalStorage } from "@/hooks/use-local-storage"
 import { useFavorites } from "@/hooks/use-favorites"
 import { FavoriteButton } from "@/components/ui/favorite-button"
+import { cn } from "@/lib/utils"
 
 // Interface para as anotações
 interface Note {
@@ -43,7 +44,9 @@ export default function NotesView() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
 
   // Sistema de favoritos
-  const { favorites, isFavorite, toggleFavorite } = useFavorites<Note>({ storageKey: "notes" })
+  const { favorites, isFavorite, toggleFavorite } = useFavorites<Note>({
+    storageKey: "notes",
+  })
 
   // Cores para as notas
   const noteColors = [
@@ -56,7 +59,7 @@ export default function NotesView() {
     { name: "Rosa", value: "bg-pink-50 dark:bg-pink-900/20" },
   ]
 
-  // Referência para o textarea de conteúdo
+  // Referência para o textarea de conteúdo (edição)
   const contentTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Função para adicionar nota
@@ -165,12 +168,13 @@ export default function NotesView() {
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return ""
     const date = new Date(dateString)
+    if (isNaN(date.getTime())) return ""
     return date.toLocaleDateString(undefined, {
       year: "numeric",
-      month: "long",
+      month: "short",
       day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     })
   }
 
@@ -178,9 +182,7 @@ export default function NotesView() {
   const filteredNotes = notes
     .filter((note) => {
       // Filtrar por favoritos
-      if (filterBy === "favorites" && !isFavorite(note.id)) {
-        return false
-      }
+      if (filterBy === "favorites" && !isFavorite(note.id)) return false
 
       // Filtrar por termo de pesquisa
       if (
@@ -194,16 +196,18 @@ export default function NotesView() {
       return true
     })
     .sort((a, b) => {
-      // Ordenar por título ou data
       if (sortBy === "title") {
         return sortOrder === "asc" ? a.title.localeCompare(b.title) : b.title.localeCompare(a.title)
       } else {
-        // Por padrão, ordenar por data
-        const dateA = new Date(a.date.split(" (")[0].split("/").reverse().join("-"))
-        const dateB = new Date(b.date.split(" (")[0].split("/").reverse().join("-"))
-        return sortOrder === "asc" ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime()
+        // Ordenar por data usando createdAt (mais consistente)
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+        return sortOrder === "asc" ? dateA - dateB : dateB - dateA
       }
     })
+
+  const totalNotes = notes.length
+  const totalFavorites = favorites.length
 
   // Focar no textarea quando começar a editar
   useEffect(() => {
@@ -213,184 +217,288 @@ export default function NotesView() {
   }, [isEditing])
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <h1 className="text-3xl font-bold">Anotações do Dia a Dia</h1>
+    <div className="h-full w-full bg-gradient-to-b from-background via-background/80 to-background">
+      <div className="mx-auto flex h-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+        {/* Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Anotações do Dia a Dia
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Guarde ideias rápidas, lembretes e insights importantes em um só lugar.
+            </p>
+          </div>
 
-      {/* Seção de Filtros e Ordenação */}
-      <div className="flex flex-col md:flex-row gap-4 items-center">
-        <div className="flex-1">
-          <Input
-            placeholder="Pesquisar notas..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full"
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant={filterBy === "all" ? "default" : "outline"} onClick={() => setFilterBy("all")} size="sm">
-            Todas
-          </Button>
-          <Button
-            variant={filterBy === "favorites" ? "default" : "outline"}
-            onClick={() => setFilterBy("favorites")}
-            size="sm"
-          >
-            Favoritas
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSortOrder(sortOrder === "asc" ? "desc" : "asc")
-            }}
-            size="sm"
-          >
-            {sortOrder === "asc" ? "Mais Antigas" : "Mais Recentes"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSortBy(sortBy === "date" ? "title" : "date")
-            }}
-            size="sm"
-          >
-            Ordenar por: {sortBy === "date" ? "Data" : "Título"}
-          </Button>
-        </div>
-      </div>
-
-      {/* Formulário para adicionar nota */}
-      <Card>
-        <CardContent className="p-4 space-y-4">
-          <Input
-            placeholder="Título da nota"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="font-medium"
-            disabled={isEditing}
-          />
-          <Textarea
-            placeholder="Conteúdo da nota..."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="min-h-[100px]"
-            disabled={isEditing}
-          />
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-sm text-muted-foreground">Cor:</span>
-            {noteColors.map((color) => (
-              <button
-                key={color.value}
-                type="button"
-                onClick={() => setSelectedColor(color.value)}
-                className={`h-6 w-6 rounded-full border ${
-                  color.value || "bg-card border-border"
-                } ${selectedColor === color.value ? "ring-2 ring-primary ring-offset-2" : ""}`}
-                aria-label={color.name}
-                disabled={isEditing}
-              />
-            ))}
-            <div className="ml-auto">
-              <Button onClick={addNote} disabled={isEditing}>
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar Nota
-              </Button>
+          <div className="flex items-center gap-3 text-xs sm:text-sm">
+            <div className="rounded-full border border-border bg-card/60 px-3 py-1.5 flex items-center gap-2">
+              <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="font-medium">{totalNotes}</span>
+              <span className="text-muted-foreground">notas</span>
+            </div>
+            <div className="rounded-full border border-border bg-card/60 px-3 py-1.5 flex items-center gap-2">
+              <Star className="h-3.5 w-3.5 text-amber-400" />
+              <span className="font-medium">{totalFavorites}</span>
+              <span className="text-muted-foreground">favoritas</span>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Lista de notas */}
-      {filteredNotes.length === 0 ? (
-        <div className="text-center py-10 text-muted-foreground">
-          {filterBy === "favorites"
-            ? "Você ainda não tem notas favoritas."
-            : searchTerm
-              ? "Nenhuma nota encontrada para a pesquisa."
-              : "Você ainda não tem notas. Crie sua primeira nota acima!"}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredNotes.map((note) => (
-            <Card key={note.id} className={`overflow-hidden ${note.color}`}>
-              <CardHeader className="p-4 pb-2 flex flex-row justify-between items-start">
-                <div>
-                  <CardTitle className="text-base">{note.title}</CardTitle>
-                  <CardDescription className="text-xs mt-1">{formatDate(note.createdAt)}</CardDescription>
-                </div>
-                <FavoriteButton
-                  item={{
-                    id: note.id,
-                    type: "note",
-                    title: note.title,
-                    description: note.content,
-                    path: `/notes/${note.id}`,
-                  }}
+
+        {/* Filtros / busca */}
+        <Card className="border-border/70 bg-card/70 backdrop-blur-sm">
+          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+            <div className="flex-1">
+              <div className="relative">
+                <Input
+                  placeholder="Pesquisar notas por título ou conteúdo..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-background/60"
                 />
-              </CardHeader>
-              <CardContent className="p-0">
-                {editingId === note.id ? (
-                  /* Modo de Edição */
-                  <div className="p-4 space-y-4">
-                    <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="font-medium" />
-                    <Textarea
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      className="min-h-[100px]"
-                      ref={contentTextareaRef}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <div className="inline-flex rounded-full border border-border bg-background/60 p-1">
+                <Button
+                  variant={filterBy === "all" ? "default" : "ghost"}
+                  size="sm"
+                  className={cn(
+                    "h-8 rounded-full px-3 text-xs",
+                    filterBy === "all" && "shadow-sm",
+                  )}
+                  onClick={() => setFilterBy("all")}
+                >
+                  Todas
+                </Button>
+                <Button
+                  variant={filterBy === "favorites" ? "default" : "ghost"}
+                  size="sm"
+                  className={cn(
+                    "h-8 rounded-full px-3 text-xs",
+                    filterBy === "favorites" && "shadow-sm",
+                  )}
+                  onClick={() => setFilterBy("favorites")}
+                >
+                  <Star className="mr-1 h-3 w-3" />
+                  Favoritas
+                </Button>
+              </div>
+
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-2 py-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() =>
+                    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+                  }
+                >
+                  {sortOrder === "asc" ? (
+                    <SortAsc className="h-3.5 w-3.5" />
+                  ) : (
+                    <SortDesc className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() =>
+                    setSortBy((prev) => (prev === "date" ? "title" : "date"))
+                  }
+                >
+                  <Filter className="mr-1 h-3.5 w-3.5" />
+                  {sortBy === "date" ? "Data" : "Título"}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Formulário para nova nota */}
+        <Card className="border-border/70 bg-card/80 backdrop-blur">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Plus className="h-4 w-4 text-primary" />
+              Nova nota
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Escreva rapidamente o que está na sua cabeça. Depois você pode editar, favoritar ou
+              organizar como quiser.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-0">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,0.35fr),minmax(0,0.65fr)]">
+              <Input
+                placeholder="Título da nota"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="font-medium bg-background/70"
+                disabled={isEditing}
+              />
+              <Textarea
+                placeholder="Conteúdo da nota..."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                className="min-h-[80px] bg-background/70"
+                disabled={isEditing}
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Cor:</span>
+                <div className="flex items-center gap-1.5">
+                  {noteColors.map((color) => (
+                    <button
+                      key={color.name}
+                      type="button"
+                      onClick={() => setSelectedColor(color.value)}
+                      className={cn(
+                        "h-5 w-5 rounded-full border border-border transition-all",
+                        color.value || "bg-card border-border",
+                        selectedColor === color.value &&
+                          "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                      )}
+                      aria-label={color.name}
+                      disabled={isEditing}
                     />
-                    <div className="flex flex-wrap gap-2 items-center">
-                      <span className="text-sm text-muted-foreground">Cor:</span>
-                      {noteColors.map((color) => (
-                        <button
-                          key={color.value}
-                          type="button"
-                          onClick={() => setEditColor(color.value)}
-                          className={`h-6 w-6 rounded-full border ${
-                            color.value || "bg-card border-border"
-                          } ${editColor === color.value ? "ring-2 ring-primary ring-offset-2" : ""}`}
-                          aria-label={color.name}
-                        />
-                      ))}
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={cancelEdit}>
-                        <X className="mr-2 h-4 w-4" />
-                        Cancelar
-                      </Button>
-                      <Button size="sm" onClick={saveEdit}>
-                        <Save className="mr-2 h-4 w-4" />
-                        Salvar
-                      </Button>
-                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="ml-auto">
+                <Button onClick={addNote} disabled={isEditing}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Adicionar nota
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Lista de notas */}
+        {filteredNotes.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-card/40 px-6 py-12 text-center text-sm text-muted-foreground">
+            {filterBy === "favorites"
+              ? "Você ainda não tem notas favoritas."
+              : searchTerm
+                ? "Nenhuma nota encontrada para a pesquisa."
+                : "Você ainda não tem notas. Crie sua primeira nota acima!"}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredNotes.map((note) => (
+              <Card
+                key={note.id}
+                className={cn(
+                  "group relative overflow-hidden border-border/70 bg-card/90 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-lg",
+                  note.color,
+                )}
+              >
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/60 via-primary/0 to-primary/60 opacity-0 group-hover:opacity-100" />
+
+                <CardHeader className="flex flex-row items-start justify-between gap-2 p-4 pb-2">
+                  <div className="space-y-1">
+                    <CardTitle className="text-base leading-tight line-clamp-2">
+                      {note.title}
+                    </CardTitle>
+                    <CardDescription className="text-[11px]">
+                      {note.createdAt ? formatDate(note.createdAt) : note.date}
+                    </CardDescription>
                   </div>
-                ) : (
-                  /* Modo de Visualização */
-                  <div className="p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <h2 className="text-xl font-semibold">{note.title}</h2>
-                      <div className="flex">
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => startEditing(note)}>
-                          <Edit className="h-4 w-4" />
+                  <FavoriteButton
+                    item={{
+                      id: note.id,
+                      type: "note",
+                      title: note.title,
+                      description: note.content,
+                      path: `/notes/${note.id}`,
+                    }}
+                  />
+                </CardHeader>
+
+                <CardContent className="p-0">
+                  {editingId === note.id ? (
+                    // Modo de edição
+                    <div className="space-y-4 p-4 pt-2">
+                      <Input
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        className="font-medium bg-background/70"
+                      />
+                      <Textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        className="min-h-[100px] bg-background/70"
+                        ref={contentTextareaRef}
+                      />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Cor:</span>
+                        {noteColors.map((color) => (
+                          <button
+                            key={color.name}
+                            type="button"
+                            onClick={() => setEditColor(color.value)}
+                            className={cn(
+                              "h-5 w-5 rounded-full border border-border transition-all",
+                              color.value || "bg-card border-border",
+                              editColor === color.value &&
+                                "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                            )}
+                            aria-label={color.name}
+                          />
+                        ))}
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={cancelEdit}>
+                          <X className="mr-2 h-4 w-4" />
+                          Cancelar
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-destructive hover:text-destructive"
-                          onClick={() => deleteNote(note.id)}
-                        >
-                          <Trash className="h-4 w-4" />
+                        <Button size="sm" onClick={saveEdit}>
+                          <Save className="mr-2 h-4 w-4" />
+                          Salvar
                         </Button>
                       </div>
                     </div>
-                    <div className="whitespace-pre-wrap break-words">{note.content}</div>
-                    <div className="mt-4 text-xs text-muted-foreground">{note.date}</div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                  ) : (
+                    // Modo de visualização
+                    <div className="space-y-3 p-4 pt-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                          {note.content}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => startEditing(note)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => deleteNote(note.id)}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="pt-1 text-[11px] text-muted-foreground">
+                        {note.date}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

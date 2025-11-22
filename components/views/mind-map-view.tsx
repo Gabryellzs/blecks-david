@@ -1,6 +1,13 @@
 "use client"
 
-import React, { useState, useCallback, useRef, useEffect, useMemo } from "react"
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useMemo,
+  type CSSProperties,
+} from "react"
 import ReactFlow, {
   Background,
   useNodesState,
@@ -15,16 +22,60 @@ import ReactFlow, {
   type EdgeTypes,
   useOnSelectionChange,
   Panel,
+  BaseEdge,
+  getBezierPath,
 } from "reactflow"
 import "reactflow/dist/style.css"
 
 import {
-  Save, Download, Trash2, FileText, Palette, ZoomIn, ZoomOut, Maximize,
-  ArrowRight, PlusCircle, Search, Facebook, Instagram, Youtube, Linkedin, Mail,
-  Video, DollarSign, MessageCircle, ShoppingCart, MessageSquare, FileBarChart, Target, BarChart,
-  Users, Clock, HelpCircle, FileCode, LayoutTemplate,
-  CreditCard, ThumbsUp, FileQuestion, Info, Lock, BarChart2, Plus, Edit, Copy, Circle, Minus, X,
-  Settings, Lightbulb, ListChecks, FileCheck, CheckCircle, Upload, Calendar,
+  Save,
+  Download,
+  Trash2,
+  FileText,
+  Palette,
+  ZoomIn,
+  ZoomOut,
+  Maximize,
+  ArrowRight,
+  PlusCircle,
+  Search,
+  Facebook,
+  Instagram,
+  Youtube,
+  Linkedin,
+  Mail,
+  Video,
+  DollarSign,
+  MessageCircle,
+  ShoppingCart,
+  MessageSquare,
+  FileBarChart,
+  Target,
+  BarChart,
+  Users,
+  Clock,
+  HelpCircle,
+  FileCode,
+  LayoutTemplate,
+  CreditCard,
+  ThumbsUp,
+  FileQuestion,
+  Info,
+  Lock,
+  BarChart2,
+  Plus,
+  Edit,
+  Copy,
+  Circle,
+  Minus,
+  X,
+  Settings,
+  Lightbulb,
+  ListChecks,
+  FileCheck,
+  CheckCircle,
+  Upload,
+  Calendar,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -62,8 +113,41 @@ const isBrowser = typeof window !== "undefined"
 // safe localStorage
 const safeLocalStorage = {
   getItem: (k: string) => (isBrowser ? window.localStorage.getItem(k) : null),
-  setItem: (k: string, v: string) => { if (isBrowser) window.localStorage.setItem(k, v) },
-  removeItem: (k: string) => { if (isBrowser) window.localStorage.removeItem(k) },
+  setItem: (k: string, v: string) => {
+    if (isBrowser) window.localStorage.setItem(k, v)
+  },
+  removeItem: (k: string) => {
+    if (isBrowser) window.localStorage.removeItem(k)
+  },
+}
+
+// =======================
+// EDGE CUSTOMIZADO (SUAVE + GLOW)
+// =======================
+function SmoothEdge(props: any) {
+  const [path] = getBezierPath({
+    sourceX: props.sourceX,
+    sourceY: props.sourceY,
+    targetX: props.targetX,
+    targetY: props.targetY,
+  })
+
+  const strokeColor =
+    (props.style?.stroke as string) ||
+    "#3b82f6" // azul padrão se não tiver cor
+
+  return (
+    <BaseEdge
+      {...props}
+      path={path}
+      style={{
+        ...props.style,
+        stroke: strokeColor,
+        strokeWidth: (props.style?.strokeWidth as number) || 2.5,
+        filter: "drop-shadow(0 0 8px rgba(59,130,246,0.55))",
+      }}
+    />
+  )
 }
 
 // node & edge types
@@ -82,7 +166,17 @@ const nodeTypes: NodeTypes = {
   socialMediaMarketingNode: SocialMediaMarketingNode,
   writingNode: WritingNode,
 }
-const edgeTypes: EdgeTypes = {}
+
+const edgeTypes: EdgeTypes = {
+  smooth: SmoothEdge,
+}
+
+// helper para garantir tipo "smooth" em todos os edges
+const enhanceEdges = (edges: Edge[]): Edge[] =>
+  edges.map((edge) => ({
+    ...edge,
+    type: edge.type || "smooth",
+  }))
 
 // marketing icons
 const marketingIcons = [
@@ -121,21 +215,87 @@ const marketingIcons = [
 
 // writing flow (como páginas)
 const writingNodeItems = [
-  { id: "ideation", label: "Ideação", description: "Brainstorming e geração de ideias", icon: Lightbulb, color: "#3498db", pageType: "ideation" },
-  { id: "research", label: "Pesquisa", description: "Coleta de informações e dados", icon: Search, color: "#2ecc71", pageType: "research" },
-  { id: "outline", label: "Estruturação", description: "Criação de estrutura e esboço", icon: ListChecks, color: "#f39c12", pageType: "outline" },
-  { id: "draft", label: "Rascunho", description: "Escrita do primeiro rascunho", icon: Edit, color: "#9b59b6", pageType: "draft" },
-  { id: "revision", label: "Revisão", description: "Edição e aprimoramento do texto", icon: FileCheck, color: "#e74c3c", pageType: "revision" },
-  { id: "feedback", label: "Feedback", description: "Obtenção de feedback externo", icon: MessageCircle, color: "#1abc9c", pageType: "feedback" },
-  { id: "finalization", label: "Finalização", description: "Ajustes finais e formatação", icon: CheckCircle, color: "#34495e", pageType: "finalization" },
-  { id: "publication", label: "Publicação", description: "Publicação e distribuição", icon: Upload, color: "#e67e22", pageType: "publication" },
+  {
+    id: "ideation",
+    label: "Ideação",
+    description: "Brainstorming e geração de ideias",
+    icon: Lightbulb,
+    color: "#3498db",
+    pageType: "ideation",
+  },
+  {
+    id: "research",
+    label: "Pesquisa",
+    description: "Coleta de informações e dados",
+    icon: Search,
+    color: "#2ecc71",
+    pageType: "research",
+  },
+  {
+    id: "outline",
+    label: "Estruturação",
+    description: "Criação de estrutura e esboço",
+    icon: ListChecks,
+    color: "#f39c12",
+    pageType: "outline",
+  },
+  {
+    id: "draft",
+    label: "Rascunho",
+    description: "Escrita do primeiro rascunho",
+    icon: Edit,
+    color: "#9b59b6",
+    pageType: "draft",
+  },
+  {
+    id: "revision",
+    label: "Revisão",
+    description: "Edição e aprimoramento do texto",
+    icon: FileCheck,
+    color: "#e74c3c",
+    pageType: "revision",
+  },
+  {
+    id: "feedback",
+    label: "Feedback",
+    description: "Obtenção de feedback externo",
+    icon: MessageCircle,
+    color: "#1abc9c",
+    pageType: "feedback",
+  },
+  {
+    id: "finalization",
+    label: "Finalização",
+    description: "Ajustes finais e formatação",
+    icon: CheckCircle,
+    color: "#34495e",
+    pageType: "finalization",
+  },
+  {
+    id: "publication",
+    label: "Publicação",
+    description: "Publicação e distribuição",
+    icon: Upload,
+    color: "#e67e22",
+    pageType: "publication",
+  },
 ]
 
 // templates
 function Rocket(props: any) {
   return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
       <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
       <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
@@ -145,40 +305,209 @@ function Rocket(props: any) {
 }
 
 const templateItems = [
-  { id: "exact-reference", label: "Funil de Marketing Completo", icon: LayoutTemplate, description: "Funil completo com múltiplos canais, webinar, segmentação e follow-up" },
-  { id: "funnel-basic", label: "Funil de Vendas Básico", icon: LayoutTemplate, description: "Landing → Vendas → Checkout → Email" },
-  { id: "webinar-funnel", label: "Funil de Webinar Profissional", icon: Video, description: "Promoção, inscrição e conversão via webinar" },
-  { id: "product-launch", label: "Lançamento de Produto", icon: Rocket, description: "Conteúdo, engajamento e vendas" },
-  { id: "blog-lead", label: "Blog para Lead", icon: FileText, description: "Converte visitantes do blog em leads" },
-  { id: "funnel-advanced", label: "Funil de Vendas Avançado", icon: LayoutTemplate, description: "Segmentação, upsell e follow-up" },
-  { id: "info-product-launch", label: "Lançamento de Infoproduto", icon: Rocket, description: "Conteúdo gratuito, lista VIP e oferta" },
-  { id: "content-marketing", label: "Marketing de Conteúdo", icon: FileText, description: "Blog, SEO, redes sociais e conversão" },
-  { id: "affiliate-marketing", label: "Marketing de Afiliados", icon: Users, description: "Estratégia para maximizar comissões" },
-  { id: "b2b-sales-funnel", label: "Funil de Vendas B2B", icon: BarChart, description: "Geração de leads e vendas B2B" },
+  {
+    id: "exact-reference",
+    label: "Funil de Marketing Completo",
+    icon: LayoutTemplate,
+    description: "Funil completo com múltiplos canais, webinar, segmentação e follow-up",
+  },
+  {
+    id: "funnel-basic",
+    label: "Funil de Vendas Básico",
+    icon: LayoutTemplate,
+    description: "Landing → Vendas → Checkout → Email",
+  },
+  {
+    id: "webinar-funnel",
+    label: "Funil de Webinar Profissional",
+    icon: Video,
+    description: "Promoção, inscrição e conversão via webinar",
+  },
+  {
+    id: "product-launch",
+    label: "Lançamento de Produto",
+    icon: Rocket,
+    description: "Conteúdo, engajamento e vendas",
+  },
+  {
+    id: "blog-lead",
+    label: "Blog para Lead",
+    icon: FileText,
+    description: "Converte visitantes do blog em leads",
+  },
+  {
+    id: "funnel-advanced",
+    label: "Funil de Vendas Avançado",
+    icon: LayoutTemplate,
+    description: "Segmentação, upsell e follow-up",
+  },
+  {
+    id: "info-product-launch",
+    label: "Lançamento de Infoproduto",
+    icon: Rocket,
+    description: "Conteúdo gratuito, lista VIP e oferta",
+  },
+  {
+    id: "content-marketing",
+    label: "Marketing de Conteúdo",
+    icon: FileText,
+    description: "Blog, SEO, redes sociais e conversão",
+  },
+  {
+    id: "affiliate-marketing",
+    label: "Marketing de Afiliados",
+    icon: Users,
+    description: "Estratégia para maximizar comissões",
+  },
+  {
+    id: "b2b-sales-funnel",
+    label: "Funil de Vendas B2B",
+    icon: BarChart,
+    description: "Geração de leads e vendas B2B",
+  },
 ]
 
 // páginas
 const mainPageItems = [
-  { id: "landing", label: "Landing Page", description: "Captura de leads", icon: FileCode, category: "main", pageType: "landing" },
-  { id: "sales", label: "Página de Vendas", description: "Converter visitantes", icon: ShoppingCart, category: "main", pageType: "sales" },
-  { id: "checkout", label: "Checkout", description: "Finalização de compra", icon: CreditCard, category: "main", pageType: "checkout" },
-  { id: "thank-you", label: "Agradecimento", description: "Pós-compra", icon: ThumbsUp, category: "main", pageType: "thank-you" },
+  {
+    id: "landing",
+    label: "Landing Page",
+    description: "Captura de leads",
+    icon: FileCode,
+    category: "main",
+    pageType: "landing",
+  },
+  {
+    id: "sales",
+    label: "Página de Vendas",
+    description: "Converter visitantes",
+    icon: ShoppingCart,
+    category: "main",
+    pageType: "sales",
+  },
+  {
+    id: "checkout",
+    label: "Checkout",
+    description: "Finalização de compra",
+    icon: CreditCard,
+    category: "main",
+    pageType: "checkout",
+  },
+  {
+    id: "thank-you",
+    label: "Agradecimento",
+    description: "Pós-compra",
+    icon: ThumbsUp,
+    category: "main",
+    pageType: "thank-you",
+  },
 ]
 
 const contentPageItems = [
-  { id: "webinar", label: "Página de Webinar", description: "Inscrição em evento", icon: Video, category: "content", pageType: "webinar" },
-  { id: "blog", label: "Blog", description: "Artigos e conteúdo", icon: FileText, category: "content", pageType: "blog" },
-  { id: "comparison", label: "Comparação", description: "Comparativo de produtos", icon: BarChart2, category: "content", pageType: "comparison" },
-  { id: "affiliates", label: "Afiliados", description: "Programa de afiliados", icon: Users, category: "content", pageType: "affiliates" },
-  { id: "members", label: "Área de Membros", description: "Login e restrito", icon: Lock, category: "content", pageType: "members" },
-  { id: "faq", label: "FAQ/Suporte", description: "Dúvidas e suporte", icon: FileQuestion, category: "content", pageType: "faq" },
-  { id: "about", label: "Sobre Nós", description: "A empresa/marca", icon: Info, category: "content", pageType: "about" },
-  { id: "contact", label: "Contato", description: "Fale conosco", icon: Mail, category: "content", pageType: "contact" },
-  { id: "content-creation", label: "Conteúdo", description: "Criação de conteúdo", icon: Plus, category: "content", pageType: "content-creation" },
-  { id: "marketing-analysis", label: "Análise", description: "Medição e análise", icon: Plus, category: "content", pageType: "marketing-analysis" },
-  { id: "email-marketing", label: "Email", description: "Fluxos de email", icon: Plus, category: "content", pageType: "email-marketing" },
-  { id: "marketing-campaign", label: "Campanha", description: "Campanhas", icon: Plus, category: "content", pageType: "marketing-campaign" },
-  { id: "social-media", label: "Mídia Social", description: "Redes sociais", icon: Plus, category: "content", pageType: "social-media" },
+  {
+    id: "webinar",
+    label: "Página de Webinar",
+    description: "Inscrição em evento",
+    icon: Video,
+    category: "content",
+    pageType: "webinar",
+  },
+  {
+    id: "blog",
+    label: "Blog",
+    description: "Artigos e conteúdo",
+    icon: FileText,
+    category: "content",
+    pageType: "blog",
+  },
+  {
+    id: "comparison",
+    label: "Comparação",
+    description: "Comparativo de produtos",
+    icon: BarChart2,
+    category: "content",
+    pageType: "comparison",
+  },
+  {
+    id: "affiliates",
+    label: "Afiliados",
+    description: "Programa de afiliados",
+    icon: Users,
+    category: "content",
+    pageType: "affiliates",
+  },
+  {
+    id: "members",
+    label: "Área de Membros",
+    description: "Login e restrito",
+    icon: Lock,
+    category: "content",
+    pageType: "members",
+  },
+  {
+    id: "faq",
+    label: "FAQ/Suporte",
+    description: "Dúvidas e suporte",
+    icon: FileQuestion,
+    category: "content",
+    pageType: "faq",
+  },
+  {
+    id: "about",
+    label: "Sobre Nós",
+    description: "A empresa/marca",
+    icon: Info,
+    category: "content",
+    pageType: "about",
+  },
+  {
+    id: "contact",
+    label: "Contato",
+    description: "Fale conosco",
+    icon: Mail,
+    category: "content",
+    pageType: "contact",
+  },
+  {
+    id: "content-creation",
+    label: "Conteúdo",
+    description: "Criação de conteúdo",
+    icon: Plus,
+    category: "content",
+    pageType: "content-creation",
+  },
+  {
+    id: "marketing-analysis",
+    label: "Análise",
+    description: "Medição e análise",
+    icon: Plus,
+    category: "content",
+    pageType: "marketing-analysis",
+  },
+  {
+    id: "email-marketing",
+    label: "Email",
+    description: "Fluxos de email",
+    icon: Plus,
+    category: "content",
+    pageType: "email-marketing",
+  },
+  {
+    id: "marketing-campaign",
+    label: "Campanha",
+    description: "Campanhas",
+    icon: Plus,
+    category: "content",
+    pageType: "marketing-campaign",
+  },
+  {
+    id: "social-media",
+    label: "Mídia Social",
+    description: "Redes sociais",
+    icon: Plus,
+    category: "content",
+    pageType: "social-media",
+  },
   ...writingNodeItems,
 ]
 
@@ -206,36 +535,36 @@ function generateFlowPreview(nodes: Node[], edges: Edge[]) {
   ctx.lineWidth = 2
 
   edges.forEach((e) => {
-  const s = nodes.find((n) => n.id === e.source)
-  const t = nodes.find((n) => n.id === e.target)
-  if (!s || !t) return
+    const s = nodes.find((n) => n.id === e.source)
+    const t = nodes.find((n) => n.id === e.target)
+    if (!s || !t) return
 
-  const sx = (s.position.x - rect.x) * scale + pad
-  const sy = (s.position.y - rect.y) * scale + pad
-  const tx = (t.position.x - rect.x) * scale + pad
-  const ty = (t.position.y - rect.y) * scale + pad
+    const sx = (s.position.x - rect.x) * scale + pad
+    const sy = (s.position.y - rect.y) * scale + pad
+    const tx = (t.position.x - rect.x) * scale + pad
+    const ty = (t.position.y - rect.y) * scale + pad
 
-  // prepara o dash de forma segura
-  const dashArray = (() => {
-    const sd = e.style?.strokeDasharray
-    if (typeof sd === "string") return sd.split(/[,\s]+/).map((n) => Number(n) || 0)
-    if (typeof sd === "number") return [sd]
-    return []
-  })()
+    // prepara o dash de forma segura
+    const dashArray = (() => {
+      const sd = e.style?.strokeDasharray
+      if (typeof sd === "string") return sd.split(/[,\s]+/).map((n) => Number(n) || 0)
+      if (typeof sd === "number") return [sd]
+      return []
+    })()
 
-  ctx.beginPath()
-  ctx.setLineDash(dashArray)
-  ctx.moveTo(sx, sy)
-  ctx.lineTo(tx, ty)
-  ctx.stroke()
-  ctx.setLineDash([])
-})
-
+    ctx.beginPath()
+    ctx.setLineDash(dashArray)
+    ctx.moveTo(sx, sy)
+    ctx.lineTo(tx, ty)
+    ctx.stroke()
+    ctx.setLineDash([])
+  })
 
   nodes.forEach((n) => {
     const x = (n.position.x - rect.x) * scale + pad
     const y = (n.position.y - rect.y) * scale + pad
-    const w = 40, h = 30
+    const w = 40
+    const h = 30
     let color = "#666"
     if (n.type === "contentCreationNode") color = "#c0392b"
     else if (n.type === "marketingAnalysisNode") color = "#f39c12"
@@ -271,22 +600,31 @@ export default function MindMapView() {
     [searchTerm],
   )
   const filteredTemplates = useMemo(
-    () => templateItems.filter(t =>
-      t.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.description.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [searchTerm],
+    () =>
+      templateItems.filter(
+        (t) =>
+          t.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          t.description.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [searchTerm],
   )
   const filteredMainPages = useMemo(
-    () => mainPageItems.filter(p =>
-      p.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [searchTerm],
+    () =>
+      mainPageItems.filter(
+        (p) =>
+          p.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.description.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [searchTerm],
   )
   const filteredContentPages = useMemo(
-    () => contentPageItems.filter(p =>
-      p.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [searchTerm],
+    () =>
+      contentPageItems.filter(
+        (p) =>
+          p.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.description.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [searchTerm],
   )
 
   const goDashboard = () => {
@@ -316,18 +654,24 @@ export default function MindMapView() {
       {/* Conteúdo em largura total (sem sidebar do app) */}
       <div className="flex-1 flex flex-col min-h-0">
         {/* BARRA SUPERIOR: chips Dashboard / Criação de Funil */}
-        <div className="w-full flex items-center gap-2 px-6 py-4 border-b border-border">
+        <div className="w-full flex items-center gap-2 px-6 py-4 border-b border-border bg-card/60 backdrop-blur">
           <Button
             variant={activeView === "dashboard" ? "default" : "outline"}
             onClick={goDashboard}
-            className={cn("h-8 px-3 rounded-full", activeView === "dashboard" ? "" : "bg-transparent")}
+            className={cn(
+              "h-8 px-3 rounded-full text-xs sm:text-sm",
+              activeView === "dashboard" ? "" : "bg-transparent",
+            )}
           >
             Painel
           </Button>
           <Button
             variant={activeView === "editor" ? "default" : "outline"}
             onClick={goEditor}
-            className={cn("h-8 px-3 rounded-full", activeView === "editor" ? "" : "bg-transparent")}
+            className={cn(
+              "h-8 px-3 rounded-full text-xs sm:text-sm",
+              activeView === "editor" ? "" : "bg-transparent",
+            )}
           >
             <FileText className="mr-2 h-4 w-4" />
             Criação de Funil
@@ -338,26 +682,39 @@ export default function MindMapView() {
             <div className="ml-auto flex items-center gap-2">
               <Button
                 variant={activePanelTab === "pages" ? "default" : "outline"}
-                className="h-8 px-3 rounded-full"
-                onClick={() => { setActivePanelTab("pages"); setShowPanel(true) }}
+                className="h-8 px-3 rounded-full text-xs sm:text-sm"
+                onClick={() => {
+                  setActivePanelTab("pages")
+                  setShowPanel(true)
+                }}
               >
                 Páginas
               </Button>
               <Button
                 variant={activePanelTab === "templates" ? "default" : "outline"}
-                className="h-8 px-3 rounded-full"
-                onClick={() => { setActivePanelTab("templates"); setShowPanel(true) }}
+                className="h-8 px-3 rounded-full text-xs sm:text-sm"
+                onClick={() => {
+                  setActivePanelTab("templates")
+                  setShowPanel(true)
+                }}
               >
                 Templates
               </Button>
               <Button
                 variant={activePanelTab === "icons" ? "default" : "outline"}
-                className="h-8 px-3 rounded-full"
-                onClick={() => { setActivePanelTab("icons"); setShowPanel(true) }}
+                className="h-8 px-3 rounded-full text-xs sm:text-sm"
+                onClick={() => {
+                  setActivePanelTab("icons")
+                  setShowPanel(true)
+                }}
               >
                 Ícones
               </Button>
-              <Button variant="ghost" className="h-8 px-3" onClick={() => setShowPanel((v) => !v)}>
+              <Button
+                variant="ghost"
+                className="h-8 px-3 text-xs sm:text-sm"
+                onClick={() => setShowPanel((v) => !v)}
+              >
                 {showPanel ? "Ocultar Painel" : "Mostrar Painel"}
               </Button>
             </div>
@@ -384,9 +741,18 @@ export default function MindMapView() {
                     </h2>
                   </div>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                    <Search
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      size={16}
+                    />
                     <Input
-                      placeholder={`Buscar ${activePanelTab === "pages" ? "páginas" : activePanelTab === "templates" ? "templates" : "ícones"}...`}
+                      placeholder={`Buscar ${
+                        activePanelTab === "pages"
+                          ? "páginas"
+                          : activePanelTab === "templates"
+                            ? "templates"
+                            : "ícones"
+                      }...`}
                       className="pl-9 bg-background border-border"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -421,7 +787,9 @@ export default function MindMapView() {
                       {filteredContentPages.length > 0 && (
                         <>
                           <div className="mt-6 mb-2">
-                            <h3 className="text-sm font-medium text-muted-foreground">Páginas de Conteúdo</h3>
+                            <h3 className="text-sm font-medium text-muted-foreground">
+                              Páginas de Conteúdo
+                            </h3>
                           </div>
                           <div className="space-y-2">
                             {filteredContentPages.map((page) => (
@@ -491,20 +859,40 @@ export default function MindMapView() {
 
 // ------------ shared ui ------------
 const IconStyle = ({ color, children }: { color: string; children: React.ReactNode }) => (
-  <div className="w-12 h-12 rounded-full flex items-center justify-center mb-1 shadow-md" style={{ background: color }}>
+  <div
+    className="w-12 h-12 rounded-full flex items-center justify-center mb-1 shadow-md"
+    style={{ background: color }}
+  >
     {children}
   </div>
 )
 
-function DraggableIconButton({ id, icon, label, color, customIcon }: {
-  id: string; icon: any; label: string; color: string; customIcon?: string
+function DraggableIconButton({
+  id,
+  icon,
+  label,
+  color,
+  customIcon,
+}: {
+  id: string
+  icon: any
+  label: string
+  color: string
+  customIcon?: string
 }) {
   const onDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData("application/reactflow", JSON.stringify({ type: "marketingIconNode", id, label, color, iconId: id }))
+    e.dataTransfer.setData(
+      "application/reactflow",
+      JSON.stringify({ type: "marketingIconNode", id, label, color, iconId: id }),
+    )
     e.dataTransfer.effectAllowed = "move"
   }
   return (
-    <div className="flex flex-col items-center mb-4 cursor-grab active:cursor-grabbing" draggable onDragStart={onDragStart}>
+    <div
+      className="flex flex-col items-center mb-4 cursor-grab active:cursor-grabbing"
+      draggable
+      onDragStart={onDragStart}
+    >
       <IconStyle color={color}>
         {customIcon ? (
           <div className="text-white">
@@ -517,7 +905,10 @@ function DraggableIconButton({ id, icon, label, color, customIcon }: {
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                 <circle cx="12" cy="12" r="10" fill="#b07f33" />
                 <circle cx="12" cy="9" r="3" fill="#fff" />
-                <path d="M12 12c-2.8 0-5 1.5-5 3.5V18h10v-2.5c0-2-2.2-3.5-5-3.5z" fill="#fff" />
+                <path
+                  d="M12 12c-2.8 0-5 1.5-5 3.5V18h10v-2.5c0-2-2.2-3.5-5-3.5z"
+                  fill="#fff"
+                />
               </svg>
             )}
             {customIcon === "upsell" && (
@@ -532,13 +923,26 @@ function DraggableIconButton({ id, icon, label, color, customIcon }: {
             )}
             {customIcon === "segment" && (
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
-                <path d="M12 2v20M2 12h20" stroke="currentColor" strokeWidth="2" />
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                />
+                <path
+                  d="M12 2v20M2 12h20"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
               </svg>
             )}
           </div>
         ) : (
-          <div className="h-5 w-5 text-white">{React.createElement(icon)}</div>
+          <div className="h-5 w-5 text-white">
+            {React.createElement(icon)}
+          </div>
         )}
       </IconStyle>
       <span className="text-xs text-center text-muted-foreground">{label}</span>
@@ -546,18 +950,36 @@ function DraggableIconButton({ id, icon, label, color, customIcon }: {
   )
 }
 
-function DraggablePageItemNew({ id, icon, label, description, pageType }: {
-  id: string; icon: any; label: string; description: string; pageType: string
+function DraggablePageItemNew({
+  id,
+  icon,
+  label,
+  description,
+  pageType,
+}: {
+  id: string
+  icon: any
+  label: string
+  description: string
+  pageType: string
 }) {
   const onDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData("application/reactflow", JSON.stringify({ type: "pageNode", id, label, description, pageType }))
+    e.dataTransfer.setData(
+      "application/reactflow",
+      JSON.stringify({ type: "pageNode", id, label, description, pageType }),
+    )
     e.dataTransfer.effectAllowed = "move"
   }
   return (
-    <div className="flex items-center p-3 bg-card rounded-lg cursor-grab active:cursor-grabbing hover:bg-muted transition-colors border border-border"
-      draggable onDragStart={onDragStart}>
+    <div
+      className="flex items-center p-3 bg-card rounded-lg cursor-grab active:cursor-grabbing hover:bg-muted transition-colors border border-border"
+      draggable
+      onDragStart={onDragStart}
+    >
       <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center mr-3 flex-shrink-0">
-        <div className="h-5 w-5 text-foreground">{React.createElement(icon)}</div>
+        <div className="h-5 w-5 text-foreground">
+          {React.createElement(icon)}
+        </div>
       </div>
       <div>
         <h3 className="text-sm font-medium">{label}</h3>
@@ -567,18 +989,38 @@ function DraggablePageItemNew({ id, icon, label, description, pageType }: {
   )
 }
 
-function TemplateCard({ id, label, description, onUseTemplate }: {
-  id: string; label: string; description: string; onUseTemplate: (id: string) => void
+function TemplateCard({
+  id,
+  label,
+  description,
+  onUseTemplate,
+}: {
+  id: string
+  label: string
+  description: string
+  onUseTemplate: (id: string) => void
 }) {
   return (
     <div className="mb-4 bg-card border border-border rounded-lg overflow-hidden">
       <div className="p-4">
         <h3 className="text-xl font-medium mb-1">{label}</h3>
         <p className="text-sm text-muted-foreground mb-4">{description}</p>
-        <button className="w-full bg-muted hover:bg-muted/80 text-foreground py-2 px-4 rounded-md flex items-center justify-center"
-          onClick={() => onUseTemplate(id)}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+        <button
+          className="w-full bg-muted hover:bg-muted/80 text-foreground py-2 px-4 rounded-md flex items-center justify-center"
+          onClick={() => onUseTemplate(id)}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mr-2"
+          >
             <polygon points="5 3 19 12 5 21 5 3"></polygon>
           </svg>
           Usar Template
@@ -589,10 +1031,13 @@ function TemplateCard({ id, label, description, onUseTemplate }: {
 }
 
 function DashboardView({ onCreateProject }: { onCreateProject: () => void }) {
-  const [savedFlows, setSavedFlows] = useLocalStorage<{ name: string; nodes: Node[]; edges: Edge[]; preview?: string }[]>(
-    "marketing-flows", []
-  )
+  const [savedFlows, setSavedFlows] = useLocalStorage<
+    { name: string; nodes: Node[]; edges: Edge[]; preview?: string }[]
+  >("marketing-flows", [])
   const { toast } = useToast()
+
+  const totalNodes = savedFlows.reduce((acc, f) => acc + f.nodes.length, 0)
+  const totalEdges = savedFlows.reduce((acc, f) => acc + f.edges.length, 0)
 
   const loadFlow = (flow: { name: string; nodes: Node[]; edges: Edge[] }) => {
     safeLocalStorage.setItem("selected-flow", JSON.stringify(flow))
@@ -603,22 +1048,41 @@ function DashboardView({ onCreateProject }: { onCreateProject: () => void }) {
     const arr = [...savedFlows]
     arr.splice(idx, 1)
     setSavedFlows(arr)
-    toast({ title: "Fluxo excluído", description: "O fluxo foi excluído com sucesso." })
+    toast({
+      title: "Fluxo excluído",
+      description: "O fluxo foi excluído com sucesso.",
+    })
   }
 
-  const duplicateFlow = (flow: { name: string; nodes: Node[]; edges: Edge[]; preview?: string }, idx: number) => {
+  const duplicateFlow = (
+    flow: { name: string; nodes: Node[]; edges: Edge[]; preview?: string },
+    idx: number,
+  ) => {
     const newFlow = { ...flow, name: `${flow.name} (cópia)` }
     const arr = [...savedFlows]
     arr.splice(idx + 1, 0, newFlow)
     setSavedFlows(arr)
-    toast({ title: "Fluxo duplicado", description: `Uma cópia de "${flow.name}" foi criada.` })
+    toast({
+      title: "Fluxo duplicado",
+      description: `Uma cópia de "${flow.name}" foi criada.`,
+    })
   }
 
   return (
-    <div className="w-full flex flex-col p-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Meus Projetos</h1>
-        <Button onClick={onCreateProject} className="bg-muted border border-border hover:bg-muted/80">
+    <div className="w-full flex flex-col p-6 sm:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold">Meus Projetos</h1>
+          {savedFlows.length > 0 && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {savedFlows.length} fluxos · {totalNodes} nós · {totalEdges} conexões
+            </p>
+          )}
+        </div>
+        <Button
+          onClick={onCreateProject}
+          className="bg-muted border border-border hover:bg-muted/80"
+        >
           <PlusCircle className="mr-2 h-4 w-4" />
           Criar Novo Funil
         </Button>
@@ -629,11 +1093,17 @@ function DashboardView({ onCreateProject }: { onCreateProject: () => void }) {
           <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6">
             <FileText className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h2 className="text-xl font-semibold mb-3">Nenhum projeto encontrado</h2>
+          <h2 className="text-xl font-semibold mb-3">
+            Nenhum projeto encontrado
+          </h2>
           <p className="text-muted-foreground text-center max-w-md mb-8">
-            Você ainda não criou nenhum projeto. Comece criando um novo funil de marketing.
+            Você ainda não criou nenhum projeto. Comece criando um novo funil
+            de marketing.
           </p>
-          <Button onClick={onCreateProject} className="bg-muted border border-border hover:bg-muted/80">
+          <Button
+            onClick={onCreateProject}
+            className="bg-muted border border-border hover:bg-muted/80"
+          >
             Criar Primeiro Projeto
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
@@ -641,44 +1111,76 @@ function DashboardView({ onCreateProject }: { onCreateProject: () => void }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {savedFlows.map((flow, index) => (
-            <Card key={index} className="bg-card border-border overflow-hidden">
+            <Card
+              key={index}
+              className="bg-card border-border overflow-hidden hover:border-primary/60 transition-colors"
+            >
               <CardContent className="p-0">
-                <div className="h-40 bg-muted relative cursor-pointer" onClick={() => loadFlow(flow)}>
+                <div
+                  className="h-40 bg-muted relative cursor-pointer"
+                  onClick={() => loadFlow(flow)}
+                >
                   {flow.preview ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={flow.preview} alt={`Miniatura do fluxo ${flow.name}`} className="w-full h-full object-cover" />
+                    <img
+                      src={flow.preview}
+                      alt={`Miniatura do fluxo ${flow.name}`}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={`/marketing-flow.png?height=160&width=300&query=${encodeURIComponent(flow.name)}`}
-                        alt={`Miniatura do fluxo ${flow.name}`} className="w-full h-full object-cover"
+                        src={`/marketing-flow.png?height=160&width=300&query=${encodeURIComponent(
+                          flow.name,
+                        )}`}
+                        alt={`Miniatura do fluxo ${flow.name}`}
+                        className="w-full h-full object-cover"
                       />
                     </div>
                   )}
                   <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <Button variant="secondary" size="sm" className="bg-background text-foreground hover:bg-muted">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="bg-background text-foreground hover:bg-muted"
+                    >
                       Abrir Projeto
                     </Button>
                   </div>
                 </div>
 
-                <div className="p-4">
-                  <h3 className="text-xl font-semibold mb-2">{flow.name}</h3>
-                  <p className="text-muted-foreground text-sm mb-4">
-                    {flow.nodes.length} nós e {flow.edges.length} conexões
+                <div className="p-4 space-y-2">
+                  <h3 className="text-lg font-semibold truncate">{flow.name}</h3>
+                  <p className="text-muted-foreground text-xs">
+                    {flow.nodes.length} nós · {flow.edges.length} conexões
                   </p>
-                  <div className="flex justify-between">
-                    <Button variant="outline" size="sm" className="border-border" onClick={() => loadFlow(flow)}>
+                  <div className="flex justify-between pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-border"
+                      onClick={() => loadFlow(flow)}
+                    >
                       <Edit className="h-4 w-4 mr-2" />
                       Editar
                     </Button>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="border-border" onClick={() => duplicateFlow(flow, index)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-border"
+                        onClick={() => duplicateFlow(flow, index)}
+                      >
                         <Copy className="h-4 w-4" />
                         <span className="sr-only">Duplicar</span>
                       </Button>
-                      <Button variant="outline" size="sm" className="border-border" onClick={() => deleteFlow(index)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-border"
+                        onClick={() => deleteFlow(index)}
+                      >
                         <Trash2 className="h-4 w-4" />
                         <span className="sr-only">Excluir</span>
                       </Button>
@@ -716,9 +1218,9 @@ function FlowBuilder({
   const [defaultAnimation, setDefaultAnimation] = useState<string>("none")
   const [defaultLineColor, setDefaultLineColor] = useState<string>("#ffffff")
 
-  const [savedFlows, setSavedFlows] = useLocalStorage<{ name: string; nodes: Node[]; edges: Edge[]; preview?: string }[]>(
-    "marketing-flows", []
-  )
+  const [savedFlows, setSavedFlows] = useLocalStorage<
+    { name: string; nodes: Node[]; edges: Edge[]; preview?: string }[]
+  >("marketing-flows", [])
 
   useEffect(() => {
     const selectedFlowJson = safeLocalStorage.getItem("selected-flow")
@@ -728,10 +1230,13 @@ function FlowBuilder({
       try {
         const selectedFlow = JSON.parse(selectedFlowJson)
         setNodes(selectedFlow.nodes || [])
-        setEdges(selectedFlow.edges || [])
+        setEdges(enhanceEdges(selectedFlow.edges || []))
         setFlowName(selectedFlow.name || "Novo Projeto de Marketing")
         safeLocalStorage.removeItem("selected-flow")
-        toast({ title: "Fluxo carregado", description: `O fluxo "${selectedFlow.name}" foi carregado para edição.` })
+        toast({
+          title: "Fluxo carregado",
+          description: `O fluxo "${selectedFlow.name}" foi carregado para edição.`,
+        })
       } catch {}
     } else if (storedTemplateId) {
       loadTemplateById(storedTemplateId)
@@ -750,11 +1255,18 @@ function FlowBuilder({
     const template = getTemplateById(templateId)
     if (template) {
       setNodes(template.nodes)
-      setEdges(template.edges)
+      setEdges(enhanceEdges(template.edges))
       setFlowName(template.name)
-      toast({ title: "Template carregado", description: `O template "${template.name}" foi carregado com sucesso.` })
+      toast({
+        title: "Template carregado",
+        description: `O template "${template.name}" foi carregado com sucesso.`,
+      })
     } else {
-      toast({ title: "Erro ao carregar template", description: "Template não encontrado.", variant: "destructive" })
+      toast({
+        title: "Erro ao carregar template",
+        description: "Template não encontrado.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -765,119 +1277,183 @@ function FlowBuilder({
     },
   })
 
-  const onConnect = useCallback((params: Connection) => {
-  const newEdge: Edge = {
-    ...params,
-    animated: defaultAnimation === "dots",
-    style: {
-      stroke: defaultLineColor,
-      strokeWidth: 2,
-      ...(defaultLineStyle === "dashed" && { strokeDasharray: "5 5" }),
-      ...(defaultLineStyle === "dotted" && { strokeDasharray: "2 2" }),
-    } as React.CSSProperties, // <- deixa o TS feliz (pode remover se não precisar)
-    markerEnd: undefined, // SEM SETA
-  };
-  setEdges((eds) => addEdge(newEdge, eds));
-}, [setEdges, defaultLineStyle, defaultAnimation, defaultLineColor]);
-
-const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = "move";
-}, []);
-
-
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    const wrap = reactFlowWrapper.current?.getBoundingClientRect()
-    if (!wrap || !reactFlowInstance) return
-
-    const data = e.dataTransfer.getData("application/reactflow")
-    if (!data) return
-
-    try {
-      const nodeData = JSON.parse(data)
-      const position = reactFlowInstance.project({ x: e.clientX - wrap.left, y: e.clientY - wrap.top })
-      const newNode: Node = {
-        id: `${nodeData.id}-${Date.now()}`,
-        type: nodeData.type,
-        position,
-        data: { label: nodeData.label, color: nodeData.color, ...(nodeData.iconId && { iconId: nodeData.iconId }), ...(nodeData.description && { description: nodeData.description }), ...(nodeData.pageType && { pageType: nodeData.pageType }) },
-        draggable: true,
+  const onConnect = useCallback(
+    (params: Connection) => {
+      const newEdge: Edge = {
+        ...params,
+        type: "smooth",
+        animated: defaultAnimation === "dots",
+        style: {
+          stroke: defaultLineColor,
+          strokeWidth: 2,
+          ...(defaultLineStyle === "dashed" && { strokeDasharray: "5 5" }),
+          ...(defaultLineStyle === "dotted" && { strokeDasharray: "2 2" }),
+        } as CSSProperties,
+        markerEnd: undefined, // sem seta
       }
-      setNodes((nds) => nds.concat(newNode))
-      toast({ title: "Item adicionado", description: `${nodeData.label} foi adicionado ao fluxo.` })
-    } catch {
-      toast({ title: "Erro", description: "Não foi possível adicionar o item ao fluxo.", variant: "destructive" })
-    }
-  }, [reactFlowInstance, setNodes, toast])
-
-  const updateSelectedEdgesStyle = useCallback((style: string) => {
-    setEdges((eds) =>
-      eds.map((edge) =>
-        selectedEdges.some((s) => s.id === edge.id)
-          ? { ...edge, style: { ...edge.style, strokeDasharray: style === "solid" ? undefined : style === "dashed" ? "5 5" : "2 2" } }
-          : edge
-      ),
-    )
-  }, [selectedEdges, setEdges])
-
-  const updateSelectedEdgesAnimation = useCallback((animation: string) => {
-    setEdges((eds) =>
-      eds.map((edge) =>
-        selectedEdges.some((s) => s.id === edge.id) ? { ...edge, animated: animation === "dots" } : edge
-      ),
-    )
-  }, [selectedEdges, setEdges])
-
-  const updateSelectedEdgesColor = useCallback((color: string) => {
-  setEdges((eds) =>
-    eds.map((edge) =>
-      selectedEdges.some((s) => s.id === edge.id)
-        ? {
-            ...edge,
-            style: { ...edge.style, stroke: color },
-            markerEnd: undefined, // mantém SEM seta
-          }
-        : edge
-    ),
+      setEdges((eds) => addEdge(newEdge, eds))
+    },
+    [setEdges, defaultLineStyle, defaultAnimation, defaultLineColor],
   )
-}, [selectedEdges, setEdges])
+
+  const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+  }, [])
+
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      const wrap = reactFlowWrapper.current?.getBoundingClientRect()
+      if (!wrap || !reactFlowInstance) return
+
+      const data = e.dataTransfer.getData("application/reactflow")
+      if (!data) return
+
+      try {
+        const nodeData = JSON.parse(data)
+        const position = reactFlowInstance.project({
+          x: e.clientX - wrap.left,
+          y: e.clientY - wrap.top,
+        })
+        const newNode: Node = {
+          id: `${nodeData.id}-${Date.now()}`,
+          type: nodeData.type,
+          position,
+          data: {
+            label: nodeData.label,
+            color: nodeData.color,
+            ...(nodeData.iconId && { iconId: nodeData.iconId }),
+            ...(nodeData.description && { description: nodeData.description }),
+            ...(nodeData.pageType && { pageType: nodeData.pageType }),
+          },
+          draggable: true,
+        }
+        setNodes((nds) => nds.concat(newNode))
+        toast({
+          title: "Item adicionado",
+          description: `${nodeData.label} foi adicionado ao fluxo.`,
+        })
+      } catch {
+        toast({
+          title: "Erro",
+          description: "Não foi possível adicionar o item ao fluxo.",
+          variant: "destructive",
+        })
+      }
+    },
+    [reactFlowInstance, setNodes, toast],
+  )
+
+  const updateSelectedEdgesStyle = useCallback(
+    (style: "solid" | "dashed" | "dotted") => {
+      setEdges((eds) =>
+        eds.map((edge) =>
+          selectedEdges.some((s) => s.id === edge.id)
+            ? {
+                ...edge,
+                style: {
+                  ...edge.style,
+                  strokeDasharray:
+                    style === "solid"
+                      ? undefined
+                      : style === "dashed"
+                        ? "5 5"
+                        : "2 2",
+                },
+              }
+            : edge,
+        ),
+      )
+    },
+    [selectedEdges, setEdges],
+  )
+
+  const updateSelectedEdgesAnimation = useCallback(
+    (animation: "none" | "dots") => {
+      setEdges((eds) =>
+        eds.map((edge) =>
+          selectedEdges.some((s) => s.id === edge.id)
+            ? { ...edge, animated: animation === "dots" }
+            : edge,
+        ),
+      )
+    },
+    [selectedEdges, setEdges],
+  )
+
+  const updateSelectedEdgesColor = useCallback(
+    (color: string) => {
+      setEdges((eds) =>
+        eds.map((edge) =>
+          selectedEdges.some((s) => s.id === edge.id)
+            ? {
+                ...edge,
+                style: { ...edge.style, stroke: color },
+                markerEnd: undefined,
+              }
+            : edge,
+        ),
+      )
+    },
+    [selectedEdges, setEdges],
+  )
 
   const saveFlow = useCallback(() => {
     if (nodes.length === 0) {
-      toast({ title: "Erro ao salvar", description: "Não é possível salvar um fluxo vazio.", variant: "destructive" })
+      toast({
+        title: "Erro ao salvar",
+        description: "Não é possível salvar um fluxo vazio.",
+        variant: "destructive",
+      })
       return
     }
     const preview = generateFlowPreview(nodes, edges)
     const newFlow = { name: flowName, nodes, edges, preview }
     const idx = savedFlows.findIndex((f) => f.name === flowName)
     if (idx >= 0) {
-      const arr = [...savedFlows]; arr[idx] = newFlow; setSavedFlows(arr)
+      const arr = [...savedFlows]
+      arr[idx] = newFlow
+      setSavedFlows(arr)
     } else {
       setSavedFlows([...savedFlows, newFlow])
     }
     safeLocalStorage.removeItem("current-work-state")
     safeLocalStorage.removeItem("work-in-progress")
-    toast({ title: "Fluxo salvo", description: `O fluxo "${flowName}" foi salvo com sucesso.` })
+    toast({
+      title: "Fluxo salvo",
+      description: `O fluxo "${flowName}" foi salvo com sucesso.`,
+    })
     onSaveComplete()
   }, [flowName, nodes, edges, savedFlows, setSavedFlows, toast, onSaveComplete])
 
   const loadFlow = useCallback(() => {
     if (savedFlows.length === 0) {
-      toast({ title: "Nenhum fluxo salvo", description: "Não há fluxos salvos para carregar." })
+      toast({
+        title: "Nenhum fluxo salvo",
+        description: "Não há fluxos salvos para carregar.",
+      })
       return
     }
     const flow = savedFlows[savedFlows.length - 1]
     setNodes(flow.nodes)
-    setEdges(flow.edges)
+    setEdges(enhanceEdges(flow.edges))
     setFlowName(flow.name)
-    toast({ title: "Fluxo carregado", description: `O fluxo "${flow.name}" foi carregado com sucesso.` })
+    toast({
+      title: "Fluxo carregado",
+      description: `O fluxo "${flow.name}" foi carregado com sucesso.`,
+    })
   }, [savedFlows, setNodes, setEdges, toast])
 
   const clearFlow = useCallback(() => {
     if (nodes.length === 0) return
-    setNodes([]); setEdges([]); setFlowName("Novo Projeto de Marketing")
-    toast({ title: "Fluxo limpo", description: "Todos os elementos foram removidos do fluxo." })
+    setNodes([])
+    setEdges([])
+    setFlowName("Novo Projeto de Marketing")
+    toast({
+      title: "Fluxo limpo",
+      description: "Todos os elementos foram removidos do fluxo.",
+    })
   }, [nodes.length, setNodes, setEdges, toast])
 
   useEffect(() => {
@@ -894,35 +1470,95 @@ const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
         try {
           const data = JSON.parse(wip)
           if (data.nodes?.length) {
-            setNodes(data.nodes); setEdges(data.edges || []); setFlowName(data.flowName || "Trabalho em Progresso")
+            setNodes(data.nodes)
+            setEdges(enhanceEdges(data.edges || []))
+            setFlowName(data.flowName || "Trabalho em Progresso")
             safeLocalStorage.removeItem("work-in-progress")
-            toast({ title: "Trabalho restaurado", description: "Seu trabalho anterior foi restaurado automaticamente." })
+            toast({
+              title: "Trabalho restaurado",
+              description: "Seu trabalho anterior foi restaurado automaticamente.",
+            })
           }
         } catch {}
       }
     }
   }, [selectedTemplateId, setNodes, setEdges, toast])
 
+  // ações de zoom / fit nos botões do canto
+  const handleZoomIn = useCallback(() => {
+    if (!reactFlowInstance) return
+    reactFlowInstance.zoomIn?.()
+  }, [reactFlowInstance])
+
+  const handleZoomOut = useCallback(() => {
+    if (!reactFlowInstance) return
+    reactFlowInstance.zoomOut?.()
+  }, [reactFlowInstance])
+
+  const handleFitView = useCallback(() => {
+    if (!reactFlowInstance) return
+    reactFlowInstance.fitView?.({ padding: 0.2 })
+  }, [reactFlowInstance])
+
+  const defaultEdgeStyle: CSSProperties = {
+    stroke: defaultLineColor,
+    strokeWidth: 2,
+    ...(defaultLineStyle === "dashed" && { strokeDasharray: "5 5" }),
+    ...(defaultLineStyle === "dotted" && { strokeDasharray: "2 2" }),
+  }
+
   return (
     <>
       {/* Toolbar do editor */}
-      <div className="h-16 border-b border-border flex items-center justify-between px-4 bg-card/40">
-        <Input value={flowName} onChange={(e) => setFlowName(e.target.value)} className="max-w-xs bg-background border-border" />
+      <div className="h-16 border-b border-border flex items-center justify-between px-4 bg-card/40 backdrop-blur">
+        <div className="flex items-center gap-2">
+          <Input
+            value={flowName}
+            onChange={(e) => setFlowName(e.target.value)}
+            className="max-w-xs bg-background border-border text-sm"
+          />
+          <span className="hidden sm:inline text-xs text-muted-foreground">
+            {nodes.length} nós · {edges.length} conexões
+          </span>
+        </div>
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="sm" className="bg-muted border-border hover:bg-muted/80 h-8 px-2" onClick={saveFlow}>
-            <Save className="mr-1 h-3.5 w-3.5" />Salvar
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-muted border-border hover:bg-muted/80 h-8 px-2 text-xs"
+            onClick={saveFlow}
+          >
+            <Save className="mr-1 h-3.5 w-3.5" />
+            Salvar
           </Button>
-          <Button variant="outline" size="sm" className="bg-muted border-border hover:bg-muted/80 h-8 px-2" onClick={loadFlow}>
-            <Download className="mr-1 h-3.5 w-3.5" />Carregar
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-muted border-border hover:bg-muted/80 h-8 px-2 text-xs"
+            onClick={loadFlow}
+          >
+            <Download className="mr-1 h-3.5 w-3.5" />
+            Carregar
           </Button>
-          <Button variant="outline" size="sm" className="bg-muted border-border hover:bg-muted/80 h-8 px-2" onClick={clearFlow}>
-            <Trash2 className="mr-1 h-3.5 w-3.5" />Limpar
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-muted border-border hover:bg-muted/80 h-8 px-2 text-xs"
+            onClick={clearFlow}
+          >
+            <Trash2 className="mr-1 h-3.5 w-3.5" />
+            Limpar
           </Button>
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="bg-muted border-border hover:bg-muted/80 h-8 px-2">
-                <Settings className="mr-1 h-3.5 w-3.5" />Estilo
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-muted border-border hover:bg-muted/80 h-8 px-2 text-xs"
+              >
+                <Settings className="mr-1 h-3.5 w-3.5" />
+                Estilo
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80 bg-card border-border text-foreground p-4">
@@ -939,7 +1575,12 @@ const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
         </div>
       </div>
 
-      <div ref={reactFlowWrapper} className="flex-1 relative min-h-0" onDragOver={onDragOver} onDrop={onDrop}>
+      <div
+        ref={reactFlowWrapper}
+        className="flex-1 relative min-h-0"
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+      >
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -956,36 +1597,68 @@ const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
           nodesDraggable
           elementsSelectable
           selectNodesOnDrag={false}
+          snapToGrid
+          snapGrid={[16, 16]}
+          connectionRadius={30}
+          panOnScroll
+          panOnDrag
           defaultEdgeOptions={{
-  animated: defaultAnimation === "dots",
-  style: {
-    stroke: defaultLineColor,
-    strokeWidth: 2,
-    ...(defaultLineStyle === "dashed" && { strokeDasharray: "5 5" }),
-    ...(defaultLineStyle === "dotted" && { strokeDasharray: "2 2" }),
-  },
-  markerEnd: undefined, // SEM SETA
-}}
+            type: "smooth",
+            animated: defaultAnimation === "dots",
+            style: defaultEdgeStyle,
+            markerEnd: undefined,
+            interactionWidth: 24,
+          }}
           proOptions={{ hideAttribution: true }}
           className="bg-background"
         >
           <Background
-            color={isBrowser && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "#333" : "#ddd"}
+            color={
+              isBrowser &&
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "#333"
+                : "#ddd"
+            }
             variant="dots"
             gap={12}
             size={1}
           />
 
           {/* controles simples no canto */}
-          <div className="absolute bottom-4 right-4 flex flex-col bg-card border border-border rounded">
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground"><ZoomIn size={16} /></Button>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground"><ZoomOut size={16} /></Button>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground"><Maximize size={16} /></Button>
+          <div className="absolute bottom-4 right-4 flex flex-col bg-card/90 border border-border rounded shadow-lg overflow-hidden">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-foreground h-8 w-8"
+              onClick={handleZoomIn}
+            >
+              <ZoomIn size={16} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-foreground h-8 w-8"
+              onClick={handleZoomOut}
+            >
+              <ZoomOut size={16} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-foreground h-8 w-8"
+              onClick={handleFitView}
+            >
+              <Maximize size={16} />
+            </Button>
           </div>
 
           {/* painel de configuração das arestas selecionadas */}
           {showEdgeSettings && (
-            <Panel position="top-right" className="bg-card border border-border rounded p-3 mr-4 mt-4">
+            <Panel
+              position="top-right"
+              className="bg-card border border-border rounded p-3 mr-4 mt-4"
+            >
               <EdgeSelectionPanel
                 onClose={() => setShowEdgeSettings(false)}
                 updateStyle={updateSelectedEdgesStyle}
@@ -1001,9 +1674,12 @@ const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
 }
 
 function EdgeDefaults({
-  defaultLineStyle, setDefaultLineStyle,
-  defaultAnimation, setDefaultAnimation,
-  defaultLineColor, setDefaultLineColor,
+  defaultLineStyle,
+  setDefaultLineStyle,
+  defaultAnimation,
+  setDefaultAnimation,
+  defaultLineColor,
+  setDefaultLineColor,
 }: any) {
   return (
     <div className="space-y-4">
@@ -1026,7 +1702,10 @@ function EdgeDefaults({
       <div className="space-y-2">
         <Label htmlFor="animation-type">Animação</Label>
         <Select value={defaultAnimation} onValueChange={setDefaultAnimation}>
-          <SelectTrigger id="animation-type" className="bg-background border-border">
+          <SelectTrigger
+            id="animation-type"
+            className="bg-background border-border"
+          >
             <SelectValue placeholder="Selecione uma animação" />
           </SelectTrigger>
           <SelectContent className="bg-card border-border">
@@ -1039,10 +1718,19 @@ function EdgeDefaults({
       <div className="space-y-2">
         <Label htmlFor="line-color">Cor da Linha</Label>
         <div className="flex gap-2">
-          {["#ffffff", "#3498db", "#2ecc71", "#e74c3c", "#f39c12", "#9b59b6"].map((c) => (
-            <button key={c} className={cn("w-8 h-8 rounded-full border", defaultLineColor === c && "ring-2 ring-primary")}
-              style={{ backgroundColor: c }} onClick={() => setDefaultLineColor(c)} />
-          ))}
+          {["#ffffff", "#3498db", "#2ecc71", "#e74c3c", "#f39c12", "#9b59b6"].map(
+            (c) => (
+              <button
+                key={c}
+                className={cn(
+                  "w-8 h-8 rounded-full border",
+                  defaultLineColor === c && "ring-2 ring-primary",
+                )}
+                style={{ backgroundColor: c }}
+                onClick={() => setDefaultLineColor(c)}
+              />
+            ),
+          )}
         </div>
       </div>
     </div>
@@ -1050,7 +1738,10 @@ function EdgeDefaults({
 }
 
 function EdgeSelectionPanel({
-  onClose, updateStyle, updateAnimation, updateColor,
+  onClose,
+  updateStyle,
+  updateAnimation,
+  updateColor,
 }: {
   onClose: () => void
   updateStyle: (style: "solid" | "dashed" | "dotted") => void
@@ -1061,7 +1752,12 @@ function EdgeSelectionPanel({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">Configurar Linhas</h3>
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={onClose}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+          onClick={onClose}
+        >
           <X size={14} />
         </Button>
       </div>
@@ -1069,15 +1765,57 @@ function EdgeSelectionPanel({
       <div className="space-y-2">
         <Label className="text-xs">Estilo de Linha</Label>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateStyle("solid")}>
-            <Minus size={14} className="mr-1" />Sólida
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2 border-border"
+            onClick={() => updateStyle("solid")}
+          >
+            <Minus size={14} className="mr-1" />
+            Sólida
           </Button>
-          <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateStyle("dashed")}>
-            <svg width="14" height="14" viewBox="0 0 24 24" className="mr-1"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="5,5" d="M3 12h18"/></svg>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2 border-border"
+            onClick={() => updateStyle("dashed")}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              className="mr-1"
+            >
+              <path
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeDasharray="5,5"
+                d="M3 12h18"
+              />
+            </svg>
             Tracejada
           </Button>
-          <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateStyle("dotted")}>
-            <svg width="14" height="14" viewBox="0 0 24 24" className="mr-1"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="2,2" d="M3 12h18"/></svg>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2 border-border"
+            onClick={() => updateStyle("dotted")}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              className="mr-1"
+            >
+              <path
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeDasharray="2,2"
+                d="M3 12h18"
+              />
+            </svg>
             Pontilhada
           </Button>
         </div>
@@ -1086,9 +1824,22 @@ function EdgeSelectionPanel({
       <div className="space-y-2">
         <Label className="text-xs">Animação</Label>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateAnimation("none")}>Nenhuma</Button>
-          <Button variant="outline" size="sm" className="h-8 px-2 border-border" onClick={() => updateAnimation("dots")}>
-            <Circle size={14} className="mr-1" />Bolinhas
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2 border-border"
+            onClick={() => updateAnimation("none")}
+          >
+            Nenhuma
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2 border-border"
+            onClick={() => updateAnimation("dots")}
+          >
+            <Circle size={14} className="mr-1" />
+            Bolinhas
           </Button>
         </div>
       </div>
@@ -1096,9 +1847,16 @@ function EdgeSelectionPanel({
       <div className="space-y-2">
         <Label className="text-xs">Cor</Label>
         <div className="flex gap-2">
-          {["#ffffff", "#3498db", "#2ecc71", "#e74c3c", "#f39c12", "#9b59b6"].map((c) => (
-            <button key={c} className="w-8 h-8 rounded-full" style={{ backgroundColor: c }} onClick={() => updateColor(c)} />
-          ))}
+          {["#ffffff", "#3498db", "#2ecc71", "#e74c3c", "#f39c12", "#9b59b6"].map(
+            (c) => (
+              <button
+                key={c}
+                className="w-8 h-8 rounded-full"
+                style={{ backgroundColor: c }}
+                onClick={() => updateColor(c)}
+              />
+            ),
+          )}
         </div>
       </div>
     </div>

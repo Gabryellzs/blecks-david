@@ -217,7 +217,7 @@ function dedupById<T extends { id: string }>(arr: T[]): T[] {
 }
 
 // =============================
-// HOOK SUPABASE (fetch + realtime) – GATEWAYS
+// HOOK SUPABASE (fetch + realtime)
 // =============================
 export function useGatewayKpis(filter: KpiFilter) {
   const { userId, from, to, search } = filter
@@ -271,13 +271,11 @@ export function useGatewayKpis(filter: KpiFilter) {
   }, [userId, from, to, search])
 
   useEffect(() => {
-    // encerra canal anterior
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
 
-    // canal único por range
     const chanName = `gateway_transactions_dashboard_${from || "min"}_${
       to || "max"
     }_${Math.random().toString(36).slice(2)}`
@@ -346,69 +344,7 @@ export function useGatewayKpis(filter: KpiFilter) {
 }
 
 // =============================
-// HOOK DE MÉTRICAS DE ADS (PLACEHOLDER P/ SUPABASE / APIs)
-// =============================
-function useAdsMetricsByPlatform({
-  from,
-  to,
-  initialSalesByPlatform,
-}: {
-  from?: string
-  to?: string
-  initialSalesByPlatform?: Record<string, number>
-}) {
-  const zero: AdsMetrics = {
-    adSpend: 0,
-    pendingSales: 0,
-    profit: 0,
-    roi: 0,
-    roas: 0,
-    profitMargin: 0,
-    costPerConversation: 0,
-    conversations: 0,
-    tax: 0,
-  }
-
-  const [metricsByPlatform, setMetricsByPlatform] = useState<
-    Record<AdsPlatform, AdsMetrics>
-  >(() => {
-    const totalProfit = Object.values(initialSalesByPlatform || {}).reduce(
-      (sum, v) => sum + (v || 0),
-      0
-    )
-
-    const profitFor = (key: AdsPlatform) =>
-      key === "all" ? totalProfit : initialSalesByPlatform?.[key] ?? 0
-
-    return {
-      all: { ...zero, profit: profitFor("all") },
-      meta: { ...zero, profit: profitFor("meta") },
-      google: { ...zero, profit: profitFor("google") },
-      analytics: { ...zero, profit: profitFor("analytics") },
-      tiktok: { ...zero, profit: profitFor("tiktok") },
-      kwai: { ...zero, profit: profitFor("kwai") },
-    }
-  })
-
-  useEffect(() => {
-    // 🔗 TODO: aqui você conecta no Supabase / APIs de Ads.
-    //
-    // Exemplo:
-    // const { data, error } = await supabase
-    //   .from("ads_metrics")
-    //   .select("*")
-    //   .gte("date", from)
-    //   .lt("date", to)
-    //
-    // Depois monta Record<AdsPlatform, AdsMetrics>
-    // e chama setMetricsByPlatform(novoObjeto).
-  }, [from, to])
-
-  return { metricsByPlatform, setMetricsByPlatform }
-}
-
-// =============================
-// DONUT CHART
+// DONUT CHART (cores reais + popup)
 // =============================
 function DonutChart({
   data,
@@ -431,7 +367,7 @@ function DonutChart({
   )
 
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const [tip] = useState({
+  const [tip, setTip] = useState({
     show: false,
     name: "",
     pct: 0,
@@ -456,7 +392,23 @@ function DonutChart({
   const BOX = OUTER_R * 2 + STROKE * 2
   const CENTER = OUTER_R + STROKE
 
+  // CORES REAIS POR PLATAFORMA / GATEWAY
   function colorForGateway(name: string) {
+    const key = (name || "").toLowerCase().trim()
+
+    if (key.includes("pepper")) return "#FF6B00" // Pepper
+    if (key.includes("cakto")) return "#6D28D9" // Cakto
+    if (key.includes("kirvano")) return "#0EA5E9" // Kirvano
+    if (key.includes("kiwify")) return "#00C853" // Kiwify
+    if (key.includes("hotmart")) return "#FF4C4C" // Hotmart
+    if (key.includes("monetizze")) return "#0069FF" // Monetizze
+    if (key.includes("eduzz")) return "#F9A826" // Eduzz
+    if (key.includes("braip")) return "#4F46E5" // Braip
+
+    if (key.includes("pix")) return "#00C853"
+    if (key.includes("card") || key.includes("credito")) return "#3B82F6"
+
+    // fallback
     const palette = [
       "#8b5cf6",
       "#22c55e",
@@ -484,6 +436,27 @@ function DonutChart({
     return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }
   }
 
+  function handleSliceMove(
+    e: React.MouseEvent<SVGCircleElement, MouseEvent>,
+    name: string,
+    pct: number
+  ) {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+
+    setTip({
+      show: true,
+      name,
+      pct,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    })
+  }
+
+  function handleSliceLeave() {
+    setTip((prev) => ({ ...prev, show: false }))
+  }
+
   let offsetLen = 0
   const slices: React.ReactNode[] = []
   const labels: React.ReactNode[] = []
@@ -493,6 +466,7 @@ function DonutChart({
     const pct100 = pct * 100
     const sliceLen = pct * C
 
+    // FATIA
     slices.push(
       <circle
         key={name}
@@ -506,9 +480,12 @@ function DonutChart({
         transform="rotate(-90)"
         style={{ transition: "stroke-dashoffset 0.6s ease" }}
         className="cursor-pointer"
+        onMouseMove={(e) => handleSliceMove(e, name, pct100)}
+        onMouseLeave={handleSliceLeave}
       />
     )
 
+    // LABEL %
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
@@ -570,8 +547,7 @@ function DonutChart({
           style={{ left: tip.x + 8, top: tip.y + 8 }}
         >
           {tip.name || "Outro"} —{" "}
-          {tip.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
-          %
+          {tip.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
         </div>
       )}
     </div>
@@ -744,7 +720,6 @@ function makeRange(
 // COMPONENTE PRINCIPAL DO DASHBOARD
 // =============================
 export default function DashboardView({
-  userName,
   salesByPlatform = {},
   onRefresh,
   cardContent,
@@ -762,7 +737,6 @@ export default function DashboardView({
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
-  // plataforma de anúncios selecionada
   const [selectedPlatform, setSelectedPlatform] = useState<AdsPlatform>("all")
 
   const { from, to } = useMemo(
@@ -776,24 +750,65 @@ export default function DashboardView({
     to,
   })
 
-  const { metricsByPlatform } = useAdsMetricsByPlatform({
-    from,
-    to,
-    initialSalesByPlatform: salesByPlatform,
-  })
-
-  const adsMetricsByPlatform = metricsByPlatform
-  const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
-
   function brl(n: number) {
     return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
   }
-
   const greenPct = (p: string) => (
     <span className="text-green-600 dark:text-green-400 text-2xl font-semibold">
       {p}
     </span>
   )
+
+  const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
+    const zero: AdsMetrics = {
+      adSpend: 0,
+      pendingSales: 0,
+      profit: 0,
+      roi: 0,
+      roas: 0,
+      profitMargin: 0,
+      costPerConversation: 0,
+      conversations: 0,
+      tax: 0,
+    }
+
+    const totalProfit = Object.values(salesByPlatform || {}).reduce(
+      (sum, v) => sum + (v || 0),
+      0
+    )
+
+    const get = (key: AdsPlatform) =>
+      key === "all" ? 0 : (salesByPlatform?.[key] ?? 0)
+
+    return {
+      all: {
+        ...zero,
+        profit: totalProfit,
+      },
+      meta: {
+        ...zero,
+        profit: get("meta"),
+      },
+      google: {
+        ...zero,
+        profit: get("google"),
+      },
+      analytics: {
+        ...zero,
+        profit: get("analytics"),
+      },
+      tiktok: {
+        ...zero,
+        profit: get("tiktok"),
+      },
+      kwai: {
+        ...zero,
+        profit: get("kwai"),
+      },
+    }
+  }, [salesByPlatform])
+
+  const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
 
   const selectedPlatformLabel = useMemo(() => {
     switch (selectedPlatform) {
@@ -812,19 +827,11 @@ export default function DashboardView({
     }
   }, [selectedPlatform])
 
-  // classe padrão para o label das plataformas
-  const platformLabelClass =
-    "ml-2 text-[9px] leading-none text-black/50 dark:text-white/50 whitespace-nowrap"
-
-  // =====================
-  // conteúdo padrão dos cards
-  // =====================
   const defaultContent: CardContentMap = {
     "top-1": (_slotId, ctx, key) => {
       const loading = ctx.loading || isRefreshing
 
       const totalNet = React.useMemo(() => {
-        // colapsa por transaction_id (ou id), pegando o último evento aprovado
         const byTxn = new Map<string, GatewayTransaction>()
 
         for (const r of ctx.rows || []) {
@@ -875,7 +882,6 @@ export default function DashboardView({
       )
     },
 
-    // ✅ VENDAS – sem "Todas plataformas"
     "top-2": (_slotId, ctx, key) => {
       const value = ctx.kpis.vendas ?? 0
       const loading = ctx.loading || isRefreshing
@@ -895,7 +901,6 @@ export default function DashboardView({
       )
     },
 
-    // ✅ REEMBOLSOS – sem "Todas plataformas"
     "top-3": (_slotId, ctx, key) => {
       const value = ctx.kpis.reembolsosTotal ?? 0
       const loading = ctx.loading || isRefreshing
@@ -915,7 +920,6 @@ export default function DashboardView({
       )
     },
 
-    // ✅ CHARGEBACKS – sem "Todas plataformas"
     "top-4": (_slotId, ctx, key) => {
       const value = ctx.kpis.chargebacksTotal ?? 0
       const loading = ctx.loading || isRefreshing
@@ -935,33 +939,17 @@ export default function DashboardView({
       )
     },
 
-    // =====================
-    // CARDS DE MÉTRICAS DE ADS
-    // =====================
-    // 🔥 AQUI está o card com o layout exato que você pediu
     r1: (_slot, _ctx, key) => {
       const loading = isRefreshing
-
-      const allPlatformsLabel = (
-        <div className="text-[10px] text-black/50 dark:text-white/50 leading-tight text-right whitespace-pre-line">
-          {"Todas\nplataformas"}
-        </div>
-      )
-
-      const dynamicLabel =
-        selectedPlatform === "all" ? (
-          allPlatformsLabel
-        ) : (
-          <span className={platformLabelClass}>{selectedPlatformLabel}</span>
-        )
-
       return (
         <div key={`r1-${key}`} className="p-3 text-black dark:text-white">
-          <div className="flex items-start justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70 whitespace-nowrap">
+          <div className="mb-1">
+            <div className="text-xs text-black/70 dark:text-white/70">
               Gastos com anúncios
             </div>
-            {dynamicLabel}
+            <div className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </div>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -979,10 +967,10 @@ export default function DashboardView({
       return (
         <div key={`r2-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70">
-              ROAS
-            </div>
-            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
+            <div className="text-xs text-black/70 dark:text-white/70">ROAS</div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -1003,7 +991,9 @@ export default function DashboardView({
             <div className="text-xs text-black/70 dark:text-white/70">
               Vendas Pendentes
             </div>
-            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -1021,10 +1011,10 @@ export default function DashboardView({
       return (
         <div key={`r4-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70">
-              Lucro
-            </div>
-            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
+            <div className="text-xs text-black/70 dark:text-white/70">Lucro</div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
           </div>
           <div className="text-2xl font-semibold text-green-600 dark:text-green-400">
             {loading ? (
@@ -1042,10 +1032,10 @@ export default function DashboardView({
       return (
         <div key={`r5-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70">
-              ROI
-            </div>
-            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
+            <div className="text-xs text-black/70 dark:text-white/70">ROI</div>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
           </div>
           {loading ? (
             <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
@@ -1064,7 +1054,9 @@ export default function DashboardView({
             <div className="text-xs text-black/70 dark:text-white/70">
               Margem de Lucro
             </div>
-            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
           </div>
           {loading ? (
             <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
@@ -1075,7 +1067,6 @@ export default function DashboardView({
       )
     },
 
-    // custo / conversa / imposto
     b1: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
@@ -1084,7 +1075,9 @@ export default function DashboardView({
             <div className="text-xs text-black/70 dark:text-white/70">
               Custo por conversa
             </div>
-            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -1101,11 +1094,13 @@ export default function DashboardView({
       const loading = isRefreshing
       return (
         <div key={`b2-${key}`} className="p-3 text-black dark:text-white">
-          <div className="flex items-center justify-between mb-2">
+          <div className="mb-1">
             <div className="text-xs text-black/70 dark:text-white/70">
               Conversa
             </div>
-            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
+            <div className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </div>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -1126,7 +1121,9 @@ export default function DashboardView({
             <div className="text-xs text-black/70 dark:text-white/70">
               Imposto
             </div>
-            <span className={platformLabelClass}>{selectedPlatformLabel}</span>
+            <span className="text-[10px] text-black/50 dark:text-white/50">
+              {selectedPlatformLabel}
+            </span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
@@ -1139,7 +1136,6 @@ export default function DashboardView({
       )
     },
 
-    // plataformas individuais (cards de logos)
     b4: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
@@ -1255,7 +1251,6 @@ export default function DashboardView({
       )
     },
 
-    // DONUT CARD — centralizado
     "big-donut": (_slotId, ctx, key) => {
       const split = calcGatewaySplit(ctx.rows)
       return (
@@ -1450,7 +1445,7 @@ export default function DashboardView({
 
           let content: React.ReactNode | null = null
           if (typeof plug === "function") {
-            // @ts-ignore – 3º arg é o refreshKey global
+            // @ts-ignore
             content = plug(card.id, data, refreshKey)
           } else {
             content = plug ?? null

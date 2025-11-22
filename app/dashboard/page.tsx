@@ -279,8 +279,8 @@ export default function DashboardPage() {
               </div>
 
               {/* COLUNA LATERAL */}
-              <div className="hidden md:flex md:w-[18%] p-4 flex-col items-center sticky top-[72px]">
-                <div className="w-full max-w-[280px] origin-top mx-auto flex flex-col items-center">
+              <div className="hidden md:flex md:w-[18%] p-4 flex-col items-center sticky top-[150px]">
+                <div className="w-full max-w-[280px] origin-top mx-auto flex flex-col items-center mt-9">
                   <img
                     src={imageSrc || "/placeholder.svg"}
                     alt="Suas Próximas Premiações"

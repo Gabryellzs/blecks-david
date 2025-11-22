@@ -1,3 +1,5 @@
+"use client"
+
 import { memo } from "react"
 import { Handle, Position } from "reactflow"
 
@@ -18,46 +20,95 @@ const PageNode = memo(({ data, selected }: PageNodeProps) => {
     return "CALL TO ACTION"
   }
 
+  const showButton = data.hasCallToAction ?? true
+
   return (
     <div
-      className={`relative rounded-md overflow-hidden border ${
-        selected ? "border-blue-500" : "border-gray-700"
-      } bg-black shadow-lg w-[180px]`}
+      className={[
+        "relative",
+        // REMOVI overflow-hidden pra não cortar os pontos de conexão
+        "rounded-xl border bg-[#050816]/95 shadow-[0_16px_40px_rgba(0,0,0,0.8)]",
+        "w-[220px] text-xs text-slate-100",
+        "transition-all duration-150",
+        selected
+          ? "border-cyan-400/80 shadow-[0_0_25px_rgba(34,211,238,0.5)]"
+          : "border-slate-800/80",
+      ].join(" ")}
     >
-      {/* Barra de navegador simulada */}
-      <div className="h-6 bg-gray-900 flex items-center px-2">
-        <div className="flex space-x-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
-          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
-          <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+      {/* TOP BAR - janela do navegador */}
+      <div className="flex items-center justify-between gap-2 border-b border-slate-800/70 bg-[#020617] px-3 py-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-red-500/90" />
+          <span className="h-2 w-2 rounded-full bg-yellow-400/90" />
+          <span className="h-2 w-2 rounded-full bg-emerald-400/90" />
         </div>
+        {data.pageType && (
+          <span className="rounded-full border border-slate-700/80 bg-slate-900/80 px-2 py-[2px] text-[9px] uppercase tracking-[0.16em] text-slate-400">
+            {data.pageType.replace("-", " ")}
+          </span>
+        )}
       </div>
 
-      {/* Cabeçalho com título */}
-      <div className="p-3">
-        <div className="text-sm font-medium text-white mb-1">{data.label}</div>
-        {data.description && <div className="text-xs text-gray-400 mb-2">{data.description}</div>}
-
-        {/* Representação visual do conteúdo da página */}
-        <div className="space-y-2 mb-2">
-          <div className="h-2 bg-gray-800 rounded w-full"></div>
-          <div className="h-2 bg-gray-800 rounded w-5/6"></div>
-          <div className="h-2 bg-gray-800 rounded w-4/6"></div>
+      {/* CONTEÚDO */}
+      <div className="space-y-2 px-3 pb-3 pt-2">
+        {/* Título e descrição */}
+        <div>
+          <p className="mb-1 text-[11px] font-semibold leading-snug">
+            {data.label || "Página"}
+          </p>
+          {data.description && (
+            <p className="text-[10px] leading-snug text-slate-400 line-clamp-2">
+              {data.description}
+            </p>
+          )}
         </div>
 
-        {/* Botão de call to action */}
-        {data.hasCallToAction && (
-          <div className="mt-2 py-1 px-2 bg-white text-black text-xs font-medium text-center rounded">
-            {getButtonText()}
+        {/* Linhas fake de conteúdo */}
+        <div className="space-y-1.5">
+          <div className="h-1.5 w-11/12 rounded-full bg-slate-800" />
+          <div className="h-1.5 w-9/12 rounded-full bg-slate-800" />
+          <div className="h-1.5 w-7/12 rounded-full bg-slate-900" />
+        </div>
+
+        {/* CTA */}
+        {showButton && (
+          <div className="mt-2 flex justify-center">
+            <button className="inline-flex items-center justify-center rounded-md border border-slate-950 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-900 shadow-[0_6px_18px_rgba(0,0,0,0.5)]">
+              {getButtonText()}
+            </button>
           </div>
         )}
       </div>
 
-      {/* Conectores */}
-      <Handle type="target" position={Position.Left} className="w-3 h-3 bg-blue-500" />
-      <Handle type="source" position={Position.Right} className="w-3 h-3 bg-blue-500" />
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-blue-500" />
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-blue-500" />
+      {/* HANDLES (PONTOS DE CONEXÃO) — FORA DO CARD */}
+
+      {/* Esquerda - entrada */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="w-3.5 h-3.5 -left-3 top-1/2 -translate-y-1/2 rounded-full border-2 border-cyan-400 bg-slate-950 shadow-[0_0_12px_rgba(34,211,238,0.9)] z-[40]"
+      />
+
+      {/* Direita - saída */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="w-3.5 h-3.5 -right-3 top-1/2 -translate-y-1/2 rounded-full border-2 border-slate-900 bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.9)] z-[40]"
+      />
+
+      {/* Topo - entrada extra */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="w-3.5 h-3.5 top-[-7px] left-1/2 -translate-x-1/2 rounded-full border-2 border-cyan-400 bg-slate-950 shadow-[0_0_10px_rgba(34,211,238,0.9)] z-[40]"
+      />
+
+      {/* Bottom - saída extra */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="w-3.5 h-3.5 bottom-[-7px] left-1/2 -translate-x-1/2 rounded-full border-2 border-slate-900 bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.9)] z-[40]"
+      />
     </div>
   )
 })

@@ -1,19 +1,15 @@
 import { NextResponse } from "next/server"
-// 1. Importar puppeteer-core e o pacote de chromium
 import puppeteer from "puppeteer-core"
-import puppeteerFull from "puppeteer" // Dev local
-import chromium from "@sparticuz/chromium-min"
+import puppeteerFull from "puppeteer" // usado só em dev
+import chromium from "@sparticuz/chromium"
 import path from "node:path"
 import fs from "node:fs/promises"
 import { existsSync, mkdirSync } from "node:fs"
-
-// (opcional) supabase storage para cache persistente
 import { createClient } from "@supabase/supabase-js"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 export const revalidate = 0
-// Aumentar o tempo limite da função (opcional, mas recomendado para puppeteer)
 export const maxDuration = 120 // 2 minutos
 
 const TTL = Number(process.env.AD_IMAGE_TTL_SECONDS || 60 * 60 * 24 * 7) // 7 dias
@@ -25,24 +21,29 @@ function nowSec() {
   return Math.floor(Date.now() / 1000)
 }
 
-// paths de cache local
+// ----------------- CACHE LOCAL (/tmp ou .ad-cache) -----------------
 function getLocalCacheDir() {
-  // em produção (Vercel) só é gravável /tmp
   if (process.env.VERCEL) return "/tmp/ad-cache"
-  return path.join(process.cwd(), ".ad-cache") // Melhor usar .ad-cache localmente
+  return path.join(process.cwd(), ".ad-cache")
 }
+
 function localFilePath(id: string) {
   return path.join(getLocalCacheDir(), `${id}.png`)
 }
 
-// --- HELPER PARA O BROWSER ---
+// ----------------- BROWSER (DEV + PRODUÇÃO) -----------------
 async function getBrowser() {
-  // Ambiente de produção/Vercel usa chromium-min
-  if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
-    console.log("Usando chromium-min (produção)")
+  const isProd = process.env.NODE_ENV === "production" || !!process.env.VERCEL
+
+  if (isProd) {
+    console.log("[ad-image] Usando chromium (produção)")
     const executablePath = await chromium.executablePath()
+    if (!executablePath) {
+      console.error("[ad-image] chromium.executablePath() retornou vazio")
+      throw new Error("Chromium executablePath not found")
+    }
+
     return puppeteer.launch({
-      // puppeteer é puppeteer-core
       args: chromium.args,
       executablePath,
       headless: chromium.headless,
@@ -51,8 +52,7 @@ async function getBrowser() {
     })
   }
 
-  // Ambiente de desenvolvimento usa o puppeteer completo (instalado em devDependencies)
-  console.log("Usando puppeteer-full (local)")
+  console.log("[ad-image] Usando puppeteer-full (local)")
   return puppeteerFull.launch({
     headless: true,
     defaultViewport: { width: 1360, height: 1000 },
@@ -60,7 +60,7 @@ async function getBrowser() {
   })
 }
 
-// --------- captura do criativo (com puppeteer) ----------
+// ----------------- CAPTURA DO CRIATIVO -----------------
 async function renderCreativePng(adId: string): Promise<Buffer | null> {
   const token =
     process.env.META_ACCESS_TOKEN || process.env.FB_USER_TOKEN_LONG || ""
@@ -83,6 +83,7 @@ async function renderCreativePng(adId: string): Promise<Buffer | null> {
     })
 
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
     const openAndPrep = async (url: string) => {
       console.log("[ad-image] Abrindo URL:", url)
       await page.goto(url, {
@@ -97,38 +98,40 @@ async function renderCreativePng(adId: string): Promise<Buffer | null> {
           (await page.$('button[aria-label*="aceitar"]'))
         if (cookieBtn) {
           await cookieBtn.click()
-          await sleep(500) // Espera o clique processar
+          await sleep(500)
         }
       } catch (e) {
-        console.warn("[ad-image] Erro ao tentar clicar em cookie banner:", e)
+        console.warn("[ad-image] Erro ao tentar clicar no cookie banner:", e)
       }
     }
 
-    // Seletor para esperar a mídia real carregar
     const mediaSelector = [
       'img[src*="scontent"][src*="fbcdn"]',
       "video",
-      'div[style*="background-image"][style*="scontent"]', // Seletor mais específico
+      'div[style*="background-image"][style*="scontent"]',
     ].join(",")
 
+    // 1) Tenta render_ad
     try {
-      // Tenta a página render_ad primeiro E espera a mídia
       await openAndPrep(renderUrl)
-      await page.waitForSelector(mediaSelector, { timeout: 20000 }) // Espera 20s
+      await page.waitForSelector(mediaSelector, { timeout: 20000 })
     } catch (e) {
       console.warn(
-        `Falha no render_ad (id: ${adId}), tentando fallback para library...`,
+        `[ad-image] Falha no render_ad (id: ${adId}), tentando library...`,
+        e,
       )
+      // 2) Fallback: library
       try {
-        // Fallback para library E espera a mídia
-        await openAndPrep(`https://www.facebook.com/ads/library/?id=${adId}`)
-        await page.waitForSelector(mediaSelector, { timeout: 20000 }) // Espera 20s
+        await openAndPrep(
+          `https://www.facebook.com/ads/library/?id=${adId}`,
+        )
+        await page.waitForSelector(mediaSelector, { timeout: 20000 })
       } catch (fallbackError) {
         console.error(
-          `Falha total, não encontrou mídia em nenhuma página para o id: ${adId}`,
+          `[ad-image] Falha total (render_ad + library) para id: ${adId}`,
           fallbackError,
         )
-        // 👉 NOVO: em vez de jogar erro, tira screenshot da página inteira
+        // Último fallback: screenshot da página inteira
         const full = (await page.screenshot({
           type: "png",
           fullPage: true,
@@ -137,15 +140,14 @@ async function renderCreativePng(adId: string): Promise<Buffer | null> {
       }
     }
 
-    await sleep(1000) // Dá 1s extra para a imagem renderizar após ser encontrada
+    await sleep(1000)
 
-    // Atualiza os candidatos
     const candidates = await page.$$(
       [
         'img[src*="scontent"][src*="fbcdn"]',
         "video",
         'div[style*="background-image"][style*="scontent"]',
-        'div[style*="background-image"]', // Fallback genérico
+        'div[style*="background-image"]',
         '[role="img"]',
         "img",
       ].join(","),
@@ -182,9 +184,8 @@ async function renderCreativePng(adId: string): Promise<Buffer | null> {
       }
       png = (await page.screenshot({ type: "png", clip })) as Buffer
     } else {
-      // 👉 NOVO: se não achou mídia, faz screenshot da página inteira
       console.warn(
-        `Não encontrou candidatos de mídia válidos para o id: ${adId}, usando screenshot fullPage`,
+        `[ad-image] Nenhum candidato de mídia pra id ${adId}, usando fullPage`,
       )
       png = (await page.screenshot({
         type: "png",
@@ -203,7 +204,7 @@ async function renderCreativePng(adId: string): Promise<Buffer | null> {
   }
 }
 
-// ------------------------------- Supabase ------------------------------------
+// ----------------- SUPABASE -----------------
 async function getSupabase() {
   if (!USE_SUPABASE) return null
   return createClient(
@@ -219,7 +220,10 @@ async function supabaseGetSignedUrl(id: string) {
   const { data, error } = await supabase.storage
     .from(BUCKET)
     .createSignedUrl(`${id}.png`, TTL)
-  if (error) return null
+  if (error) {
+    console.warn("[ad-image] createSignedUrl error:", error.message)
+    return null
+  }
   return data.signedUrl
 }
 
@@ -232,34 +236,31 @@ async function supabaseUpload(id: string, png: Buffer) {
       contentType: "image/png",
       upsert: true,
     })
-  return !error
+  if (error) {
+    console.error("[ad-image] upload error:", error.message)
+    return false
+  }
+  return true
 }
 
-// ------------------------------- Route ---------------------------------------
+// ----------------- ROUTE -----------------
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get("id")
-  if (!id)
+  if (!id) {
     return NextResponse.json({ error: "Missing ad id" }, { status: 400 })
+  }
 
   let png: Buffer | null = null
 
-  // 1) Tenta Supabase (se configurado)
+  // 1) Primeiro tenta Supabase
   if (USE_SUPABASE) {
     const signed = await supabaseGetSignedUrl(id)
     if (signed) {
       return NextResponse.redirect(signed, { status: 302 })
     }
 
-    try {
-      png = await renderCreativePng(id)
-    } catch (e) {
-      console.error(`Falha ao renderizar ${id}:`, e)
-      return NextResponse.json(
-        { error: "Failed to render creative" },
-        { status: 500 },
-      )
-    }
+    png = await renderCreativePng(id)
 
     if (!png) {
       return NextResponse.json(
@@ -270,9 +271,11 @@ export async function GET(req: Request) {
 
     await supabaseUpload(id, png)
     const url = await supabaseGetSignedUrl(id)
-    if (url) return NextResponse.redirect(url, { status: 302 })
+    if (url) {
+      return NextResponse.redirect(url, { status: 302 })
+    }
 
-    // Fallback se o Supabase falhar (envia o PNG direto)
+    // Fallback se Supabase falhar
     return new NextResponse(png, {
       status: 200,
       headers: {
@@ -282,7 +285,7 @@ export async function GET(req: Request) {
     })
   }
 
-  // 2) Fallback: cache local (em /tmp)
+  // 2) Fallback: cache local em /tmp
   const dir = getLocalCacheDir()
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
 
@@ -292,7 +295,6 @@ export async function GET(req: Request) {
     const stat = await fs.stat(file)
     const age = nowSec() - Math.floor(stat.mtimeMs / 1000)
     if (age < TTL) {
-      // Ler o arquivo e retornar, em vez de redirecionar
       const pngBuffer = await fs.readFile(file)
       return new NextResponse(pngBuffer, {
         status: 200,
@@ -304,16 +306,7 @@ export async function GET(req: Request) {
     }
   } catch {}
 
-  // Renderiza, salva em /tmp
-  try {
-    png = await renderCreativePng(id)
-  } catch (e) {
-    console.error(`Falha ao renderizar ${id}:`, e)
-    return NextResponse.json(
-      { error: "Failed to render creative" },
-      { status: 500 },
-    )
-  }
+  png = await renderCreativePng(id)
 
   if (!png) {
     return NextResponse.json(
@@ -325,10 +318,9 @@ export async function GET(req: Request) {
   try {
     await fs.writeFile(file, png)
   } catch (e) {
-    console.error("Failed to write to /tmp", e)
+    console.error("[ad-image] Failed to write /tmp:", e)
   }
 
-  // Retorna o PNG que acabamos de renderizar
   return new NextResponse(png, {
     status: 200,
     headers: {

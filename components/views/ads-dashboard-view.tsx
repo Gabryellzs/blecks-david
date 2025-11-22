@@ -62,6 +62,7 @@ console.log("✅ RENDER AdsDashboardView atualizado")
 import { getFacebookAdSets } from "@/lib/facebook-ads-service" 
 import { createClient } from "@supabase/supabase-js"
 import { getFacebookCampaignsWithInsights } from "@/lib/facebook-ads-service"
+import { cn } from "@/lib/utils"
 
 
 
@@ -3420,6 +3421,7 @@ useEffect(() => {
                     <Table className="w-full border-collapse">
                       <TableHeader className="border-b border-white/10">
                         <TableRow>
+                          <TableHead>Ativar/Desativar</TableHead>
                           <TableHead>Campanha</TableHead>
                           <TableHead>Valor usado</TableHead>
                           <TableHead>Resultados</TableHead>
@@ -3429,13 +3431,46 @@ useEffect(() => {
                           <TableHead>Cliques no link</TableHead>
                           <TableHead>CPC</TableHead>
                           <TableHead>CTR</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
 
                       <TableBody>
                         {pagedCampaigns.map((c: any) => (
                           <TableRow key={c.id} className="border-b border-white/10 last:border-b-0 [&>td]:py-3">
+                            <TableCell className="text-center">
+  {(() => {
+    const isActive = c.status === "ACTIVE"
+
+    return (
+      <button
+        onClick={() => handleCampaignStatusChange(c.id, c.status)}
+        className={cn(
+          "relative inline-flex h-7 w-14 items-center rounded-full border transition-all duration-300",
+          isActive
+            ? "border-emerald-400 bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-[0_6px_14px_rgba(16,185,129,0.6)]"
+            : "border-zinc-500/60 bg-gradient-to-br from-zinc-700 to-zinc-800 shadow-inner"
+        )}
+        aria-pressed={isActive}
+      >
+        {/* brilho do fundo */}
+        <span
+          className={cn(
+            "pointer-events-none absolute inset-[2px] rounded-full opacity-60 blur-[2px]",
+            isActive ? "bg-emerald-300/50" : "bg-zinc-500/40"
+          )}
+        />
+
+        {/* bolinha 3D */}
+        <span
+          className={cn(
+            "relative inline-block h-6 w-6 transform rounded-full bg-gradient-to-br from-white to-zinc-100 shadow-[0_4px_8px_rgba(0,0,0,0.35)] transition-all duration-300",
+            isActive ? "translate-x-7" : "translate-x-1"
+          )}
+        />
+      </button>
+    )
+  })()}
+</TableCell>
                             <TableCell className="font-medium">{c.name}</TableCell>
                             <TableCell>{moneyBRL(c.spend)}</TableCell>
                             <TableCell>
@@ -3450,35 +3485,6 @@ useEffect(() => {
                             <TableCell>{c.inline_link_clicks ?? 0}</TableCell>
                             <TableCell>{c.cpc != null ? moneyBRL(c.cpc) : "—"}</TableCell>
                             <TableCell>{c.ctr != null ? `${Number(c.ctr).toFixed(2)}%` : "—"}</TableCell>
-                            <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <span className="sr-only">Abrir menu</span>
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleCampaignStatusChange(c.id, c.status)}>
-                                    {c.status === "ACTIVE" ? (
-                                      <>
-                                        <Pause className="mr-2 h-4 w-4" /> Pausar
-                                      </>
-                                    ) : (
-                                      <>
-                                        <PlayIcon className="mr-2 h-4 w-4" /> Ativar
-                                      </>
-                                    )}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <ExternalLinkIcon className="mr-2 h-4 w-4" /> Ver no Facebook Ads
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-red-600">
-                                    <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

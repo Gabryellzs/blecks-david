@@ -3491,86 +3491,105 @@ useEffect(() => {
                   <>
                     <Table className="w-full border-collapse">
                       <TableHeader className="border-b border-white/10">
-                        <TableRow>
-                          <TableHead>Desativar/Ativar</TableHead>
-                          <TableHead>Campanha</TableHead>
-                          <TableHead>Valor usado</TableHead>
-                          <TableHead>Resultados</TableHead>
-                          <TableHead>ROAS de resultados</TableHead>
-                          <TableHead>Custo por resultado</TableHead>
-                          <TableHead>CPM (custo por 1.000)</TableHead>
-                          <TableHead>Cliques no link</TableHead>
-                          <TableHead>CPC</TableHead>
-                          <TableHead>CTR</TableHead>
-                        </TableRow>
-                      </TableHeader>
+  <TableRow>
+    <TableHead>Desativar/Ativar</TableHead>
+    <TableHead>Campanha</TableHead>
+    <TableHead>Orçamento</TableHead>
+    <TableHead>Valor usado</TableHead>
+    <TableHead>Resultados</TableHead>
+    <TableHead>ROAS de resultados</TableHead>
+    <TableHead>Custo por resultado</TableHead>
+    <TableHead>CPM (custo por 1.000)</TableHead>
+    <TableHead>Cliques no link</TableHead>
+    <TableHead>CPC</TableHead>
+    <TableHead>CTR</TableHead>
+  </TableRow>
+</TableHeader>
+
 
                       <TableBody>
-                        {pagedCampaigns.map((c: any) => (
-                          <TableRow key={c.id} className="border-b border-white/10 last:border-b-0 [&>td]:py-3">
-                            <TableCell className="text-center">
-  {(() => {
-    const isActive = c.status === "ACTIVE"
+  {pagedCampaigns.map((c: any) => (
+    <TableRow key={c.id} className="border-b border-white/10 last:border-b-0 [&>td]:py-3">
+      {/* Coluna 1 - toggle ativar/desativar */}
+      <TableCell className="text-center">
+        {(() => {
+          const isActive = c.status === "ACTIVE"
 
-    return (
-      <button
-        onClick={() => handleCampaignStatusChange(c.id, c.status)}
-        className={cn(
-          "relative inline-flex h-6 w-14 items-center rounded-full border transition-all duration-300",
-          isActive
-            ? "border-emerald-300 bg-gradient-to-br from-emerald-300 to-emerald-400 shadow-[0_5px_10px_rgba(16,185,129,0.6)]"
-            : "border-zinc-500/60 bg-gradient-to-br from-zinc-700 to-zinc-800 shadow-inner"
-        )}
-        aria-pressed={isActive}
-      >
-        {/* brilho do fundo */}
-        <span
-          className={cn(
-            "pointer-events-none absolute inset-[2px] rounded-full opacity-60 blur-[2px]",
-            isActive ? "bg-emerald-300/50" : "bg-zinc-500/40"
-          )}
-        />
+          return (
+            <button
+              onClick={() => handleCampaignStatusChange(c.id, c.status)}
+              className={cn(
+                "relative inline-flex h-6 w-14 items-center rounded-full border transition-all duration-300",
+                isActive
+                  ? "border-emerald-300 bg-gradient-to-br from-emerald-300 to-emerald-400 shadow-[0_5px_10px_rgba(16,185,129,0.6)]"
+                  : "border-zinc-500/60 bg-gradient-to-br from-zinc-700 to-zinc-800 shadow-inner",
+              )}
+              aria-pressed={isActive}
+            >
+              <span
+                className={cn(
+                  "pointer-events-none absolute inset-[2px] rounded-full opacity-60 blur-[2px]",
+                  isActive ? "bg-emerald-300/50" : "bg-zinc-500/40",
+                )}
+              />
+              <span
+                className={cn(
+                  "relative inline-block h-5 w-5 transform rounded-full bg-gradient-to-br from-white to-zinc-100 shadow-[0_4px_8px_rgba(0,0,0,0.35)] transition-all duration-300",
+                  isActive ? "translate-x-7" : "translate-x-1",
+                )}
+              />
+            </button>
+          )
+        })()}
+      </TableCell>
 
-        {/* bolinha 3D */}
-        <span
-          className={cn(
-            "relative inline-block h-5 w-5 transform rounded-full bg-gradient-to-br from-white to-zinc-100 shadow-[0_4px_8px_rgba(0,0,0,0.35)] transition-all duration-300",
-            isActive ? "translate-x-7" : "translate-x-1"
-          )}
-        />
-      </button>
-    )
-  })()}
-</TableCell>
-                            <TableCell className="font-medium">
-  <div className="group flex items-center gap-2">
-    <span className="truncate max-w-xs">{c.name}</span>
-    <button
-      type="button"
-      onClick={() => handleStartEditCampaignName(c)}
-      className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
-    >
-      <Pencil className="h-3 w-3" />
-    </button>
-  </div>
-</TableCell>
+      {/* Coluna 2 - Campanha (nome + lápis) */}
+      <TableCell className="font-medium">
+        <div className="group flex items-center gap-2">
+          <span className="truncate max-w-xs">{c.name}</span>
+          <button
+            type="button"
+            onClick={() => handleStartEditCampaignName(c)}
+            className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+        </div>
+      </TableCell>
 
-                            <TableCell>{moneyBRL(c.spend)}</TableCell>
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{c.results ?? 0}</span>
-                                <span className="text-xs text-muted-foreground">{c.resultLabel || "Resultados"}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>{c.roas != null ? c.roas.toFixed(2) : "—"}</TableCell>
-                            <TableCell>{c.cost_per_result != null ? moneyBRL(c.cost_per_result) : "—"}</TableCell>
-                            <TableCell>{c.cpm != null ? moneyBRL(c.cpm) : "—"}</TableCell>
-                            <TableCell>{c.inline_link_clicks ?? 0}</TableCell>
-                            <TableCell>{c.cpc != null ? moneyBRL(c.cpc) : "—"}</TableCell>
-                            <TableCell>{c.ctr != null ? `${Number(c.ctr).toFixed(2)}%` : "—"}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
+      {/* Coluna 3 - Orçamento */}
+      <TableCell>
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-medium">
+              {c.budget != null ? moneyBRL(c.budget) : "—"}
+            </span>
+            {/* Se quiser, depois colocamos um lápis aqui também */}
+          </div>
+          <span className="text-[11px] text-muted-foreground leading-none mt-0.5">
+            Diário
+          </span>
+        </div>
+      </TableCell>
+
+      {/* Coluna 4 em diante - igual estava antes */}
+      <TableCell>{moneyBRL(c.spend)}</TableCell>
+      <TableCell>
+        <div className="flex flex-col">
+          <span className="font-medium">{c.results ?? 0}</span>
+          <span className="text-xs text-muted-foreground">{c.resultLabel || "Resultados"}</span>
+        </div>
+      </TableCell>
+      <TableCell>{c.roas != null ? c.roas.toFixed(2) : "—"}</TableCell>
+      <TableCell>{c.cost_per_result != null ? moneyBRL(c.cost_per_result) : "—"}</TableCell>
+      <TableCell>{c.cpm != null ? moneyBRL(c.cpm) : "—"}</TableCell>
+      <TableCell>{c.inline_link_clicks ?? 0}</TableCell>
+      <TableCell>{c.cpc != null ? moneyBRL(c.cpc) : "—"}</TableCell>
+      <TableCell>{c.ctr != null ? `${Number(c.ctr).toFixed(2)}%` : "—"}</TableCell>
+    </TableRow>
+  ))}
+</TableBody>
+
                     </Table>
                     
                     {/* Dialog para editar nome da campanha */}

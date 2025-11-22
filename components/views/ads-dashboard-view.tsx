@@ -166,6 +166,33 @@ export default function AdsDashboardView() {
   return acc?.name || "Contas"
 }, [adAccounts, selectedAccountId])
 
+const mapDateRangeToMetaPreset = (range: string): string => {
+  switch (range) {
+    case "today":
+      return "today"
+    case "yesterday":
+      return "yesterday"
+    case "thisMonth":
+      return "this_month"
+    case "lastMonth":
+      return "last_month"
+
+    case "max":
+      // "Máximo" -> no máximo 1 ano pra trás
+      return "this_year"
+
+    case "custom":
+      // até ter seletor de datas manual, usa 7 dias como padrão
+      return "last_7d"
+
+    case "7d":
+    default:
+      return "last_7d"
+  }
+}
+
+
+
 const filteredCampaigns = useMemo(() => {
   const byText = searchCampaigns.trim().toLowerCase()
   return (campaigns || []).filter((c: any) => {
@@ -265,10 +292,13 @@ const handleSelectAccount = useCallback((accId: string) => {
     const { data } = await supabase.auth.getUser()
     const uuid = data?.user?.id || undefined
 
+    // usa o filtro selecionado no topo (incluindo "Máximo" = 1 ano)
+    const preset = mapDateRangeToMetaPreset(dateRange)
+
     const rows = await getFacebookCampaignsWithInsights(
-      accountId,          // ex: act_1283096579202144
-      uuid,               // <-- ESSENCIAL: manda uuid
-      "last_7d"           // pode trocar pelo seu seletor de período
+      accountId, // ex: act_1283096579202144
+      uuid,      // uuid do usuário
+      preset     // agora é dinâmico
     )
 
     setCampaigns(rows as any[])
@@ -287,7 +317,6 @@ const handleSelectAccount = useCallback((accId: string) => {
     setLoadingCampaigns(false)
   }
 }
-
 
 
   const getCurrentUuid = async (): Promise<string | undefined> => {
@@ -375,7 +404,7 @@ useEffect(() => {
     fetchAds(selectedAccountId)
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [activeTab, activeSubTab, selectedAccountId, searchAds, statusFilter, adsPage, adsPageSize])
+}, [activeTab, activeSubTab, selectedAccountId, searchAds, statusFilter, , dateRange, adsPage, adsPageSize])
 
 
   // 1) Carrega contas ao entrar na aba Facebook
@@ -394,7 +423,7 @@ useEffect(() => {
   ) {
     fetchCampaigns(selectedAccountId)
   }
-}, [activeTab, activeSubTab, selectedAccountId])
+}, [activeTab, activeSubTab, selectedAccountId, dateRange])
 
 // 3) Conjuntos — só quando a sub-aba "conjuntos" estiver ativa
 useEffect(() => {
@@ -405,7 +434,7 @@ useEffect(() => {
   ) {
     fetchAdSets(selectedAccountId)
   }
-}, [activeTab, activeSubTab, selectedAccountId])
+}, [activeTab, activeSubTab, selectedAccountId, dateRange])
 
 // (opcional) Anúncios — se tiver a aba
 useEffect(() => {
@@ -416,7 +445,7 @@ useEffect(() => {
   ) {
     fetchAds(selectedAccountId)
   }
-}, [activeTab, activeSubTab, selectedAccountId])
+}, [activeTab, activeSubTab, selectedAccountId, dateRange])
 
 useEffect(() => {
   if (activeSubTab === "anuncios") setAdsPage(1)
@@ -3058,12 +3087,12 @@ useEffect(() => {
                   <SelectValue placeholder="Selecionar período" />
                 </SelectTrigger>
                 <SelectContent className="z-[200]">
-                  <SelectItem value="max">Máximo</SelectItem>
                   <SelectItem value="today">Hoje</SelectItem>
                   <SelectItem value="yesterday">Ontem</SelectItem>
                   <SelectItem value="7d">Últimos 7 Dias</SelectItem>
                   <SelectItem value="thisMonth">Esse Mês</SelectItem>
                   <SelectItem value="lastMonth">Mês passado</SelectItem>
+                  <SelectItem value="max">Esse Ano</SelectItem>
                   <SelectItem value="custom">Personalizado</SelectItem>
                 </SelectContent>
               </Select>

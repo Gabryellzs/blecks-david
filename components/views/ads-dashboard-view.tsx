@@ -3445,9 +3445,9 @@ useEffect(() => {
       <button
         onClick={() => handleCampaignStatusChange(c.id, c.status)}
         className={cn(
-          "relative inline-flex h-7 w-14 items-center rounded-full border transition-all duration-300",
+          "relative inline-flex h-6 w-14 items-center rounded-full border transition-all duration-300",
           isActive
-            ? "border-emerald-400 bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-[0_6px_14px_rgba(16,185,129,0.6)]"
+            ? "border-emerald-300 bg-gradient-to-br from-emerald-300 to-emerald-400 shadow-[0_5px_10px_rgba(16,185,129,0.6)]"
             : "border-zinc-500/60 bg-gradient-to-br from-zinc-700 to-zinc-800 shadow-inner"
         )}
         aria-pressed={isActive}
@@ -3463,7 +3463,7 @@ useEffect(() => {
         {/* bolinha 3D */}
         <span
           className={cn(
-            "relative inline-block h-6 w-6 transform rounded-full bg-gradient-to-br from-white to-zinc-100 shadow-[0_4px_8px_rgba(0,0,0,0.35)] transition-all duration-300",
+            "relative inline-block h-5 w-5 transform rounded-full bg-gradient-to-br from-white to-zinc-100 shadow-[0_4px_8px_rgba(0,0,0,0.35)] transition-all duration-300",
             isActive ? "translate-x-7" : "translate-x-1"
           )}
         />

@@ -65,6 +65,7 @@ import {
   updateFacebookAdAccountStatus,
   getFacebookAds,
   updateFacebookCampaignName,
+  updateFacebookCampaignBudget,
 } from "@/lib/facebook-ads-service"
 import type { FacebookAdAccount, FacebookCampaign } from "@/lib/types/facebook-ads"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -177,6 +178,9 @@ export default function AdsDashboardView() {
   const [editingCampaign, setEditingCampaign] = useState<{ id: string; name: string } | null>(null)
   const [editingCampaignName, setEditingCampaignName] = useState("")
   const [isSavingCampaignName, setIsSavingCampaignName] = useState(false)
+  const [editingBudgetCampaign, setEditingBudgetCampaign] = useState<{ id: string; budget: number | null } | null>(null)
+  const [editingBudgetValue, setEditingBudgetValue] = useState("")
+  const [isSavingBudget, setIsSavingBudget] = useState(false)
   const selectedAccountName = useMemo(() => {
   if (!selectedAccountId) return "Contas"
   const acc = adAccounts?.find(a => a.id === selectedAccountId)
@@ -549,6 +553,71 @@ useEffect(() => {
     setIsSavingCampaignName(false)
   }
 }
+
+  const handleStartEditCampaignBudget = (campaign: any) => {
+    const currentBudget = campaign.budget != null ? Number(campaign.budget) : 0
+    setEditingBudgetCampaign({ id: campaign.id, budget: campaign.budget ?? null })
+
+    // transforma em string bonitinha em reais
+    if (currentBudget > 0) {
+      setEditingBudgetValue(currentBudget.toFixed(2).replace(".", ","))
+    } else {
+      setEditingBudgetValue("")
+    }
+  }
+
+  const handleCancelEditCampaignBudget = () => {
+    setEditingBudgetCampaign(null)
+    setEditingBudgetValue("")
+    setIsSavingBudget(false)
+  }
+
+  const handleSaveCampaignBudget = async () => {
+    if (!editingBudgetCampaign) return
+
+    const raw = editingBudgetValue.trim().replace("R$", "").replace(/\./g, "").replace(",", ".")
+    const parsed = Number(raw)
+
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      toast({
+        title: "Valor inválido",
+        description: "Digite um orçamento diário maior que zero.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // valor em centavos, como o Facebook espera
+    const dailyBudgetInCents = Math.round(parsed * 100)
+
+    try {
+      setIsSavingBudget(true)
+
+      await updateFacebookCampaignBudget(editingBudgetCampaign.id, dailyBudgetInCents)
+
+      // recarrega as campanhas pra refletir o novo orçamento
+      if (selectedAccountId) {
+        await fetchCampaigns(selectedAccountId)
+      }
+
+      toast({
+        title: "Orçamento atualizado",
+        description: `Novo orçamento diário: R$ ${parsed.toFixed(2).replace(".", ",")}`,
+      })
+
+      handleCancelEditCampaignBudget()
+    } catch (error) {
+      console.error("Erro ao atualizar orçamento da campanha:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o orçamento da campanha.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingBudget(false)
+    }
+  }
+
 
 
   const handleCampaignStatusChange = async (campaignId: string, currentStatus: string) => {
@@ -3559,18 +3628,29 @@ useEffect(() => {
 
       {/* Coluna 3 - Orçamento */}
       <TableCell>
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="font-medium">
-              {c.budget != null ? moneyBRL(c.budget) : "—"}
-            </span>
-            {/* Se quiser, depois colocamos um lápis aqui também */}
-          </div>
-          <span className="text-[11px] text-muted-foreground leading-none mt-0.5">
-            Diário
-          </span>
-        </div>
-      </TableCell>
+  <div className="group flex flex-col">
+    <div className="flex items-center gap-2 text-sm">
+      <span className="font-medium">
+        {c.budget != null ? moneyBRL(c.budget) : "—"}
+      </span>
+
+      {c.budget != null && (
+        <button
+          type="button"
+          onClick={() => handleStartEditCampaignBudget(c)}
+          className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+
+    <span className="text-[11px] text-muted-foreground leading-none mt-0.5">
+      Diário
+    </span>
+  </div>
+</TableCell>
+
 
       {/* Coluna 4 em diante - igual estava antes */}
       <TableCell>{moneyBRL(c.spend)}</TableCell>
@@ -3635,6 +3715,51 @@ useEffect(() => {
     </DialogFooter>
   </DialogContent>
 </Dialog>
+
+      {/* Popup de edição de orçamento da campanha */}
+      <Dialog
+        open={!!editingBudgetCampaign}
+        onOpenChange={(open) => {
+          if (!open) handleCancelEditCampaignBudget()
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar orçamento diário</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Defina o orçamento diário da campanha em reais.
+            </p>
+            <Input
+              autoFocus
+              value={editingBudgetValue}
+              onChange={(e) => setEditingBudgetValue(e.target.value)}
+              placeholder="Ex: 100,00"
+            />
+            <p className="text-xs text-muted-foreground">
+              Esse valor será enviado como orçamento diário (daily_budget) para o Facebook Ads.
+            </p>
+          </div>
+
+          <DialogFooter className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCancelEditCampaignBudget}
+              disabled={isSavingBudget}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveCampaignBudget}
+              disabled={isSavingBudget || !editingBudgetValue.trim()}
+            >
+              {isSavingBudget ? "Salvando..." : "Publicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
 
                     {/* Paginação Campanhas */}

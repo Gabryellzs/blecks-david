@@ -300,6 +300,27 @@ export async function updateFacebookCampaignName(
   return response.json()
 }
 
+/* ========= ATUALIZAR ORÇAMENTO DA CAMPANHA ========= */
+export async function updateFacebookCampaignBudget(
+  campaignId: string,
+  dailyBudgetInCents: number,
+): Promise<{ success: boolean; newBudget: number }> {
+  const response = await fetch(`/api/facebook-ads/campaigns/${campaignId}/budget`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ dailyBudget: dailyBudgetInCents }),
+  })
+
+  if (!response.ok) {
+    const errorData = await tryJson(response)
+    throw new Error(errorData?.error || "Falha ao atualizar orçamento da campanha do Facebook.")
+  }
+
+  return response.json()
+}
+
+
 export async function updateFacebookAdAccountStatus(
   adAccountId: string,
   status: "ACTIVE" | "PAUSED",

@@ -9,14 +9,14 @@ const FB_API = process.env.FACEBOOK_GRAPH_API || "https://graph.facebook.com"
 const FB_VER = process.env.FACEBOOK_API_VERSION || "v19.0"
 
 const stripAct = (id: string) => (id || "").replace(/^act_/, "")
-const withAct  = (id: string) => (id?.startsWith("act_") ? id : `act_${id}`)
+const withAct = (id: string) => (id?.startsWith("act_") ? id : `act_${id}`)
 
 export async function GET(req: NextRequest) {
   try {
-    const url        = new URL(req.url)
-    const rawId      = url.searchParams.get("ad_account_id")
+    const url = new URL(req.url)
+    const rawId = url.searchParams.get("ad_account_id")
     const datePreset = url.searchParams.get("date_preset") || "last_7d"
-    const uuidParam  = url.searchParams.get("uuid") || undefined
+    const uuidParam = url.searchParams.get("uuid") || undefined
 
     if (!rawId) {
       return NextResponse.json({ error: "Parâmetro ad_account_id é obrigatório." }, { status: 400 })
@@ -32,7 +32,9 @@ export async function GET(req: NextRequest) {
     } else {
       try {
         const supabase = createRouteHandlerClient({ cookies })
-        const { data: { user } } = await supabase.auth.getUser()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
         if (user) userId = user.id
       } catch (err) {
         console.warn("[insights] Sem sessão; seguindo com fallback do token meta mais recente.")
@@ -41,7 +43,7 @@ export async function GET(req: NextRequest) {
 
     // --------- Busca token em platform_tokens (platform='meta') ----------
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
-    const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
     if (!SUPABASE_URL || !SERVICE_KEY) {
       console.error("Faltam envs SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY")
       return NextResponse.json({ error: "Configuração do servidor ausente." }, { status: 500 })
@@ -81,11 +83,14 @@ export async function GET(req: NextRequest) {
       accessToken = lastMeta.access_token
     }
 
+    // 🔹 AQUI entra o orçamento: daily_budget e lifetime_budget
     const fields = [
       "id",
       "name",
       "status",
-      `insights.date_preset(${datePreset}){spend,actions,action_values,cost_per_action_type,cpm,inline_link_clicks,cpc,ctr}`
+      "daily_budget",
+      "lifetime_budget",
+      `insights.date_preset(${datePreset}){spend,actions,action_values,cost_per_action_type,cpm,inline_link_clicks,cpc,ctr}`,
     ].join(",")
 
     const graphUrl =
@@ -94,7 +99,7 @@ export async function GET(req: NextRequest) {
       `&limit=200` +
       `&access_token=${encodeURIComponent(accessToken)}`
 
-    const fbRes  = await fetch(graphUrl, { cache: "no-store" })
+    const fbRes = await fetch(graphUrl, { cache: "no-store" })
     const fbJson = await fbRes.json()
 
     if (!fbRes.ok) {

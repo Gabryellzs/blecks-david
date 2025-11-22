@@ -46,7 +46,16 @@ import {
 import { ConnectAccountsPage } from "@/components/connect-accounts-page"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PlusCircle, RefreshCw, ExternalLink as ExternalLinkIcon, PlayIcon, Pause, Trash2 } from "lucide-react"
+import {
+  MoreHorizontal,
+  PlusCircle,
+  RefreshCw,
+  ExternalLink as ExternalLinkIcon,
+  PlayIcon,
+  Pause,
+  Trash2,
+  Pencil,
+} from "lucide-react"
 import Image from "next/image"
 import { useToast } from "@/components/ui/use-toast"
 import {
@@ -55,6 +64,7 @@ import {
   updateFacebookCampaignStatus,
   updateFacebookAdAccountStatus,
   getFacebookAds,
+  updateFacebookCampaignName,
 } from "@/lib/facebook-ads-service"
 import type { FacebookAdAccount, FacebookCampaign } from "@/lib/types/facebook-ads"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -63,6 +73,9 @@ import { getFacebookAdSets } from "@/lib/facebook-ads-service"
 import { createClient } from "@supabase/supabase-js"
 import { getFacebookCampaignsWithInsights } from "@/lib/facebook-ads-service"
 import { cn } from "@/lib/utils"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+
 
 
 
@@ -161,6 +174,9 @@ export default function AdsDashboardView() {
   const [adsPage, setAdsPage] = useState(1)
   const [adsPageSize, setAdsPageSize] = useState(25)
   const [totalAds, setTotalAds] = useState<number | null>(null)
+  const [editingCampaign, setEditingCampaign] = useState<{ id: string; name: string } | null>(null)
+  const [editingCampaignName, setEditingCampaignName] = useState("")
+  const [isSavingCampaignName, setIsSavingCampaignName] = useState(false)
   const selectedAccountName = useMemo(() => {
   if (!selectedAccountId) return "Contas"
   const acc = adAccounts?.find(a => a.id === selectedAccountId)
@@ -479,6 +495,61 @@ useEffect(() => {
       })
     }
   }
+
+    const handleStartEditCampaignName = (campaign: any) => {
+    setEditingCampaign({ id: campaign.id, name: campaign.name || "" })
+    setEditingCampaignName(campaign.name || "")
+  }
+
+  const handleCancelEditCampaignName = () => {
+    setEditingCampaign(null)
+    setEditingCampaignName("")
+    setIsSavingCampaignName(false)
+  }
+
+  const handleSaveCampaignName = async () => {
+  if (!editingCampaign) return
+
+  const newName = editingCampaignName.trim()
+  if (!newName || newName === editingCampaign.name) {
+    handleCancelEditCampaignName()
+    return
+  }
+
+  try {
+    setIsSavingCampaignName(true)
+
+    // 1) Atualiza no Facebook via API
+    await updateFacebookCampaignName(editingCampaign.id, newName)
+
+    // 2) Atualiza na sua lista / ou recarrega do backend
+    if (selectedAccountId) {
+      await fetchCampaigns(selectedAccountId)
+    } else {
+      setCampaigns((prev) =>
+        prev.map((c: any) =>
+          c.id === editingCampaign.id ? { ...c, name: newName } : c,
+        ),
+      )
+    }
+
+    toast({
+      title: "Nome da campanha atualizado",
+      description: `Campanha renomeada para "${newName}".`,
+    })
+    handleCancelEditCampaignName()
+  } catch (error) {
+    console.error("Erro ao atualizar nome da campanha:", error)
+    toast({
+      title: "Erro",
+      description: "Não foi possível atualizar o nome da campanha.",
+      variant: "destructive",
+    })
+  } finally {
+    setIsSavingCampaignName(false)
+  }
+}
+
 
   const handleCampaignStatusChange = async (campaignId: string, currentStatus: string) => {
     const newStatus = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE"
@@ -3421,7 +3492,7 @@ useEffect(() => {
                     <Table className="w-full border-collapse">
                       <TableHeader className="border-b border-white/10">
                         <TableRow>
-                          <TableHead>Ativar/Desativar</TableHead>
+                          <TableHead>Desativar/Ativar</TableHead>
                           <TableHead>Campanha</TableHead>
                           <TableHead>Valor usado</TableHead>
                           <TableHead>Resultados</TableHead>
@@ -3471,7 +3542,19 @@ useEffect(() => {
     )
   })()}
 </TableCell>
-                            <TableCell className="font-medium">{c.name}</TableCell>
+                            <TableCell className="font-medium">
+  <div className="group flex items-center gap-2">
+    <span className="truncate max-w-xs">{c.name}</span>
+    <button
+      type="button"
+      onClick={() => handleStartEditCampaignName(c)}
+      className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
+    >
+      <Pencil className="h-3 w-3" />
+    </button>
+  </div>
+</TableCell>
+
                             <TableCell>{moneyBRL(c.spend)}</TableCell>
                             <TableCell>
                               <div className="flex flex-col">
@@ -3489,6 +3572,51 @@ useEffect(() => {
                         ))}
                       </TableBody>
                     </Table>
+                    
+                    {/* Dialog para editar nome da campanha */}
+<Dialog
+  open={!!editingCampaign}
+  onOpenChange={(open) => {
+    if (!open) handleCancelEditCampaignName()
+  }}
+>
+  <DialogContent className="max-w-md">
+    <DialogHeader>
+      <DialogTitle>Editar nome da campanha</DialogTitle>
+    </DialogHeader>
+
+    <div className="space-y-4 pt-2">
+      <p className="text-sm text-muted-foreground">
+        Altere o nome da campanha para organizar melhor suas estratégias.
+      </p>
+
+      <Input
+        autoFocus
+        value={editingCampaignName}
+        onChange={(e) => setEditingCampaignName(e.target.value)}
+        placeholder="Nome da campanha"
+      />
+    </div>
+
+    <DialogFooter className="mt-4 flex justify-end gap-2">
+      <Button
+        variant="outline"
+        onClick={handleCancelEditCampaignName}
+        disabled={isSavingCampaignName}
+      >
+        Cancelar
+      </Button>
+
+      <Button
+        onClick={handleSaveCampaignName}
+        disabled={isSavingCampaignName || !editingCampaignName.trim()}
+      >
+        {isSavingCampaignName ? "Publicando..." : "Publicar"}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
 
                     {/* Paginação Campanhas */}
                     <div className="flex items-center justify-between mt-3">

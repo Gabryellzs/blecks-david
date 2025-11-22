@@ -265,6 +265,26 @@ export async function updateFacebookCampaignStatus(
   return response.json()
 }
 
+/* ========= RENOMEAR CAMPANHA ========= */
+export async function updateFacebookCampaignName(
+  campaignId: string,
+  name: string,
+): Promise<{ success: boolean; newName: string }> {
+  const response = await fetch(`/api/facebook-ads/campaigns/${campaignId}/rename`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ name }),
+  })
+
+  if (!response.ok) {
+    const errorData = await tryJson(response)
+    throw new Error(errorData?.error || "Falha ao renomear campanha do Facebook.")
+  }
+
+  return response.json()
+}
+
 export async function updateFacebookAdAccountStatus(
   adAccountId: string,
   status: "ACTIVE" | "PAUSED",

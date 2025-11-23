@@ -724,13 +724,21 @@ function makeRange(
   }
 
   if (preset === "7d" || preset === "30d" || preset === "90d") {
-    const days = preset === "7d" ? 7 : preset === "30d" ? 30 : 90
-    const end = new Date(now)
-    const start = new Date(now)
-    start.setDate(start.getDate() - days)
-    start.setHours(0, 0, 0, 0)
-    return { from: start.toISOString(), to: end.toISOString() }
-  }
+  const days = preset === "7d" ? 7 : preset === "30d" ? 30 : 90
+
+  // fim = hoje às 23:59:59 (inclusive)
+  const end = new Date(now)
+  end.setHours(23, 59, 59, 999)
+
+  // início = (days - 1) dias antes às 00:00
+  // Ex: 7d -> de 7 dias atrás até hoje (7 dias certinhos)
+  const start = new Date(end)
+  start.setDate(start.getDate() - (days - 1))
+  start.setHours(0, 0, 0, 0)
+
+  return { from: start.toISOString(), to: end.toISOString() }
+}
+
 
   const startDate = customStart ? new Date(customStart + "T00:00:00") : undefined
   const endDateExclusive = customEnd

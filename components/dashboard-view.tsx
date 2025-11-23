@@ -780,6 +780,31 @@ export default function DashboardView({
     to,
   })
 
+    const { rows } = data
+
+  // Receita Total baseada no card "Receita Total" (net_amount)
+  const totalNetRevenue = useMemo(() => {
+    const byTxn = new Map<string, GatewayTransaction>()
+
+    for (const r of rows || []) {
+      if (!isApprovedSale(r)) continue
+
+      const tKey = r.transaction_id || r.id
+      const prev = byTxn.get(tKey)
+      if (!prev || new Date(r.created_at) > new Date(prev.created_at)) {
+        byTxn.set(tKey, r)
+      }
+    }
+
+    let sum = 0
+    for (const r of byTxn.values()) {
+      const n = Number(r.net_amount ?? 0) || 0
+      if (n > 0) sum += n
+    }
+    return sum
+  }, [rows])
+
+
     // Busca o gasto total em Meta ADS (todas as contas do usuário)
   useEffect(() => {
     async function fetchMetaSpend() {
@@ -819,13 +844,27 @@ export default function DashboardView({
 
 
   function brl(n: number) {
-    return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-  }
-  const greenPct = (p: string) => (
-    <span className="text-green-600 dark:text-green-400 text-2xl font-semibold">
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+}
+
+// Percentuais com cor condicional
+// > 0  → verde
+// < 0  → vermelho
+// = 0  → neutro (branco)
+const greenPct = (p: string) => {
+  const numeric = parseFloat(p.replace("%", "").replace(",", ".")) || 0
+
+  let colorClass = "text-white"
+  if (numeric > 0) colorClass = "text-green-500 dark:text-green-400"
+  else if (numeric < 0) colorClass = "text-red-500 dark:text-red-400"
+
+  return (
+    <span className={`${colorClass} text-2xl font-semibold`}>
       {p}
     </span>
   )
+}
+
 
     const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
     const zero: AdsMetrics = {
@@ -885,6 +924,29 @@ export default function DashboardView({
   }, [salesByPlatform, metaAdSpend])
 
   const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
+
+    // Gasto total com anúncios (todas plataformas)
+  const totalAdSpendAllPlatforms = adsMetricsByPlatform.all?.adSpend ?? 0
+
+  // Lucro baseado em: Receita Total (card de cima) - Gastos com anúncios (todas plataformas)
+  const globalProfit = totalNetRevenue - totalAdSpendAllPlatforms
+
+  // ROAS = Receita / Gasto
+  const globalRoas =
+    totalAdSpendAllPlatforms > 0
+      ? totalNetRevenue / totalAdSpendAllPlatforms
+      : 0
+
+  // ROI (%) = Lucro / Gasto
+  const globalRoi =
+    totalAdSpendAllPlatforms > 0
+      ? (globalProfit / totalAdSpendAllPlatforms) * 100
+      : 0
+
+  // Margem de Lucro (%) = Lucro / Receita
+  const globalProfitMargin =
+    totalNetRevenue > 0 ? (globalProfit / totalNetRevenue) * 100 : 0
+
 
   const selectedPlatformLabel = useMemo(() => {
     switch (selectedPlatform) {
@@ -1038,26 +1100,36 @@ export default function DashboardView({
       )
     },
 
-    r2: (_slot, _ctx, key) => {
+        r2: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
+      const roas = globalRoas
+
+      const roasColor =
+        roas > 0 && roas < 1
+          ? "text-red-500 dark:text-red-400"
+          : roas >= 1
+          ? "text-green-500 dark:text-green-400"
+          : "text-white"
+
       return (
         <div key={`r2-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">ROAS</div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
+              Todas plataformas
             </span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
               <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
-              currentAdsMetrics.roas.toFixed(2)
+              <span className={roasColor}>{roas.toFixed(2)}</span>
             )}
           </div>
         </div>
       )
     },
+
 
     r3: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
@@ -1082,47 +1154,58 @@ export default function DashboardView({
       )
     },
 
-    r4: (_slot, _ctx, key) => {
+        r4: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
+      const lucro = globalProfit
+
+      const lucroColor =
+        lucro > 0
+          ? "text-green-500 dark:text-green-400"
+          : lucro < 0
+          ? "text-red-500 dark:text-red-400"
+          : "text-white"
+
       return (
         <div key={`r4-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">Lucro</div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
+              Todas plataformas
             </span>
           </div>
-          <div className="text-2xl font-semibold text-green-600 dark:text-green-400">
+          <div className={`text-2xl font-semibold ${lucroColor}`}>
             {loading ? (
               <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
-              brl(currentAdsMetrics.profit)
+              brl(lucro)
             )}
           </div>
         </div>
       )
     },
 
-    r5: (_slot, _ctx, key) => {
+
+        r5: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`r5-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">ROI</div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
+              Todas plataformas
             </span>
           </div>
           {loading ? (
             <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
           ) : (
-            greenPct(`${currentAdsMetrics.roi.toFixed(1)}%`)
+            greenPct(`${globalRoi.toFixed(1)}%`)
           )}
         </div>
       )
     },
 
-    r6: (_slot, _ctx, key) => {
+
+        r6: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`r6-${key}`} className="p-3 text-black dark:text-white">
@@ -1131,13 +1214,13 @@ export default function DashboardView({
               Margem de Lucro
             </div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
-              {selectedPlatformLabel}
+              Todas plataformas
             </span>
           </div>
           {loading ? (
             <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
           ) : (
-            greenPct(`${currentAdsMetrics.profitMargin.toFixed(1)}%`)
+            greenPct(`${globalProfitMargin.toFixed(1)}%`)
           )}
         </div>
       )

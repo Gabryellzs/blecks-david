@@ -11,6 +11,11 @@ import React, {
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { Info } from "lucide-react"
+import {
+  getFacebookAdAccounts,
+  getFacebookCampaignsWithInsights,
+} from "@/lib/facebook-ads-service"
+
 
 // =============================
 // TIPOS / MODELOS DE DADOS
@@ -669,6 +674,28 @@ function Placeholder({ slotId }: { slotId: string }) {
 // RANGE BUILDER (Período)
 // =============================
 type RangePreset = "maximo" | "hoje" | "ontem" | "7d" | "30d" | "90d" | "custom"
+function presetToFbDatePreset(preset: RangePreset): string {
+  switch (preset) {
+    case "hoje":
+      return "today"
+    case "ontem":
+      return "yesterday"
+    case "7d":
+      return "last_7d"
+    case "30d":
+      return "last_30d"
+    case "90d":
+      return "last_90d"
+    case "maximo":
+      return "maximum"
+    case "custom":
+    default:
+      // Facebook não aceita range livre via date_preset,
+      // então usamos "maximum" como fallback.
+      return "maximum"
+  }
+}
+
 
 function makeRange(
   preset: RangePreset,
@@ -738,6 +765,9 @@ export default function DashboardView({
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [selectedPlatform, setSelectedPlatform] = useState<AdsPlatform>("all")
+    // Gasto total com Meta ADS (todas as contas)
+  const [metaAdSpend, setMetaAdSpend] = useState(0)
+  const [loadingMetaSpend, setLoadingMetaSpend] = useState(false)
 
   const { from, to } = useMemo(
     () => makeRange(preset, customStart, customEnd),
@@ -750,6 +780,44 @@ export default function DashboardView({
     to,
   })
 
+    // Busca o gasto total em Meta ADS (todas as contas do usuário)
+  useEffect(() => {
+    async function fetchMetaSpend() {
+      try {
+        setLoadingMetaSpend(true)
+
+        const fbPreset = presetToFbDatePreset(preset)
+
+        // 1) Buscar contas conectadas
+        const accounts = await getFacebookAdAccounts()
+        let total = 0
+
+        // 2) Para cada conta, buscar campanhas + insights e somar o spend
+        for (const acc of accounts) {
+          const campaigns = await getFacebookCampaignsWithInsights(
+            acc.id,
+            undefined,
+            fbPreset
+          )
+
+          for (const c of campaigns) {
+            total += Number(c.spend || 0)
+          }
+        }
+
+        setMetaAdSpend(total)
+      } catch (err) {
+        console.error("Erro ao carregar gastos Meta ADS:", err)
+        // se quiser, dá pra mostrar toast aqui depois
+      } finally {
+        setLoadingMetaSpend(false)
+      }
+    }
+
+    fetchMetaSpend()
+  }, [preset, refreshKey])
+
+
   function brl(n: number) {
     return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
   }
@@ -759,7 +827,7 @@ export default function DashboardView({
     </span>
   )
 
-  const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
+    const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
     const zero: AdsMetrics = {
       adSpend: 0,
       pendingSales: 0,
@@ -780,33 +848,41 @@ export default function DashboardView({
     const get = (key: AdsPlatform) =>
       key === "all" ? 0 : (salesByPlatform?.[key] ?? 0)
 
+    const totalAdSpendAllPlatforms = metaAdSpend // por enquanto só Meta
+
     return {
       all: {
         ...zero,
+        adSpend: totalAdSpendAllPlatforms,
         profit: totalProfit,
       },
       meta: {
         ...zero,
+        adSpend: metaAdSpend,
         profit: get("meta"),
       },
       google: {
         ...zero,
+        adSpend: 0,
         profit: get("google"),
       },
       analytics: {
         ...zero,
+        adSpend: 0,
         profit: get("analytics"),
       },
       tiktok: {
         ...zero,
+        adSpend: 0,
         profit: get("tiktok"),
       },
       kwai: {
         ...zero,
+        adSpend: 0,
         profit: get("kwai"),
       },
     }
-  }, [salesByPlatform])
+  }, [salesByPlatform, metaAdSpend])
 
   const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
 
@@ -940,7 +1016,7 @@ export default function DashboardView({
     },
 
     r1: (_slot, _ctx, key) => {
-      const loading = isRefreshing
+      const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`r1-${key}`} className="p-3 text-black dark:text-white">
           <div className="mb-1">
@@ -963,7 +1039,7 @@ export default function DashboardView({
     },
 
     r2: (_slot, _ctx, key) => {
-      const loading = isRefreshing
+      const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`r2-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
@@ -984,7 +1060,7 @@ export default function DashboardView({
     },
 
     r3: (_slot, _ctx, key) => {
-      const loading = isRefreshing
+      const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`r3-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
@@ -1007,7 +1083,7 @@ export default function DashboardView({
     },
 
     r4: (_slot, _ctx, key) => {
-      const loading = isRefreshing
+      const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`r4-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
@@ -1028,7 +1104,7 @@ export default function DashboardView({
     },
 
     r5: (_slot, _ctx, key) => {
-      const loading = isRefreshing
+      const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`r5-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
@@ -1047,7 +1123,7 @@ export default function DashboardView({
     },
 
     r6: (_slot, _ctx, key) => {
-      const loading = isRefreshing
+      const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`r6-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
@@ -1146,13 +1222,13 @@ export default function DashboardView({
               alt=""
               className="w-4 h-4 object-contain"
             />
-            <span className="leading-none">Meta ADS</span>
+            <span className="leading-none">Meta ADS — Gasto</span>
           </div>
           <div className="text-2xl font-semibold">
-            {loading ? (
+            {loading || loadingMetaSpend ? (
               <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
-              brl(adsMetricsByPlatform.meta.profit)
+              brl(adsMetricsByPlatform.meta.adSpend)
             )}
           </div>
         </div>

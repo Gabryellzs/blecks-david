@@ -62,7 +62,7 @@
     "lucide-react": "^0.454.0",
     "next": "14.2.16",
     "next-themes": "latest",
-    "openai": "latest",
+    "openai": "^6.9.1",
     "path": "latest",
     "puppeteer-core": "^24.31.0",
     "react": "^18",

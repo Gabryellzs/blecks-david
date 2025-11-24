@@ -118,7 +118,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
     { id: "diary", title: "Diário Semanal", iconPath: `${ICON_BASE}/Diario-Semanal.png`, href: "/dashboard/diary", size: 37, offsetX: -1 },
     { id: "productivity", title: "Produtividade", iconPath: `${ICON_BASE}/productivity.png`, href: "/dashboard/productivity", size: 37 },
     { id: "calendar", title: "Calendário", iconPath: `${ICON_BASE}/calendario.png`, href: "/dashboard/calendar", size: 41 },
-    { id: "mindmap", title: "Mapa Mental", iconPath: `${ICON_BASE}/mapa-mental.png`, href: "/dashboard/mindmap", size: 40, offsetY: -1 },
+    { id: "mindmap", title: "Funnel's", iconPath: `${ICON_BASE}/funnel.png`, href: "/dashboard/mindmap", size: 40, offsetY: -1 },
     { id: "ai", title: "IA's", iconPath: `${ICON_BASE}/ias.png`, href: "/dashboard/ai", size: 32, offsetX: 1 },
     { id: "copywriting", title: "Copywriting", iconPath: `${ICON_BASE}/copywriting.png`, href: "/dashboard/copywriting", size: 30, offsetX: 1 },
     { id: "oferta-escalada", title: "Oferta Escalada", iconPath: `${ICON_BASE}/oferta.png`, href: "/dashboard/oferta-escalada", size: 29, offsetX: 1 },

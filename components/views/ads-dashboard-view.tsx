@@ -46,7 +46,16 @@ import {
 import { ConnectAccountsPage } from "@/components/connect-accounts-page"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PlusCircle, RefreshCw, ExternalLink as ExternalLinkIcon, PlayIcon, Pause, Trash2 } from "lucide-react"
+import {
+  MoreHorizontal,
+  PlusCircle,
+  RefreshCw,
+  ExternalLink as ExternalLinkIcon,
+  PlayIcon,
+  Pause,
+  Trash2,
+  Pencil,
+} from "lucide-react"
 import Image from "next/image"
 import { useToast } from "@/components/ui/use-toast"
 import {
@@ -55,6 +64,8 @@ import {
   updateFacebookCampaignStatus,
   updateFacebookAdAccountStatus,
   getFacebookAds,
+  updateFacebookCampaignName,
+  updateFacebookCampaignBudget,
 } from "@/lib/facebook-ads-service"
 import type { FacebookAdAccount, FacebookCampaign } from "@/lib/types/facebook-ads"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -63,6 +74,9 @@ import { getFacebookAdSets } from "@/lib/facebook-ads-service"
 import { createClient } from "@supabase/supabase-js"
 import { getFacebookCampaignsWithInsights } from "@/lib/facebook-ads-service"
 import { cn } from "@/lib/utils"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+
 
 
 
@@ -161,6 +175,12 @@ export default function AdsDashboardView() {
   const [adsPage, setAdsPage] = useState(1)
   const [adsPageSize, setAdsPageSize] = useState(25)
   const [totalAds, setTotalAds] = useState<number | null>(null)
+  const [editingCampaign, setEditingCampaign] = useState<{ id: string; name: string } | null>(null)
+  const [editingCampaignName, setEditingCampaignName] = useState("")
+  const [isSavingCampaignName, setIsSavingCampaignName] = useState(false)
+  const [editingBudgetCampaign, setEditingBudgetCampaign] = useState<{ id: string; budget: number | null } | null>(null)
+  const [editingBudgetValue, setEditingBudgetValue] = useState("")
+  const [isSavingBudget, setIsSavingBudget] = useState(false)
   const selectedAccountName = useMemo(() => {
   if (!selectedAccountId) return "Contas"
   const acc = adAccounts?.find(a => a.id === selectedAccountId)
@@ -479,6 +499,126 @@ useEffect(() => {
       })
     }
   }
+
+    const handleStartEditCampaignName = (campaign: any) => {
+    setEditingCampaign({ id: campaign.id, name: campaign.name || "" })
+    setEditingCampaignName(campaign.name || "")
+  }
+
+  const handleCancelEditCampaignName = () => {
+    setEditingCampaign(null)
+    setEditingCampaignName("")
+    setIsSavingCampaignName(false)
+  }
+
+  const handleSaveCampaignName = async () => {
+  if (!editingCampaign) return
+
+  const newName = editingCampaignName.trim()
+  if (!newName || newName === editingCampaign.name) {
+    handleCancelEditCampaignName()
+    return
+  }
+
+  try {
+    setIsSavingCampaignName(true)
+
+    // 1) Atualiza no Facebook via API
+    await updateFacebookCampaignName(editingCampaign.id, newName)
+
+    // 2) Atualiza na sua lista / ou recarrega do backend
+    if (selectedAccountId) {
+      await fetchCampaigns(selectedAccountId)
+    } else {
+      setCampaigns((prev) =>
+        prev.map((c: any) =>
+          c.id === editingCampaign.id ? { ...c, name: newName } : c,
+        ),
+      )
+    }
+
+    toast({
+      title: "Nome da campanha atualizado",
+      description: `Campanha renomeada para "${newName}".`,
+    })
+    handleCancelEditCampaignName()
+  } catch (error) {
+    console.error("Erro ao atualizar nome da campanha:", error)
+    toast({
+      title: "Erro",
+      description: "Não foi possível atualizar o nome da campanha.",
+      variant: "destructive",
+    })
+  } finally {
+    setIsSavingCampaignName(false)
+  }
+}
+
+  const handleStartEditCampaignBudget = (campaign: any) => {
+    const currentBudget = campaign.budget != null ? Number(campaign.budget) : 0
+    setEditingBudgetCampaign({ id: campaign.id, budget: campaign.budget ?? null })
+
+    // transforma em string bonitinha em reais
+    if (currentBudget > 0) {
+      setEditingBudgetValue(currentBudget.toFixed(2).replace(".", ","))
+    } else {
+      setEditingBudgetValue("")
+    }
+  }
+
+  const handleCancelEditCampaignBudget = () => {
+    setEditingBudgetCampaign(null)
+    setEditingBudgetValue("")
+    setIsSavingBudget(false)
+  }
+
+  const handleSaveCampaignBudget = async () => {
+    if (!editingBudgetCampaign) return
+
+    const raw = editingBudgetValue.trim().replace("R$", "").replace(/\./g, "").replace(",", ".")
+    const parsed = Number(raw)
+
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      toast({
+        title: "Valor inválido",
+        description: "Digite um orçamento diário maior que zero.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // valor em centavos, como o Facebook espera
+    const dailyBudgetInCents = Math.round(parsed * 100)
+
+    try {
+      setIsSavingBudget(true)
+
+      await updateFacebookCampaignBudget(editingBudgetCampaign.id, dailyBudgetInCents)
+
+      // recarrega as campanhas pra refletir o novo orçamento
+      if (selectedAccountId) {
+        await fetchCampaigns(selectedAccountId)
+      }
+
+      toast({
+        title: "Orçamento atualizado",
+        description: `Novo orçamento diário: R$ ${parsed.toFixed(2).replace(".", ",")}`,
+      })
+
+      handleCancelEditCampaignBudget()
+    } catch (error) {
+      console.error("Erro ao atualizar orçamento da campanha:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o orçamento da campanha.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingBudget(false)
+    }
+  }
+
+
 
   const handleCampaignStatusChange = async (campaignId: string, currentStatus: string) => {
     const newStatus = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE"
@@ -3420,75 +3560,207 @@ useEffect(() => {
                   <>
                     <Table className="w-full border-collapse">
                       <TableHeader className="border-b border-white/10">
-                        <TableRow>
-                          <TableHead>Ativar/Desativar</TableHead>
-                          <TableHead>Campanha</TableHead>
-                          <TableHead>Valor usado</TableHead>
-                          <TableHead>Resultados</TableHead>
-                          <TableHead>ROAS de resultados</TableHead>
-                          <TableHead>Custo por resultado</TableHead>
-                          <TableHead>CPM (custo por 1.000)</TableHead>
-                          <TableHead>Cliques no link</TableHead>
-                          <TableHead>CPC</TableHead>
-                          <TableHead>CTR</TableHead>
-                        </TableRow>
-                      </TableHeader>
+  <TableRow>
+    <TableHead>Desativar/Ativar</TableHead>
+    <TableHead>Campanha</TableHead>
+    <TableHead>Orçamento</TableHead>
+    <TableHead>Valor usado</TableHead>
+    <TableHead>Resultados</TableHead>
+    <TableHead>ROAS de resultados</TableHead>
+    <TableHead>Custo por resultado</TableHead>
+    <TableHead>CPM (custo por 1.000)</TableHead>
+    <TableHead>Cliques no link</TableHead>
+    <TableHead>CPC</TableHead>
+    <TableHead>CTR</TableHead>
+  </TableRow>
+</TableHeader>
+
 
                       <TableBody>
-                        {pagedCampaigns.map((c: any) => (
-                          <TableRow key={c.id} className="border-b border-white/10 last:border-b-0 [&>td]:py-3">
-                            <TableCell className="text-center">
-  {(() => {
-    const isActive = c.status === "ACTIVE"
+  {pagedCampaigns.map((c: any) => (
+    <TableRow key={c.id} className="border-b border-white/10 last:border-b-0 [&>td]:py-3">
+      {/* Coluna 1 - toggle ativar/desativar */}
+      <TableCell className="text-center">
+        {(() => {
+          const isActive = c.status === "ACTIVE"
 
-    return (
-      <button
-        onClick={() => handleCampaignStatusChange(c.id, c.status)}
-        className={cn(
-          "relative inline-flex h-6 w-14 items-center rounded-full border transition-all duration-300",
-          isActive
-            ? "border-emerald-300 bg-gradient-to-br from-emerald-300 to-emerald-400 shadow-[0_5px_10px_rgba(16,185,129,0.6)]"
-            : "border-zinc-500/60 bg-gradient-to-br from-zinc-700 to-zinc-800 shadow-inner"
-        )}
-        aria-pressed={isActive}
-      >
-        {/* brilho do fundo */}
-        <span
-          className={cn(
-            "pointer-events-none absolute inset-[2px] rounded-full opacity-60 blur-[2px]",
-            isActive ? "bg-emerald-300/50" : "bg-zinc-500/40"
-          )}
-        />
+          return (
+            <button
+              onClick={() => handleCampaignStatusChange(c.id, c.status)}
+              className={cn(
+                "relative inline-flex h-6 w-14 items-center rounded-full border transition-all duration-300",
+                isActive
+                  ? "border-emerald-300 bg-gradient-to-br from-emerald-300 to-emerald-400 shadow-[0_5px_10px_rgba(16,185,129,0.6)]"
+                  : "border-zinc-500/60 bg-gradient-to-br from-zinc-700 to-zinc-800 shadow-inner",
+              )}
+              aria-pressed={isActive}
+            >
+              <span
+                className={cn(
+                  "pointer-events-none absolute inset-[2px] rounded-full opacity-60 blur-[2px]",
+                  isActive ? "bg-emerald-300/50" : "bg-zinc-500/40",
+                )}
+              />
+              <span
+                className={cn(
+                  "relative inline-block h-5 w-5 transform rounded-full bg-gradient-to-br from-white to-zinc-100 shadow-[0_4px_8px_rgba(0,0,0,0.35)] transition-all duration-300",
+                  isActive ? "translate-x-7" : "translate-x-1",
+                )}
+              />
+            </button>
+          )
+        })()}
+      </TableCell>
 
-        {/* bolinha 3D */}
-        <span
-          className={cn(
-            "relative inline-block h-5 w-5 transform rounded-full bg-gradient-to-br from-white to-zinc-100 shadow-[0_4px_8px_rgba(0,0,0,0.35)] transition-all duration-300",
-            isActive ? "translate-x-7" : "translate-x-1"
-          )}
-        />
-      </button>
-    )
-  })()}
+      {/* Coluna 2 - Campanha (nome + lápis) */}
+      <TableCell className="font-medium">
+        <div className="group flex items-center gap-2">
+          <span className="truncate max-w-xs">{c.name}</span>
+          <button
+            type="button"
+            onClick={() => handleStartEditCampaignName(c)}
+            className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+        </div>
+      </TableCell>
+
+      {/* Coluna 3 - Orçamento */}
+      <TableCell>
+  <div className="group flex flex-col">
+    <div className="flex items-center gap-2 text-sm">
+      <span className="font-medium">
+        {c.budget != null ? moneyBRL(c.budget) : "—"}
+      </span>
+
+      {c.budget != null && (
+        <button
+          type="button"
+          onClick={() => handleStartEditCampaignBudget(c)}
+          className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+
+    <span className="text-[11px] text-muted-foreground leading-none mt-0.5">
+      Diário
+    </span>
+  </div>
 </TableCell>
-                            <TableCell className="font-medium">{c.name}</TableCell>
-                            <TableCell>{moneyBRL(c.spend)}</TableCell>
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{c.results ?? 0}</span>
-                                <span className="text-xs text-muted-foreground">{c.resultLabel || "Resultados"}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>{c.roas != null ? c.roas.toFixed(2) : "—"}</TableCell>
-                            <TableCell>{c.cost_per_result != null ? moneyBRL(c.cost_per_result) : "—"}</TableCell>
-                            <TableCell>{c.cpm != null ? moneyBRL(c.cpm) : "—"}</TableCell>
-                            <TableCell>{c.inline_link_clicks ?? 0}</TableCell>
-                            <TableCell>{c.cpc != null ? moneyBRL(c.cpc) : "—"}</TableCell>
-                            <TableCell>{c.ctr != null ? `${Number(c.ctr).toFixed(2)}%` : "—"}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
+
+
+      {/* Coluna 4 em diante - igual estava antes */}
+      <TableCell>{moneyBRL(c.spend)}</TableCell>
+      <TableCell>
+        <div className="flex flex-col">
+          <span className="font-medium">{c.results ?? 0}</span>
+          <span className="text-xs text-muted-foreground">{c.resultLabel || "Resultados"}</span>
+        </div>
+      </TableCell>
+      <TableCell>{c.roas != null ? c.roas.toFixed(2) : "—"}</TableCell>
+      <TableCell>{c.cost_per_result != null ? moneyBRL(c.cost_per_result) : "—"}</TableCell>
+      <TableCell>{c.cpm != null ? moneyBRL(c.cpm) : "—"}</TableCell>
+      <TableCell>{c.inline_link_clicks ?? 0}</TableCell>
+      <TableCell>{c.cpc != null ? moneyBRL(c.cpc) : "—"}</TableCell>
+      <TableCell>{c.ctr != null ? `${Number(c.ctr).toFixed(2)}%` : "—"}</TableCell>
+    </TableRow>
+  ))}
+</TableBody>
+
                     </Table>
+                    
+                    {/* Dialog para editar nome da campanha */}
+<Dialog
+  open={!!editingCampaign}
+  onOpenChange={(open) => {
+    if (!open) handleCancelEditCampaignName()
+  }}
+>
+  <DialogContent className="max-w-md">
+    <DialogHeader>
+      <DialogTitle>Editar nome da campanha</DialogTitle>
+    </DialogHeader>
+
+    <div className="space-y-4 pt-2">
+      <p className="text-sm text-muted-foreground">
+        Altere o nome da campanha para organizar melhor suas estratégias.
+      </p>
+
+      <Input
+        autoFocus
+        value={editingCampaignName}
+        onChange={(e) => setEditingCampaignName(e.target.value)}
+        placeholder="Nome da campanha"
+      />
+    </div>
+
+    <DialogFooter className="mt-4 flex justify-end gap-2">
+      <Button
+        variant="outline"
+        onClick={handleCancelEditCampaignName}
+        disabled={isSavingCampaignName}
+      >
+        Cancelar
+      </Button>
+
+      <Button
+        onClick={handleSaveCampaignName}
+        disabled={isSavingCampaignName || !editingCampaignName.trim()}
+      >
+        {isSavingCampaignName ? "Publicando..." : "Publicar"}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
+      {/* Popup de edição de orçamento da campanha */}
+      <Dialog
+        open={!!editingBudgetCampaign}
+        onOpenChange={(open) => {
+          if (!open) handleCancelEditCampaignBudget()
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar orçamento diário</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Defina o orçamento diário da campanha em reais.
+            </p>
+            <Input
+              autoFocus
+              value={editingBudgetValue}
+              onChange={(e) => setEditingBudgetValue(e.target.value)}
+              placeholder="Ex: 100,00"
+            />
+            <p className="text-xs text-muted-foreground">
+              Esse valor será enviado como orçamento diário (daily_budget) para o Facebook Ads.
+            </p>
+          </div>
+
+          <DialogFooter className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCancelEditCampaignBudget}
+              disabled={isSavingBudget}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveCampaignBudget}
+              disabled={isSavingBudget || !editingBudgetValue.trim()}
+            >
+              {isSavingBudget ? "Salvando..." : "Publicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
                     {/* Paginação Campanhas */}
                     <div className="flex items-center justify-between mt-3">

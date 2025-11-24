@@ -76,6 +76,8 @@ import {
   CheckCircle,
   Upload,
   Calendar,
+  Sparkles,
+  Loader2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -87,6 +89,15 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 // templates
 import { getTemplateById } from "@/lib/template-data"
@@ -1218,6 +1229,11 @@ function FlowBuilder({
   const [defaultAnimation, setDefaultAnimation] = useState<string>("none")
   const [defaultLineColor, setDefaultLineColor] = useState<string>("#ffffff")
 
+  // IA – gerar funil automático
+  const [showAIDialog, setShowAIDialog] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState("")
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
+
   const [savedFlows, setSavedFlows] = useLocalStorage<
     { name: string; nodes: Node[]; edges: Edge[]; preview?: string }[]
   >("marketing-flows", [])
@@ -1399,6 +1415,62 @@ function FlowBuilder({
     [selectedEdges, setEdges],
   )
 
+  // IA – geração automática de funil
+  const handleGenerateFunnelWithAI = useCallback(async () => {
+    if (!aiPrompt.trim()) {
+      toast({
+        title: "Descreva seu funil",
+        description: "Digite pelo menos uma frase explicando o que você quer vender ou montar.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsGeneratingAI(true)
+
+      const res = await fetch("/api/ai/generate-funnel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: aiPrompt }),
+      })
+
+      if (!res.ok) {
+        throw new Error("Falha ao gerar funil com IA")
+      }
+
+      // Espera formato: { nodes: Node[]; edges: Edge[]; name?: string }
+      const data = await res.json()
+
+      if (!data.nodes || !Array.isArray(data.nodes)) {
+        throw new Error("Resposta inválida da IA")
+      }
+
+      setNodes(data.nodes)
+      setEdges(enhanceEdges(data.edges || []))
+      if (data.name) {
+        setFlowName(data.name)
+      }
+
+      setShowAIDialog(false)
+      setAiPrompt("")
+
+      toast({
+        title: "Funil gerado com IA",
+        description: "A estrutura do seu funil foi criada automaticamente. Ajuste como quiser.",
+      })
+    } catch (err: any) {
+      console.error(err)
+      toast({
+        title: "Erro ao usar IA",
+        description: err?.message || "Não foi possível gerar o funil automaticamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGeneratingAI(false)
+    }
+  }, [aiPrompt, setNodes, setEdges, setFlowName, toast])
+
   const saveFlow = useCallback(() => {
     if (nodes.length === 0) {
       toast({
@@ -1522,6 +1594,17 @@ function FlowBuilder({
           </span>
         </div>
         <div className="flex items-center gap-1">
+          {/* Botão IA */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-muted border-border hover:bg-muted/80 h-8 px-2 text-xs mr-1"
+            onClick={() => setShowAIDialog(true)}
+          >
+            <Sparkles className="mr-1 h-3.5 w-3.5" />
+            Funil com IA
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -1669,6 +1752,59 @@ function FlowBuilder({
           )}
         </ReactFlow>
       </div>
+
+      {/* Dialog: Criar Funil com IA */}
+      <Dialog open={showAIDialog} onOpenChange={setShowAIDialog}>
+        <DialogContent className="bg-card border border-border max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Criar Funil com Inteligência Artificial</DialogTitle>
+            <DialogDescription>
+              Descreva o que você quer vender ou qual objetivo do funil. A IA vai montar uma estrutura inicial de páginas,
+              ícones e conexões automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <Textarea
+              placeholder="Ex: Quero um funil para vender meu curso de tráfego pago para iniciantes com oferta principal de R$ 297 e um upsell de mentoria..."
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              className="min-h-[120px] bg-background border-border"
+            />
+            <p className="text-xs text-muted-foreground">
+              Dica: fale quem é o público, o produto, faixa de preço e se quer upsell, downsell, captura de lead, etc.
+            </p>
+          </div>
+
+          <DialogFooter className="flex justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAIDialog(false)}
+              disabled={isGeneratingAI}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleGenerateFunnelWithAI}
+              disabled={isGeneratingAI}
+            >
+              {isGeneratingAI ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Gerando funil...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Gerar com IA
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

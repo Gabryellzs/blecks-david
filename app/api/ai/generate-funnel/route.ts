@@ -1,78 +1,52 @@
-// app/api/ai/generate-funnel/route.ts
-
-import OpenAI from "openai"
 import { NextResponse } from "next/server"
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+import Groq from "groq-sdk"
 
 export async function POST(req: Request) {
   try {
-    // 🔐 Garante que a chave está configurada
-    if (!process.env.OPENAI_API_KEY) {
-      console.error("ERRO: OPENAI_API_KEY não configurada")
+    const body = await req.json().catch(() => ({}))
+
+    const userPrompt =
+      body?.prompt ||
+      "Gere um funil de vendas simples em formato de tópicos (Topo, Meio e Fundo de Funil)."
+
+    if (!process.env.GROQ_API_KEY) {
       return NextResponse.json(
-        { error: "OPENAI_API_KEY não configurada no servidor" },
-        { status: 500 },
+        { error: "GROQ_API_KEY não configurada" },
+        { status: 500 }
       )
     }
 
-    const body = await req.json()
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-    // 👉 aqui você escolhe o nome do campo que o front vai enviar
-    const topic = body.topic || body.text
+    const systemPrompt = `
+Você é um especialista em funis, copywriting e vendas.
+Responda SEMPRE em português, de forma bem organizada:
+- Dividir em TOPO, MEIO e FUNDO de funil
+- Usar tópicos claros
+- Ser direto e prático
+    `.trim()
 
-    if (!topic) {
-      return NextResponse.json(
-        { error: "Campo 'topic' ou 'text' é obrigatório no body" },
-        { status: 400 },
-      )
-    }
-
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
       messages: [
-        {
-          role: "system",
-          content:
-            "Você é uma IA que cria mind maps em formato de texto organizado para o usuário.",
-        },
-        {
-          role: "user",
-          content: `Crie um mind map bem organizado sobre este tema: "${topic}". 
-- Estruture em tópicos e subtópicos.
-- Use esse formato:
-
-TEMA: [tema]
-
-1. [Primeiro pilar]
-   1.1 [Subtópico]
-   1.2 [Subtópico]
-
-2. [Segundo pilar]
-   2.1 [Subtópico]
-   2.2 [Subtópico]
-
-E assim por diante.`,
-        },
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
       ],
       temperature: 0.7,
+      max_tokens: 2000,
     })
 
-    const content = completion.choices[0]?.message?.content || ""
+    // 🔥 AQUI ESTÁ A PARTE QUE RESOLVE O TEU ERRO
+    const result =
+      completion?.choices?.[0]?.message?.content ??
+      "Não foi possível gerar o funil no momento."
 
+    return NextResponse.json({ result }, { status: 200 })
+  } catch (err: any) {
+    console.error("❌ ERRO NO /api/ai/generate-funnel (Groq):", err)
     return NextResponse.json(
-      {
-        mindmap: content,
-      },
-      { status: 200 },
-    )
-  } catch (error: any) {
-    console.error("Erro na rota /api/ai/generate-funnel:", error)
-    return NextResponse.json(
-      { error: error?.message || "Erro interno na IA" },
-      { status: 500 },
+      { error: err?.message || "Erro interno" },
+      { status: 500 }
     )
   }
 }

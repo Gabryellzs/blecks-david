@@ -1415,61 +1415,147 @@ function FlowBuilder({
     [selectedEdges, setEdges],
   )
 
-  // IA – geração automática de funil
-  const handleGenerateFunnelWithAI = useCallback(async () => {
-    if (!aiPrompt.trim()) {
-      toast({
-        title: "Descreva seu funil",
-        description: "Digite pelo menos uma frase explicando o que você quer vender ou montar.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      setIsGeneratingAI(true)
-
-      const res = await fetch("/api/ai/generate-funnel", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt }),
-      })
-
-      if (!res.ok) {
-        throw new Error("Falha ao gerar funil com IA")
+  // IA – geração automática de funil (usando texto da IA e convertendo em nodes/edges)
+  const handleGenerateFunnelWithAI = useCallback(
+    async () => {
+      if (!aiPrompt.trim()) {
+        toast({
+          title: "Descreva seu funil",
+          description:
+            "Digite pelo menos uma frase explicando o que você quer vender ou montar.",
+          variant: "destructive",
+        })
+        return
       }
 
-      // Espera formato: { nodes: Node[]; edges: Edge[]; name?: string }
-      const data = await res.json()
+      try {
+        setIsGeneratingAI(true)
 
-      if (!data.nodes || !Array.isArray(data.nodes)) {
-        throw new Error("Resposta inválida da IA")
+        const res = await fetch("/api/ai/generate-funnel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: aiPrompt }),
+        })
+
+        if (!res.ok) {
+          console.error("Erro HTTP na IA:", res.status, await res.text())
+          toast({
+            title: "Erro ao usar IA",
+            description: "Falha ao chamar a API de IA.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        const data = await res.json()
+
+        // backend retorna { result: string }
+        const funnelText =
+          typeof data === "string"
+            ? data
+            : typeof data.result === "string"
+              ? data.result
+              : ""
+
+        if (!funnelText.trim()) {
+          console.error("Resposta da IA sem texto ou em formato inesperado:", data)
+          toast({
+            title: "Erro ao usar IA",
+            description: "A IA retornou uma resposta vazia ou em formato inesperado.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // 1) Quebra em linhas, limpando markdown
+        const lines = funnelText
+          .split(/\r?\n/)
+          .map((l: string) => l.trim())
+          .filter((l: string) => l && !/^```/.test(l))
+
+        if (lines.length === 0) {
+          toast({
+            title: "Erro ao usar IA",
+            description: "Não foi possível interpretar a resposta da IA.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // 2) Cria nodes básicos (1 raiz + 1 por linha), em coluna
+        const baseX = 0
+        const baseY = 0
+        const verticalGap = 120
+
+        const rootId = `ia-root-${Date.now()}`
+        const newNodes: Node[] = [
+          {
+            id: rootId,
+            type: "campaignNode",
+            position: { x: baseX, y: baseY },
+            data: {
+              label: "Funil gerado pela IA",
+              description: "Estrutura inicial baseada na sua descrição.",
+            },
+          },
+        ]
+
+        const newEdges: Edge[] = []
+
+        lines.forEach((line, index) => {
+          const nodeId = `ia-node-${index}-${Date.now()}`
+          const y = baseY + (index + 1) * verticalGap
+
+          let nodeType: Node["type"] = "pageNode"
+          if (/topo/i.test(line)) nodeType = "marketingCampaignNode"
+          else if (/meio/i.test(line)) nodeType = "contentCreationNode"
+          else if (/fundo/i.test(line)) nodeType = "conversionNode"
+
+          newNodes.push({
+            id: nodeId,
+            type: nodeType,
+            position: { x: baseX, y },
+            data: {
+              label: line.slice(0, 60),
+              description: line,
+            },
+          })
+
+          newEdges.push({
+            id: `ia-edge-${index}-${Date.now()}`,
+            source: index === 0 ? rootId : newNodes[newNodes.length - 2].id,
+            target: nodeId,
+            type: "smooth",
+          })
+        })
+
+        setNodes(newNodes)
+        setEdges(enhanceEdges(newEdges))
+        setFlowName("Funil gerado com IA")
+
+        setShowAIDialog(false)
+        setAiPrompt("")
+
+        toast({
+          title: "Funil gerado com IA",
+          description:
+            "A estrutura inicial do seu funil foi criada. Ajuste os nós, textos e conexões como quiser.",
+        })
+      } catch (err: any) {
+        console.error("Erro ao gerar funil com IA:", err)
+        toast({
+          title: "Erro ao usar IA",
+          description:
+            err?.message ||
+            "Não foi possível gerar o funil automaticamente. Tente novamente.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsGeneratingAI(false)
       }
-
-      setNodes(data.nodes)
-      setEdges(enhanceEdges(data.edges || []))
-      if (data.name) {
-        setFlowName(data.name)
-      }
-
-      setShowAIDialog(false)
-      setAiPrompt("")
-
-      toast({
-        title: "Funil gerado com IA",
-        description: "A estrutura do seu funil foi criada automaticamente. Ajuste como quiser.",
-      })
-    } catch (err: any) {
-      console.error(err)
-      toast({
-        title: "Erro ao usar IA",
-        description: err?.message || "Não foi possível gerar o funil automaticamente.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsGeneratingAI(false)
-    }
-  }, [aiPrompt, setNodes, setEdges, setFlowName, toast])
+    },
+    [aiPrompt, setNodes, setEdges, setFlowName, toast],
+  )
 
   const saveFlow = useCallback(() => {
     if (nodes.length === 0) {

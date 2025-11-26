@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================
+   🎨 Variáveis principais de tema
+   ========================================= */
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -49,19 +52,43 @@
   }
 }
 
+/* =========================================
+   🧱 Base Tailwind
+   ========================================= */
 @layer base {
-  * { @apply border-border; }
-  body { @apply bg-background text-foreground; }
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
+/* =========================================
+   🎛️ Utilitários personalizados
+   ========================================= */
 @layer utilities {
-  .bg-black { background-color: #000000; }
-  .text-white { color: #ffffff; }
-  .border-gray-800 { border-color: #1f2937; }
-  .border-gray-700 { border-color: #374151; }
-  .text-gray-400 { color: #9ca3af; }
-  .hover\:bg-gray-800:hover { background-color: #1f2937; }
-  .hover\:bg-gray-200:hover { background-color: #e5e7eb; }
+  .bg-black {
+    background-color: #000000;
+  }
+  .text-white {
+    color: #ffffff;
+  }
+  .border-gray-800 {
+    border-color: #1f2937;
+  }
+  .border-gray-700 {
+    border-color: #374151;
+  }
+  .text-gray-400 {
+    color: #9ca3af;
+  }
+  .hover\:bg-gray-800:hover {
+    background-color: #1f2937;
+  }
+  .hover\:bg-gray-200:hover {
+    background-color: #e5e7eb;
+  }
 
   .bg-pattern-dark {
     background-image: url("/images/dark-pattern-background.png");
@@ -69,6 +96,7 @@
     background-repeat: repeat;
     background-position: center;
   }
+
   .bg-login-dark-pattern {
     background-image: url("/images/dark-login-background.png");
     background-size: cover;
@@ -77,59 +105,98 @@
   }
 }
 
-/* ========= Neon base ========= */
+/* =========================================
+   ✨ NEON EFFECTS
+   ========================================= */
 .neon-card {
   position: relative;
   --gw: var(--gw, #8b5cf6);
   box-shadow:
     0 0 8px 1px color-mix(in oklab, var(--gw), transparent 80%),
     inset 0 0 5px 0 color-mix(in oklab, var(--gw), transparent 100%);
-  transition: box-shadow .25s ease, transform .2s ease, filter .2s ease;
+  transition: box-shadow 0.25s ease, transform 0.2s ease, filter 0.2s ease;
   border-color: transparent;
   overflow: hidden;
 }
+
 .neon-card:hover,
 .neon-card:focus-within {
   box-shadow:
     0 0 15px 2px color-mix(in oklab, var(--gw), transparent 60%),
     inset 0 0 12px 0 color-mix(in oklab, var(--gw), transparent 100%);
 }
+
 .neon-card.neon-top::before {
   content: "";
-  position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
   background: linear-gradient(90deg, transparent, var(--gw), transparent);
   opacity: 1;
   transform: translateX(-100%);
   animation: gw-sweep 4s linear infinite;
   pointer-events: none;
 }
-@keyframes gw-sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 
-/* variantes */
-.neon-text { text-shadow: 0 0 5px rgba(74, 222, 128, 0.7); }
-.neon-text-blue { text-shadow: 0 0 5px rgba(59, 130, 246, 0.7); }
-.neon-text-purple { text-shadow: 0 0 5px rgba(139, 92, 246, 0.7); }
-.neon-text-amber { text-shadow: 0 0 5px rgba(245, 158, 11, 0.7); }
-
-/* ======== Fire Progress Indicator ======== */
-.fire-progress-indicator {
-  background-image: linear-gradient(to right, #ff4500, #ff8c00, #ffd700);
-  box-shadow: 0 0 8px rgba(255,69,0,.7), 0 0 15px rgba(255,140,0,.5);
-  animation: fire-flicker 1.5s infinite alternate;
+@keyframes gw-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
 }
-@keyframes fire-flicker {
-  0% { box-shadow: 0 0 8px rgba(255,69,0,.7), 0 0 15px rgba(255,140,0,.5); opacity: 1; }
-  50%{ box-shadow: 0 0 10px rgba(255,69,0,.9), 0 0 20px rgba(255,140,0,.7); opacity: .95; }
-  100%{ box-shadow: 0 0 8px rgba(255,69,0,.7), 0 0 15px rgba(255,140,0,.5); opacity: 1; }
+
+.neon-text {
+  text-shadow: 0 0 5px rgba(74, 222, 128, 0.7);
+}
+.neon-text-blue {
+  text-shadow: 0 0 5px rgba(59, 130, 246, 0.7);
+}
+.neon-text-purple {
+  text-shadow: 0 0 5px rgba(139, 92, 246, 0.7);
+}
+.neon-text-amber {
+  text-shadow: 0 0 5px rgba(245, 158, 11, 0.7);
 }
 
 /* =========================================
-   LOGO ROTATION ANIMATION
+   🔥 Fire Progress
+   ========================================= */
+.fire-progress-indicator {
+  background-image: linear-gradient(to right, #ff4500, #ff8c00, #ffd700);
+  box-shadow: 0 0 8px rgba(255, 69, 0, 0.7), 0 0 15px rgba(255, 140, 0, 0.5);
+  animation: fire-flicker 1.5s infinite alternate;
+}
+
+@keyframes fire-flicker {
+  0% {
+    box-shadow: 0 0 8px rgba(255, 69, 0, 0.7), 0 0 15px rgba(255, 140, 0, 0.5);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(255, 69, 0, 0.9), 0 0 20px rgba(255, 140, 0, 0.7);
+    opacity: 0.95;
+  }
+  100% {
+    box-shadow: 0 0 8px rgba(255, 69, 0, 0.7), 0 0 15px rgba(255, 140, 0, 0.5);
+    opacity: 1;
+  }
+}
+
+/* =========================================
+   🌀 Logo Animation
    ========================================= */
 @layer utilities {
   @keyframes rotateY360 {
-    0% { transform: rotateY(0deg); }
-    100% { transform: rotateY(360deg); }
+    0% {
+      transform: rotateY(0deg);
+    }
+    100% {
+      transform: rotateY(360deg);
+    }
   }
   .animate-rotateY {
     animation: rotateY360 12s linear infinite;
@@ -139,20 +206,25 @@
 }
 
 /* =========================================
-   🔧 FIX GLOBAL DE LAYOUT
+   🧱 FIX GLOBAL DE LAYOUT (SEM scrollbar-gutter)
    ========================================= */
-html {
-  scrollbar-gutter: stable both-edges;
+
+/* ❗ REMOVIDO → scrollbar-gutter porque causava barra lateral */
+html,
+body {
+  overflow-x: hidden !important;
 }
+
 *, *::before, *::after {
   min-width: 0;
   box-sizing: border-box;
 }
+
 body {
   width: 100%;
   min-height: 100vh;
-  overflow-x: hidden;
 }
+
 @supports (height: 100dvh) {
   body {
     min-height: 100dvh;
@@ -160,62 +232,52 @@ body {
 }
 
 /* =========================================
-   💫 Rolagem contínua das plataformas
+   🔁 Animações contínuas (Marquee)
    ========================================= */
-
-/* keyframes para rolagem infinita */
 @keyframes scroll-left-seamless {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
+
 @keyframes scroll-right-seamless {
-  0%   { transform: translateX(-50%); }
-  100% { transform: translateX(0); }
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
 
-/* ====== Classes com correção (inclui animation-name nas variantes) ====== */
-
-/* esquerda */
 .animate-scroll-left-seamless {
   animation: scroll-left-seamless var(--speed, 28s) linear infinite;
   will-change: transform;
 }
 .animate-scroll-left-seamless-slow {
-  animation-name: scroll-left-seamless;
-  animation-duration: var(--speed, 40s);
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
+  animation: scroll-left-seamless var(--speed, 40s) linear infinite;
   will-change: transform;
 }
 .animate-scroll-left-seamless-fast {
-  animation-name: scroll-left-seamless;
-  animation-duration: var(--speed, 18s);
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
+  animation: scroll-left-seamless var(--speed, 18s) linear infinite;
   will-change: transform;
 }
 
-/* direita */
 .animate-scroll-right-seamless {
   animation: scroll-right-seamless var(--speed, 32s) linear infinite;
   will-change: transform;
 }
 .animate-scroll-right-seamless-slow {
-  animation-name: scroll-right-seamless;
-  animation-duration: var(--speed, 40s);
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
+  animation: scroll-right-seamless var(--speed, 40s) linear infinite;
   will-change: transform;
 }
 .animate-scroll-right-seamless-fast {
-  animation-name: scroll-right-seamless;
-  animation-duration: var(--speed, 18s);
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
+  animation: scroll-right-seamless var(--speed, 18s) linear infinite;
   will-change: transform;
 }
 
-/* 🔒 força continuar rodando mesmo no hover (sem pausa) */
 #integracoes .animate-scroll-left-seamless,
 #integracoes .animate-scroll-right-seamless,
 #integracoes .animate-scroll-left-seamless-slow,
@@ -225,7 +287,6 @@ body {
   animation-play-state: running !important;
 }
 
-/* respeita “reduzir movimento” */
 @media (prefers-reduced-motion: reduce) {
   .animate-scroll-left-seamless,
   .animate-scroll-right-seamless,
@@ -238,30 +299,26 @@ body {
   }
 }
 
-/* =====================
+/* =========================================
    🧊 Glassmorphism Cards
-   ===================== */
+   ========================================= */
 .glass-card {
   position: relative;
   border-radius: 1rem;
   background: radial-gradient(
       circle at top left,
-      rgba(255, 255, 255, 0.20),
+      rgba(255, 255, 255, 0.2),
       rgba(255, 255, 255, 0.02)
     )
     border-box;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow:
-    0 18px 35px rgba(0, 0, 0, 0.55),
+  box-shadow: 0 18px 35px rgba(0, 0, 0, 0.55),
     0 0 0 1px rgba(255, 255, 255, 0.03) inset;
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   overflow: hidden;
-  transition:
-    transform 0.25s ease,
-    box-shadow 0.25s ease,
-    border-color 0.25s ease,
-    background 0.25s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease,
+    border-color 0.25s ease, background 0.25s ease;
 }
 
 .glass-card::before {
@@ -282,8 +339,7 @@ body {
 
 .glass-card:hover {
   transform: translateY(3px) scale(1.02);
-  box-shadow:
-    0 22px 40px rgba(0, 0, 0, 0.7),
+  box-shadow: 0 22px 40px rgba(0, 0, 0, 0.7),
     0 0 0 1px rgba(255, 255, 255, 0.06) inset;
   border-color: rgba(255, 255, 255, 0.28);
 }

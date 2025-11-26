@@ -278,7 +278,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           {/* Header */}
           <div className="px-4 pt-4 pb-3">
             <div className="relative h-[72px]">
-              <div className="absolute left-[-6px] top-1/2 -translate-y-1/2 w-[70px] h-[67px]">
+              <div className="absolute left-[-6px] top-1/2 -translate-y-1/2 w-[70px] h-[70px]">
                 <Image
                   src={
                     theme === "dark"
@@ -294,7 +294,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
 
               <span
                 className={`
-                  absolute top-1/2 -translate-y-1/2 left-[58px]
+                  absolute top-1/2 -translate-y-2 left-[58px]
                   text-lg font-bold text-foreground tracking-wide whitespace-nowrap
                   transition-all duration-300 ease-out
                   ${isExpanded ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2"}

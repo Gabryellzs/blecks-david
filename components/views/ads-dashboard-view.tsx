@@ -3631,7 +3631,7 @@ useEffect(() => {
                               </TableCell>
 
                               {/* Coluna 2 - Campanha (nome + lápis) */}
-                              <TableCell className="sticky left-[100px] z-10 bg-background font-medium min-w-[220px] border-r border-white/10 p-0 pl-3">
+                              <TableCell className="sticky left-0 z-10 bg-background font-medium min-w-[220px] border-r border-white/10 p-0 pl-3">
                                 <div className="group flex items-center gap-2">
                                   <span className="truncate max-w-xs">{c.name}</span>
                                   <button

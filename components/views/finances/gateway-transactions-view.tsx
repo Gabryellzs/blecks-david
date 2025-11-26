@@ -15,12 +15,14 @@ import {
   CalendarIcon,
   ChevronLeft,
   ChevronRight,
+  Edit3,
 } from "lucide-react"
 import { format, subDays, subMonths, isAfter, isEqual, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfToday, } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { useGatewayTransactions } from "@/lib/gateway-transactions-service"
 import type { PaymentGatewayType } from "@/lib/payment-gateway-types"
+import { supabase } from "@/lib/supabase"
 import {
   Dialog,
   DialogContent,
@@ -688,6 +690,7 @@ const filterBySearch = (rows: any[]) => {
     []
   )
 
+
   useEffect(() => {
     const cleanup = setupAutoSync()
     const result = importToFinance()
@@ -956,6 +959,175 @@ const notCompletedDedupAmount = useMemo(
 
 const notCompletedDedupCount = abandonedUI.length + refusedUI.length
 const [periodSelectOpen, setPeriodSelectOpen] = useState(false);
+
+    // ======= POPUP WHATSAPP - ESTADO E LÓGICA =======
+  const [whatsDialogOpen, setWhatsDialogOpen] = useState(false)
+  const [whatsCurrentTx, setWhatsCurrentTx] = useState<any | null>(null)
+  const [whatsContext, setWhatsContext] = useState<"abandoned" | "paid">("abandoned")
+
+  const [whatsTemplates, setWhatsTemplates] = useState({
+    abandoned: [
+      {
+        slot: 1,
+        label: "Mensagem 1 - Recuperar carrinho",
+        body:
+          "Oi {nome}, vi que você quase concluiu sua compra e travou no caminho. Posso te ajudar a finalizar agora? 😊",
+      },
+      {
+        slot: 2,
+        label: "Mensagem 2 - Oferta de ajuda",
+        body:
+          "Fala {nome}! Percebi que você saiu antes de terminar o pagamento. Aconteceu algo? Posso te mandar o link direto pra finalizar?",
+      },
+      {
+        slot: 3,
+        label: "Mensagem 3 - Prova + urgência",
+        body:
+          "{nome}, vários alunos já estão usando essa automação e tendo resultado. Seu acesso ficou pendente só por causa do pagamento. Quer que eu te ajude a concluir agora?",
+      },
+    ],
+    paid: [
+      {
+        slot: 1,
+        label: "Mensagem 1 - Boas-vindas",
+        body:
+          "Oi {nome}! Vi aqui o seu pagamento aprovado 🎉 Seja bem-vindo(a)! Qualquer dúvida pra acessar a área de membros é só me chamar aqui.",
+      },
+      {
+        slot: 2,
+        label: "Mensagem 2 - Ativação",
+        body:
+          "Fala {nome}, tudo certo? Já conseguiu acessar a automação direitinho? Se quiser, posso te mandar um passo a passo rápido pra você começar hoje ainda.",
+      },
+      {
+        slot: 3,
+        label: "Mensagem 3 - Upsell / reforço",
+        body:
+          "{nome}, seu acesso já está liberado. Se quiser acelerar ainda mais seus resultados, tenho um suporte mais próximo com acompanhamento. Quer que eu te explique rapidinho como funciona?",
+      },
+    ],
+  })
+
+  const loadWhatsTemplates = useCallback(async () => {
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError) {
+        console.error("Erro ao pegar usuário:", userError)
+        return
+      }
+      if (!user) return
+
+      const { data, error } = await supabase
+        .from("whatsapp_message_templates")
+        .select("slot, body, context")
+        .eq("user_id", user.id)
+
+      if (error) {
+        console.error("Erro ao carregar templates WhatsApp:", error)
+        return
+      }
+
+      if (data && data.length) {
+        setWhatsTemplates((prev) => {
+          const next = { ...prev }
+
+          ;(["abandoned", "paid"] as const).forEach((ctx) => {
+            next[ctx] = prev[ctx].map((tpl) => {
+              const found = data.find(
+                (row) => row.context === ctx && row.slot === tpl.slot,
+              )
+              return found ? { ...tpl, body: found.body } : tpl
+            })
+          })
+
+          return next
+        })
+      }
+    } catch (err) {
+      console.error("Erro inesperado ao carregar templates:", err)
+    }
+  }, [])
+
+  const handleSaveWhatsTemplates = useCallback(async () => {
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError || !user) {
+        console.error("Erro ao pegar usuário:", userError)
+        toast({
+          title: "Não foi possível salvar",
+          description: "Faça login novamente para salvar suas mensagens personalizadas.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const currentList = whatsTemplates[whatsContext]
+
+      const payload = currentList.map((tpl) => ({
+        user_id: user.id,
+        context: whatsContext,
+        slot: tpl.slot,
+        body: tpl.body,
+      }))
+
+      const { error } = await supabase
+        .from("whatsapp_message_templates")
+        .upsert(payload, {
+          onConflict: "user_id,context,slot",
+        })
+
+      if (error) {
+        console.error("Erro ao salvar templates WhatsApp:", error)
+        toast({
+          title: "Erro ao salvar mensagens",
+          description: error.message,
+          variant: "destructive",
+        })
+        return
+      }
+
+      toast({
+        title: "Mensagens salvas!",
+        description: "Suas mensagens foram atualizadas.",
+      })
+    } catch (err) {
+      console.error("Erro inesperado ao salvar templates:", err)
+      toast({
+        title: "Erro ao salvar mensagens",
+        description: "Tente novamente em alguns instantes.",
+        variant: "destructive",
+      })
+    }
+  }, [whatsTemplates, whatsContext, toast])
+
+  const handleSendWhatsApp = useCallback(
+    (body: string) => {
+      if (!whatsCurrentTx?.customer_phone) return
+
+      const base = getWhatsAppLink(whatsCurrentTx.customer_phone)
+      if (base === "#") return
+
+      const name = whatsCurrentTx.customer_name || ""
+      const finalText = body.replace(/\{nome\}/gi, name)
+
+      const url = `${base}?text=${encodeURIComponent(finalText)}`
+      window.open(url, "_blank")
+    },
+    [whatsCurrentTx],
+  )
+
+  useEffect(() => {
+    loadWhatsTemplates()
+  }, [loadWhatsTemplates])
+
 
 // Faturamento
 const revenueChartData = useMemo(() => {
@@ -1792,19 +1964,28 @@ const makeCustomerKey = (t: any) => {
                             <div className="flex items-center gap-2">
                               <div>{transaction.customer_phone || "N/A"}</div>
                               {transaction.customer_phone && (
-                                <Button asChild variant="ghost" size="icon" className="h-6 w-6">
-                                  <a
-                                    href={getWhatsAppLink(transaction.customer_phone)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    aria-label="Enviar mensagem no WhatsApp"
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" className="h-4 w-4 text-green-500">
-                                      <path d="M20.52 3.48A11.8 11.8 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.17 1.6 6L0 24l6.25-1.64A11.93 11.93 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 22c-1.84 0-3.62-.5-5.18-1.45l-.37-.22-3.72.97.99-3.63-.24-.37A9.99 9.99 0 0 1 2 12c0-5.53 4.47-10 10-10s10 4.47 10 10-4.47 10-10 10zm5.03-7.28c-.28-.14-1.65-.82-1.9-.92-.26-.1-.45-.14-.64.14-.19.28-.74.92-.91 1.11-.17.19-.34.21-.62.07-.28-.14-1.18-.44-2.25-1.41-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.31.42-.47.14-.16.19-.28.28-.47.09-.19.05-.36-.02-.5-.07-.14-.64-1.55-.88-2.12-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.5.07-.76.36s-1 1-1 2.43 1.03 2.82 1.17 3.02c.14.19 2.03 3.1 4.93 4.34.69.3 1.23.48 1.65.61.69.22 1.31.19 1.8.12.55-.08 1.65-.68 1.89-1.34.23-.66.23-1.22.16-1.34-.07-.12-.26-.19-.55-.33z"/>
-                                    </svg>
-                                  </a>
-                                </Button>
-                              )}
+  <Button
+    type="button"
+    variant="ghost"
+    size="icon"
+    className="h-6 w-6"
+    onClick={() => {
+  setWhatsContext("paid")
+  setWhatsCurrentTx(transaction)
+  setWhatsDialogOpen(true)
+}}
+    aria-label="Abrir opções de mensagem no WhatsApp"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="currentColor"
+      viewBox="0 0 24 24"
+      className="h-4 w-4 text-green-500"
+    >
+      <path d="M20.52 3.48A11.8 11.8 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.17 1.6 6L0 24l6.25-1.64A11.93 11.93 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 22c-1.84 0-3.62-.5-5.18-1.45l-.37-.22-3.72.97.99-3.63-.24-.37A9.99 9.99 0 0 1 2 12c0-5.53 4.47-10 10-10s10 4.47 10 10-4.47 10-10 10zm5.03-7.28c-.28-.14-1.65-.82-1.9-.92-.26-.1-.45-.14-.64.14-.19.28-.74.92-.91 1.11-.17.19-.34.21-.62.07-.28-.14-1.18-.44-2.25-1.41-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.31.42-.47.14-.16.19-.28.28-.47.09-.19.05-.36-.02-.5-.07-.14-.64-1.55-.88-2.12-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.5.07-.76.36s-1 1-1 2.43 1.03 2.82 1.17 3.02c.14.19 2.03 3.1 4.93 4.34.69.3 1.23.48 1.65.61.69.22 1.31.19 1.8.12.55-.08 1.65-.68 1.89-1.34.23-.66.23-1.22.16-1.34-.07-.12-.26-.19-.55-.33z" />
+    </svg>
+  </Button>
+)}
                             </div>
 
                             <div className="text-muted-foreground">Gateway:</div>
@@ -1838,6 +2019,8 @@ const makeCustomerKey = (t: any) => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          
 
           <TabsContent value="refunds" className="space-y-6">
             <Card className="neon-card neon-top" style={{ ["--gw" as any]: "#ff00e6ff" }}>
@@ -1897,20 +2080,28 @@ const makeCustomerKey = (t: any) => {
                               <div className="flex items-center gap-2">
                                 <div>{transaction.customer_phone || "N/A"}</div>
                                 {transaction.customer_phone && (
-                                  <Button asChild variant="ghost" size="icon" className="h-6 w-6">
-                                    <a
-                                      href={getWhatsAppLink(transaction.customer_phone)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      aria-label="Enviar mensagem no WhatsApp"
-                                    >
-                                      {/* ícone do WhatsApp */}
-                                      <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" className="h-4 w-4 text-green-500">
-                                        <path d="M20.52 3.48A11.8 11.8 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.17 1.6 6L0 24l6.25-1.64A11.93 11.93 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 22c-1.84 0-3.62-.5-5.18-1.45l-.37-.22-3.72.97.99-3.63-.24-.37A9.99 9.99 0 0 1 2 12c0-5.53 4.47-10 10-10s10 4.47 10 10-4.47 10-10 10zm5.03-7.28c-.28-.14-1.65-.82-1.9-.92-.26-.1-.45-.14-.64.14-.19.28-.74.92-.91 1.11-.17.19-.34.21-.62.07-.28-.14-1.18-.44-2.25-1.41-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.31.42-.47.14-.16.19-.28.28-.47.09-.19.05-.36-.02-.5-.07-.14-.64-1.55-.88-2.12-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.5.07-.76.36s-1 1-1 2.43 1.03 2.82 1.17 3.02c.14.19 2.03 3.1 4.93 4.34.69.3 1.23.48 1.65.61.69.22 1.31.19 1.8.12.55-.08 1.65-.68 1.89-1.34.23-.66.23-1.22.16-1.34-.07-.12-.26-.19-.55-.33z"/>
-                                      </svg>
-                                    </a>
-                                  </Button>
-                                )}
+  <Button
+    type="button"
+    variant="ghost"
+    size="icon"
+    className="h-6 w-6"
+    onClick={() => {
+  setWhatsContext("abandoned")
+  setWhatsCurrentTx(transaction)
+  setWhatsDialogOpen(true)
+}}
+    aria-label="Abrir opções de mensagem no WhatsApp"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="currentColor"
+      viewBox="0 0 24 24"
+      className="h-4 w-4 text-green-500"
+    >
+      <path d="M20.52 3.48A11.8 11.8 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.17 1.6 6L0 24l6.25-1.64A11.93 11.93 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 22c-1.84 0-3.62-.5-5.18-1.45l-.37-.22-3.72.97.99-3.63-.24-.37A9.99 9.99 0 0 1 2 12c0-5.53 4.47-10 10-10s10 4.47 10 10-4.47 10-10 10zm5.03-7.28c-.28-.14-1.65-.82-1.9-.92-.26-.1-.45-.14-.64.14-.19.28-.74.92-.91 1.11-.17.19-.34.21-.62.07-.28-.14-1.18-.44-2.25-1.41-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.31.42-.47.14-.16.19-.28.28-.47.09-.19.05-.36-.02-.5-.07-.14-.64-1.55-.88-2.12-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.5.07-.76.36s-1 1-1 2.43 1.03 2.82 1.17 3.02c.14.19 2.03 3.1 4.93 4.34.69.3 1.23.48 1.65.61.69.22 1.31.19 1.8.12.55-.08 1.65-.68 1.89-1.34.23-.66.23-1.22.16-1.34-.07-.12-.26-.19-.55-.33z" />
+    </svg>
+  </Button>
+)}
                               </div>
 
                               <div className="text-muted-foreground">Gateway:</div>
@@ -1993,25 +2184,28 @@ const makeCustomerKey = (t: any) => {
                             <div className="flex items-center gap-2">
                                 <div>{transaction.customer_phone || "N/A"}</div>
                                 {transaction.customer_phone && (
-                                  <Button asChild variant="ghost" size="icon" className="h-6 w-6">
-                                    <a
-                                      href={getWhatsAppLink(transaction.customer_phone)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      aria-label="Enviar mensagem no WhatsApp"
-                                    >
-                                      <svg
-  xmlns="http://www.w3.org/2000/svg"
-  fill="currentColor"
-  viewBox="0 0 24 24"
-  className="h-4 w-4 text-green-500"
->
-  <path d="M20.52 3.48A11.8 11.8 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.17 1.6 6L0 24l6.25-1.64A11.93 11.93 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 22c-1.84 0-3.62-.5-5.18-1.45l-.37-.22-3.72.97.99-3.63-.24-.37A9.99 9.99 0 0 1 2 12c0-5.53 4.47-10 10-10s10 4.47 10 10-4.47 10-10 10zm5.03-7.28c-.28-.14-1.65-.82-1.9-.92-.26-.1-.45-.14-.64.14-.19.28-.74.92-.91 1.11-.17.19-.34.21-.62.07-.28-.14-1.18-.44-2.25-1.41-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.31.42-.47.14-.16.19-.28.28-.47.09-.19.05-.36-.02-.5-.07-.14-.64-1.55-.88-2.12-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.5.07-.76.36s-1 1-1 2.43 1.03 2.82 1.17 3.02c.14.19 2.03 3.1 4.93 4.34.69.3 1.23.48 1.65.61.69.22 1.31.19 1.8.12.55-.08 1.65-.68 1.89-1.34.23-.66.23-1.22.16-1.34-.07-.12-.26-.19-.55-.33z" />
-</svg>
-
-                                    </a>
-                                  </Button>
-                                )}
+  <Button
+    type="button"
+    variant="ghost"
+    size="icon"
+    className="h-6 w-6"
+    onClick={() => {
+  setWhatsContext("abandoned")
+  setWhatsCurrentTx(transaction)
+  setWhatsDialogOpen(true)
+}}
+    aria-label="Abrir opções de mensagem no WhatsApp"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="currentColor"
+      viewBox="0 0 24 24"
+      className="h-4 w-4 text-green-500"
+    >
+      <path d="M20.52 3.48A11.8 11.8 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.17 1.6 6L0 24l6.25-1.64A11.93 11.93 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 22c-1.84 0-3.62-.5-5.18-1.45l-.37-.22-3.72.97.99-3.63-.24-.37A9.99 9.99 0 0 1 2 12c0-5.53 4.47-10 10-10s10 4.47 10 10-4.47 10-10 10zm5.03-7.28c-.28-.14-1.65-.82-1.9-.92-.26-.1-.45-.14-.64.14-.19.28-.74.92-.91 1.11-.17.19-.34.21-.62.07-.28-.14-1.18-.44-2.25-1.41-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.31.42-.47.14-.16.19-.28.28-.47.09-.19.05-.36-.02-.5-.07-.14-.64-1.55-.88-2.12-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.5.07-.76.36s-1 1-1 2.43 1.03 2.82 1.17 3.02c.14.19 2.03 3.1 4.93 4.34.69.3 1.23.48 1.65.61.69.22 1.31.19 1.8.12.55-.08 1.65-.68 1.89-1.34.23-.66.23-1.22.16-1.34-.07-.12-.26-.19-.55-.33z" />
+    </svg>
+  </Button>
+)}
                               </div>
                               <div className="text-muted-foreground">Pagamento:</div>
                               <div>{getPaymentLabel(transaction.payment_method)}</div>
@@ -2068,25 +2262,27 @@ const makeCustomerKey = (t: any) => {
                             <div className="flex items-center gap-2">
                               <div>{transaction.customer_phone || "N/A"}</div>
                               {transaction.customer_phone && (
-                                <Button asChild variant="ghost" size="icon" className="h-6 w-6">
-                                  <a
-                                    href={getWhatsAppLink(transaction.customer_phone)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    aria-label="Enviar mensagem no WhatsApp"
-                                  >
-                                    <svg
-  xmlns="http://www.w3.org/2000/svg"
-  fill="currentColor"
-  viewBox="0 0 24 24"
-  className="h-4 w-4 text-green-500"
->
-  <path d="M20.52 3.48A11.8 11.8 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.17 1.6 6L0 24l6.25-1.64A11.93 11.93 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 22c-1.84 0-3.62-.5-5.18-1.45l-.37-.22-3.72.97.99-3.63-.24-.37A9.99 9.99 0 0 1 2 12c0-5.53 4.47-10 10-10s10 4.47 10 10-4.47 10-10 10zm5.03-7.28c-.28-.14-1.65-.82-1.9-.92-.26-.1-.45-.14-.64.14-.19.28-.74.92-.91 1.11-.17.19-.34.21-.62.07-.28-.14-1.18-.44-2.25-1.41-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.31.42-.47.14-.16.19-.28.28-.47.09-.19.05-.36-.02-.5-.07-.14-.64-1.55-.88-2.12-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.5.07-.76.36s-1 1-1 2.43 1.03 2.82 1.17 3.02c.14.19 2.03 3.1 4.93 4.34.69.3 1.23.48 1.65.61.69.22 1.31.19 1.8.12.55-.08 1.65-.68 1.89-1.34.23-.66.23-1.22.16-1.34-.07-.12-.26-.19-.55-.33z" />
-</svg>
-
-                                  </a>
-                                </Button>
-                              )}
+  <Button
+    type="button"
+    variant="ghost"
+    size="icon"
+    className="h-6 w-6"
+    onClick={() => {
+      setWhatsCurrentTx(transaction)
+      setWhatsDialogOpen(true)
+    }}
+    aria-label="Abrir opções de mensagem no WhatsApp"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="currentColor"
+      viewBox="0 0 24 24"
+      className="h-4 w-4 text-green-500"
+    >
+      <path d="M20.52 3.48A11.8 11.8 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.17 1.6 6L0 24l6.25-1.64A11.93 11.93 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 22c-1.84 0-3.62-.5-5.18-1.45l-.37-.22-3.72.97.99-3.63-.24-.37A9.99 9.99 0 0 1 2 12c0-5.53 4.47-10 10-10s10 4.47 10 10-4.47 10-10 10zm5.03-7.28c-.28-.14-1.65-.82-1.9-.92-.26-.1-.45-.14-.64.14-.19.28-.74.92-.91 1.11-.17.19-.34.21-.62.07-.28-.14-1.18-.44-2.25-1.41-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.31.42-.47.14-.16.19-.28.28-.47.09-.19.05-.36-.02-.5-.07-.14-.64-1.55-.88-2.12-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.5.07-.76.36s-1 1-1 2.43 1.03 2.82 1.17 3.02c.14.19 2.03 3.1 4.93 4.34.69.3 1.23.48 1.65.61.69.22 1.31.19 1.8.12.55-.08 1.65-.68 1.89-1.34.23-.66.23-1.22.16-1.34-.07-.12-.26-.19-.55-.33z" />
+    </svg>
+  </Button>
+)}
                             </div>
                             <div className="text-muted-foreground">Pagamento:</div>
                             <div>{getPaymentLabel(transaction.payment_method)}</div>
@@ -2213,6 +2409,83 @@ const makeCustomerKey = (t: any) => {
               </CardContent>
             </Card>
           </TabsContent>
+          {/* POPUP WHATSAPP (usado por Não Concluídas e Pagas) */}
+          <Dialog open={whatsDialogOpen} onOpenChange={setWhatsDialogOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Enviar mensagem no WhatsApp</DialogTitle>
+                <DialogDescription>
+                  Escolha uma das mensagens abaixo para recuperar a venda.  
+                  Você pode usar {"{nome}"} no texto que eu substituo pelo nome do cliente.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {whatsTemplates[whatsContext].map((tpl) => (
+                  <div
+                    key={tpl.slot}
+                    className="relative rounded-md border border-white/10 bg-black/40 p-3 space-y-2"
+                  >
+                    <button
+                      type="button"
+                      className="absolute right-2 top-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-white"
+                    >
+                      <Edit3 className="h-3 w-3" />
+                      Editar
+                    </button>
+
+                    <div className="text-xs font-semibold text-muted-foreground">
+                      {tpl.label}
+                    </div>
+
+                    <textarea
+                      className="mt-1 w-full rounded-md border border-white/10 bg-black/60 p-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      rows={3}
+                      value={tpl.body}
+                      onChange={(e) =>
+  setWhatsTemplates((prev) => ({
+    ...prev,
+    [whatsContext]: prev[whatsContext].map((item) =>
+      item.slot === tpl.slot ? { ...item, body: e.target.value } : item,
+    ),
+  }))
+}
+
+                    />
+
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleSendWhatsApp(tpl.body)}
+                        disabled={!whatsCurrentTx?.customer_phone}
+                      >
+                        Enviar essa mensagem
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 flex justify-between">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setWhatsDialogOpen(false)}
+                >
+                  Fechar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSaveWhatsTemplates}
+                >
+                  Salvar mensagens
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </Tabs>
       </div>
     </div>

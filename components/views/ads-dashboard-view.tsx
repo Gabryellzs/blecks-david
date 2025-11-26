@@ -3570,9 +3570,9 @@ useEffect(() => {
                         <TableHeader className="border-b border-white/10">
                           <TableRow>
                             <TableHead className="sticky left-0 z-20 bg-background w-[100px] border-r border-white/10">
-                              Desativar/Ativar
+                              Status
                             </TableHead>
-                            <TableHead className="sticky left-[120px] z-20 bg-background min-w-[260px] border-r border-white/10">
+                            <TableHead className="sticky left-0 z-20 bg-background min-w-[260px] border-r border-white/10">
                               Campanha
                             </TableHead>
                             <TableHead className="sticky left-[380px] z-20 bg-background w-[160px] border-r border-white/10">
@@ -3596,7 +3596,7 @@ useEffect(() => {
                               className="border-b border-white/10 last:border-b-0 [&>td]:py-3"
                             >
                               {/* Coluna 1 - toggle ativar/desativar */}
-                              <TableCell className="sticky left-0 z-10 bg-background text-center w-[120px] border-r border-white/10">
+                              <TableCell className="sticky left-0 z-10 bg-background text-center w-[100px] border-r border-white/10 p-0">
                                 {(() => {
                                   const isActive = c.status === "ACTIVE"
 
@@ -3631,7 +3631,7 @@ useEffect(() => {
                               </TableCell>
 
                               {/* Coluna 2 - Campanha (nome + lápis) */}
-                              <TableCell className="sticky left-[120px] z-10 bg-background font-medium min-w-[260px] border-r border-white/10">
+                              <TableCell className="sticky left-[100px] z-10 bg-background font-medium min-w-[220px] border-r border-white/10 p-0 pl-3">
                                 <div className="group flex items-center gap-2">
                                   <span className="truncate max-w-xs">{c.name}</span>
                                   <button
@@ -3645,7 +3645,7 @@ useEffect(() => {
                               </TableCell>
 
                               {/* Coluna 3 - Orçamento */}
-                              <TableCell className="sticky left-[380px] z-10 bg-background w-[160px] border-r border-white/10">
+                              <TableCell className="sticky left-[320px] z-10 bg-background w-[140px] border-r border-white/10 p-0 pl-3">
                                 <div className="group flex flex-col">
                                   <div className="flex items-center gap-2 text-sm">
                                     <span className="font-medium">

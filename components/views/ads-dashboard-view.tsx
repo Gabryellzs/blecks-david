@@ -3481,7 +3481,7 @@ useEffect(() => {
             </div>
           ))}
 
-        {/* CAMPANHAS */}
+                {/* CAMPANHAS */}
         {activeSubTab === "campanhas" &&
           (activeTab === "facebook" && selectedAccountId ? (
             <Card>
@@ -3492,7 +3492,9 @@ useEffect(() => {
                     {/* Filtro de status */}
                     <Select
                       value={statusCampaignsFilter}
-                      onValueChange={(v) => setStatusCampaignsFilter(v as "ALL" | "ACTIVE" | "PAUSED")}
+                      onValueChange={(v) =>
+                        setStatusCampaignsFilter(v as "ALL" | "ACTIVE" | "PAUSED")
+                      }
                     >
                       <SelectTrigger className="h-8 w-[160px]">
                         <SelectValue placeholder="Status" />
@@ -3530,7 +3532,8 @@ useEffect(() => {
                       value={searchCampaigns}
                       onChange={(e) => setSearchCampaigns(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && selectedAccountId) fetchCampaigns(selectedAccountId)
+                        if (e.key === "Enter" && selectedAccountId)
+                          fetchCampaigns(selectedAccountId)
                       }}
                       placeholder="Buscar por nome da campanha..."
                       className="h-8 w-full md:w-[280px] rounded-md bg-background border px-3 text-sm outline-none"
@@ -3538,7 +3541,9 @@ useEffect(() => {
                     <Button
                       variant="outline"
                       className="h-8"
-                      onClick={() => selectedAccountId && fetchCampaigns(selectedAccountId)}
+                      onClick={() =>
+                        selectedAccountId && fetchCampaigns(selectedAccountId)
+                      }
                       disabled={loadingCampaigns}
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
@@ -3555,234 +3560,284 @@ useEffect(() => {
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : campaigns.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhuma campanha encontrada para esta conta.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Nenhuma campanha encontrada para esta conta.
+                  </p>
                 ) : (
                   <>
-                    <Table className="w-full border-collapse">
-                      <TableHeader className="border-b border-white/10">
-  <TableRow>
-    <TableHead>Desativar/Ativar</TableHead>
-    <TableHead>Campanha</TableHead>
-    <TableHead>Orçamento</TableHead>
-    <TableHead>Valor usado</TableHead>
-    <TableHead>Resultados</TableHead>
-    <TableHead>ROAS de resultados</TableHead>
-    <TableHead>Custo por resultado</TableHead>
-    <TableHead>CPM (custo por 1.000)</TableHead>
-    <TableHead>Cliques no link</TableHead>
-    <TableHead>CPC</TableHead>
-    <TableHead>CTR</TableHead>
-  </TableRow>
-</TableHeader>
+                    <div className="w-full overflow-x-auto">
+                      <Table className="min-w-[1100px] border-collapse">
+                        <TableHeader className="border-b border-white/10">
+                          <TableRow>
+                            <TableHead className="sticky left-0 z-20 bg-background w-[100px] border-r border-white/10">
+                              Status
+                            </TableHead>
+                            <TableHead className="sticky left-0 z-20 bg-background min-w-[260px] border-r border-white/10">
+                              Campanha
+                            </TableHead>
+                            <TableHead className="sticky left-[380px] z-20 bg-background w-[160px] border-r border-white/10">
+                              Orçamento
+                            </TableHead>
+                            <TableHead className="border-r border-white/10">Valor usado</TableHead>
+                            <TableHead className="border-r border-white/10">Resultados</TableHead>
+<TableHead className="border-r border-white/10">ROAS de resultados</TableHead>
+<TableHead className="border-r border-white/10">Custo por resultado</TableHead>
+<TableHead className="border-r border-white/10">CPM (custo por 1.000)</TableHead>
+<TableHead className="border-r border-white/10">Cliques no link</TableHead>
+<TableHead className="border-r border-white/10">CPC</TableHead>
+<TableHead className="">CTR</TableHead>
+                          </TableRow>
+                        </TableHeader>
 
+                        <TableBody>
+                          {pagedCampaigns.map((c: any) => (
+                            <TableRow
+                              key={c.id}
+                              className="border-b border-white/10 last:border-b-0 [&>td]:py-3"
+                            >
+                              {/* Coluna 1 - toggle ativar/desativar */}
+                              <TableCell className="sticky left-0 z-10 bg-background text-center w-[100px] border-r border-white/10 p-0">
+                                {(() => {
+                                  const isActive = c.status === "ACTIVE"
 
-                      <TableBody>
-  {pagedCampaigns.map((c: any) => (
-    <TableRow key={c.id} className="border-b border-white/10 last:border-b-0 [&>td]:py-3">
-      {/* Coluna 1 - toggle ativar/desativar */}
-      <TableCell className="text-center">
-        {(() => {
-          const isActive = c.status === "ACTIVE"
+                                  return (
+                                    <button
+                                      onClick={() =>
+                                        handleCampaignStatusChange(c.id, c.status)
+                                      }
+                                      className={cn(
+                                        "relative inline-flex h-6 w-14 items-center rounded-full border transition-all duration-300",
+                                        isActive
+                                          ? "border-emerald-300 bg-gradient-to-br from-emerald-300 to-emerald-400 shadow-[0_5px_10px_rgba(16,185,129,0.6)]"
+                                          : "border-zinc-500/60 bg-gradient-to-br from-zinc-700 to-zinc-800 shadow-inner",
+                                      )}
+                                      aria-pressed={isActive}
+                                    >
+                                      <span
+                                        className={cn(
+                                          "pointer-events-none absolute inset-[2px] rounded-full opacity-60 blur-[2px]",
+                                          isActive ? "bg-emerald-300/50" : "bg-zinc-500/40",
+                                        )}
+                                      />
+                                      <span
+                                        className={cn(
+                                          "relative inline-block h-5 w-5 transform rounded-full bg-gradient-to-br from-white to-zinc-100 shadow-[0_4px_8px_rgba(0,0,0,0.35)] transition-all duration-300",
+                                          isActive ? "translate-x-7" : "translate-x-1",
+                                        )}
+                                      />
+                                    </button>
+                                  )
+                                })()}
+                              </TableCell>
 
-          return (
-            <button
-              onClick={() => handleCampaignStatusChange(c.id, c.status)}
-              className={cn(
-                "relative inline-flex h-6 w-14 items-center rounded-full border transition-all duration-300",
-                isActive
-                  ? "border-emerald-300 bg-gradient-to-br from-emerald-300 to-emerald-400 shadow-[0_5px_10px_rgba(16,185,129,0.6)]"
-                  : "border-zinc-500/60 bg-gradient-to-br from-zinc-700 to-zinc-800 shadow-inner",
-              )}
-              aria-pressed={isActive}
-            >
-              <span
-                className={cn(
-                  "pointer-events-none absolute inset-[2px] rounded-full opacity-60 blur-[2px]",
-                  isActive ? "bg-emerald-300/50" : "bg-zinc-500/40",
-                )}
-              />
-              <span
-                className={cn(
-                  "relative inline-block h-5 w-5 transform rounded-full bg-gradient-to-br from-white to-zinc-100 shadow-[0_4px_8px_rgba(0,0,0,0.35)] transition-all duration-300",
-                  isActive ? "translate-x-7" : "translate-x-1",
-                )}
-              />
-            </button>
-          )
-        })()}
-      </TableCell>
+                              {/* Coluna 2 - Campanha (nome + lápis) */}
+                              <TableCell className="sticky left-0 z-10 bg-background font-medium min-w-[220px] border-r border-white/10 p-0 pl-3">
+                                <div className="group flex items-center gap-2">
+                                  <span className="truncate max-w-xs">{c.name}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEditCampaignName(c)}
+                                    className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              </TableCell>
 
-      {/* Coluna 2 - Campanha (nome + lápis) */}
-      <TableCell className="font-medium">
-        <div className="group flex items-center gap-2">
-          <span className="truncate max-w-xs">{c.name}</span>
-          <button
-            type="button"
-            onClick={() => handleStartEditCampaignName(c)}
-            className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
-          >
-            <Pencil className="h-3 w-3" />
-          </button>
-        </div>
-      </TableCell>
+                              {/* Coluna 3 - Orçamento */}
+                              <TableCell className="sticky left-0 z-10 bg-background w-[140px] border-r border-white/10 p-0 pl-3">
+                                <div className="group flex flex-col">
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="font-medium">
+                                      {c.budget != null ? moneyBRL(c.budget) : "—"}
+                                    </span>
 
-      {/* Coluna 3 - Orçamento */}
-      <TableCell>
-  <div className="group flex flex-col">
-    <div className="flex items-center gap-2 text-sm">
-      <span className="font-medium">
-        {c.budget != null ? moneyBRL(c.budget) : "—"}
-      </span>
+                                    {c.budget != null && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleStartEditCampaignBudget(c)}
+                                        className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                      </button>
+                                    )}
+                                  </div>
 
-      {c.budget != null && (
-        <button
-          type="button"
-          onClick={() => handleStartEditCampaignBudget(c)}
-          className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
-        >
-          <Pencil className="h-3 w-3" />
-        </button>
-      )}
-    </div>
+                                  <span className="text-[11px] text-muted-foreground leading-none mt-0.5">
+                                    Diário
+                                  </span>
+                                </div>
+                              </TableCell>
 
-    <span className="text-[11px] text-muted-foreground leading-none mt-0.5">
-      Diário
+                              {/* Coluna 4 em diante - com divisórias verticais */}
+<TableCell className="border-r border-white/10">
+  {moneyBRL(c.spend)}
+</TableCell>
+
+<TableCell className="border-r border-white/10">
+  <div className="flex flex-col">
+    <span className="font-medium">{c.results ?? 0}</span>
+    <span className="text-xs text-muted-foreground">
+      {c.resultLabel || "Resultados"}
     </span>
   </div>
 </TableCell>
 
+<TableCell className="border-r border-white/10">
+  {c.roas != null ? c.roas.toFixed(2) : "—"}
+</TableCell>
 
-      {/* Coluna 4 em diante - igual estava antes */}
-      <TableCell>{moneyBRL(c.spend)}</TableCell>
-      <TableCell>
-        <div className="flex flex-col">
-          <span className="font-medium">{c.results ?? 0}</span>
-          <span className="text-xs text-muted-foreground">{c.resultLabel || "Resultados"}</span>
-        </div>
-      </TableCell>
-      <TableCell>{c.roas != null ? c.roas.toFixed(2) : "—"}</TableCell>
-      <TableCell>{c.cost_per_result != null ? moneyBRL(c.cost_per_result) : "—"}</TableCell>
-      <TableCell>{c.cpm != null ? moneyBRL(c.cpm) : "—"}</TableCell>
-      <TableCell>{c.inline_link_clicks ?? 0}</TableCell>
-      <TableCell>{c.cpc != null ? moneyBRL(c.cpc) : "—"}</TableCell>
-      <TableCell>{c.ctr != null ? `${Number(c.ctr).toFixed(2)}%` : "—"}</TableCell>
-    </TableRow>
-  ))}
-</TableBody>
+<TableCell className="border-r border-white/10">
+  {c.cost_per_result != null ? moneyBRL(c.cost_per_result) : "—"}
+</TableCell>
 
-                    </Table>
-                    
+<TableCell className="border-r border-white/10">
+  {c.cpm != null ? moneyBRL(c.cpm) : "—"}
+</TableCell>
+
+<TableCell className="border-r border-white/10">
+  {c.inline_link_clicks ?? 0}
+</TableCell>
+
+<TableCell className="border-r border-white/10">
+  {c.cpc != null ? moneyBRL(c.cpc) : "—"}
+</TableCell>
+
+{/* Última coluna → sem border-r para não duplicar */}
+<TableCell>
+  {c.ctr != null ? `${Number(c.ctr).toFixed(2)}%` : "—"}
+</TableCell>
+
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
                     {/* Dialog para editar nome da campanha */}
-<Dialog
-  open={!!editingCampaign}
-  onOpenChange={(open) => {
-    if (!open) handleCancelEditCampaignName()
-  }}
->
-  <DialogContent className="max-w-md">
-    <DialogHeader>
-      <DialogTitle>Editar nome da campanha</DialogTitle>
-    </DialogHeader>
+                    <Dialog
+                      open={!!editingCampaign}
+                      onOpenChange={(open) => {
+                        if (!open) handleCancelEditCampaignName()
+                      }}
+                    >
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Editar nome da campanha</DialogTitle>
+                        </DialogHeader>
 
-    <div className="space-y-4 pt-2">
-      <p className="text-sm text-muted-foreground">
-        Altere o nome da campanha para organizar melhor suas estratégias.
-      </p>
+                        <div className="space-y-4 pt-2">
+                          <p className="text-sm text-muted-foreground">
+                            Altere o nome da campanha para organizar melhor suas estratégias.
+                          </p>
 
-      <Input
-        autoFocus
-        value={editingCampaignName}
-        onChange={(e) => setEditingCampaignName(e.target.value)}
-        placeholder="Nome da campanha"
-      />
-    </div>
+                          <Input
+                            autoFocus
+                            value={editingCampaignName}
+                            onChange={(e) => setEditingCampaignName(e.target.value)}
+                            placeholder="Nome da campanha"
+                          />
+                        </div>
 
-    <DialogFooter className="mt-4 flex justify-end gap-2">
-      <Button
-        variant="outline"
-        onClick={handleCancelEditCampaignName}
-        disabled={isSavingCampaignName}
-      >
-        Cancelar
-      </Button>
+                        <DialogFooter className="mt-4 flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={handleCancelEditCampaignName}
+                            disabled={isSavingCampaignName}
+                          >
+                            Cancelar
+                          </Button>
 
-      <Button
-        onClick={handleSaveCampaignName}
-        disabled={isSavingCampaignName || !editingCampaignName.trim()}
-      >
-        {isSavingCampaignName ? "Publicando..." : "Publicar"}
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+                          <Button
+                            onClick={handleSaveCampaignName}
+                            disabled={
+                              isSavingCampaignName || !editingCampaignName.trim()
+                            }
+                          >
+                            {isSavingCampaignName ? "Publicando..." : "Publicar"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
 
-      {/* Popup de edição de orçamento da campanha */}
-      <Dialog
-        open={!!editingBudgetCampaign}
-        onOpenChange={(open) => {
-          if (!open) handleCancelEditCampaignBudget()
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Editar orçamento diário</DialogTitle>
-          </DialogHeader>
+                    {/* Popup de edição de orçamento da campanha */}
+                    <Dialog
+                      open={!!editingBudgetCampaign}
+                      onOpenChange={(open) => {
+                        if (!open) handleCancelEditCampaignBudget()
+                      }}
+                    >
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Editar orçamento diário</DialogTitle>
+                        </DialogHeader>
 
-          <div className="space-y-4 pt-2">
-            <p className="text-sm text-muted-foreground">
-              Defina o orçamento diário da campanha em reais.
-            </p>
-            <Input
-              autoFocus
-              value={editingBudgetValue}
-              onChange={(e) => setEditingBudgetValue(e.target.value)}
-              placeholder="Ex: 100,00"
-            />
-            <p className="text-xs text-muted-foreground">
-              Esse valor será enviado como orçamento diário (daily_budget) para o Facebook Ads.
-            </p>
-          </div>
+                        <div className="space-y-4 pt-2">
+                          <p className="text-sm text-muted-foreground">
+                            Defina o orçamento diário da campanha em reais.
+                          </p>
+                          <Input
+                            autoFocus
+                            value={editingBudgetValue}
+                            onChange={(e) => setEditingBudgetValue(e.target.value)}
+                            placeholder="Ex: 100,00"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Esse valor será enviado como orçamento diário (daily_budget) para o Facebook Ads.
+                          </p>
+                        </div>
 
-          <DialogFooter className="mt-4 flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={handleCancelEditCampaignBudget}
-              disabled={isSavingBudget}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSaveCampaignBudget}
-              disabled={isSavingBudget || !editingBudgetValue.trim()}
-            >
-              {isSavingBudget ? "Salvando..." : "Publicar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
+                        <DialogFooter className="mt-4 flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={handleCancelEditCampaignBudget}
+                            disabled={isSavingBudget}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            onClick={handleSaveCampaignBudget}
+                            disabled={
+                              isSavingBudget || !editingBudgetValue.trim()
+                            }
+                          >
+                            {isSavingBudget ? "Salvando..." : "Publicar"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
 
                     {/* Paginação Campanhas */}
                     <div className="flex items-center justify-between mt-3">
                       <div className="text-xs text-muted-foreground">
-                        Exibindo {pagedCampaigns.length} de {filteredCampaigns.length} campanhas
+                        Exibindo {pagedCampaigns.length} de{" "}
+                        {filteredCampaigns.length} campanhas
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
                           variant="outline"
                           className="h-8 px-3"
                           disabled={campaignsPage === 1 || loadingCampaigns}
-                          onClick={() => setCampaignsPage((p) => Math.max(1, p - 1))}
+                          onClick={() =>
+                            setCampaignsPage((p) => Math.max(1, p - 1))
+                          }
                         >
                           Anterior
                         </Button>
                         <div className="text-sm">
-                          Página <span className="font-semibold">{campaignsPage}</span>
+                          Página{" "}
+                          <span className="font-semibold">
+                            {campaignsPage}
+                          </span>
                         </div>
                         <Button
                           variant="outline"
                           className="h-8 px-3"
-                          disabled={loadingCampaigns || campaignsPage * campaignsPageSize >= filteredCampaigns.length}
+                          disabled={
+                            loadingCampaigns ||
+                            campaignsPage * campaignsPageSize >=
+                              filteredCampaigns.length
+                          }
                           onClick={() => setCampaignsPage((p) => p + 1)}
                         >
                           Próxima
@@ -3795,7 +3850,9 @@ useEffect(() => {
             </Card>
           ) : (
             <div className="flex items-center justify-center h-60">
-              <p className="text-muted-foreground">Conteúdo da aba Campanhas (em desenvolvimento)</p>
+              <p className="text-muted-foreground">
+                Conteúdo da aba Campanhas (em desenvolvimento)
+              </p>
             </div>
           ))}
 
@@ -3809,7 +3866,9 @@ useEffect(() => {
                     {/* Filtro de status */}
                     <Select
                       value={statusAdSetsFilter}
-                      onValueChange={(v) => setStatusAdSetsFilter(v as "ALL" | "ACTIVE" | "PAUSED")}
+                      onValueChange={(v) =>
+                        setStatusAdSetsFilter(v as "ALL" | "ACTIVE" | "PAUSED")
+                      }
                     >
                       <SelectTrigger className="h-8 w-[160px]">
                         <SelectValue placeholder="Status" />
@@ -3847,7 +3906,8 @@ useEffect(() => {
                       value={searchAdSets}
                       onChange={(e) => setSearchAdSets(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && selectedAccountId) fetchAdSets(selectedAccountId)
+                        if (e.key === "Enter" && selectedAccountId)
+                          fetchAdSets(selectedAccountId)
                       }}
                       placeholder="Buscar por nome do conjunto..."
                       className="h-8 w-full md:w-[280px] rounded-md bg-background border px-3 text-sm outline-none"
@@ -3855,7 +3915,9 @@ useEffect(() => {
                     <Button
                       variant="outline"
                       className="h-8"
-                      onClick={() => selectedAccountId && fetchAdSets(selectedAccountId)}
+                      onClick={() =>
+                        selectedAccountId && fetchAdSets(selectedAccountId)
+                      }
                       disabled={loadingAdSets}
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
@@ -3872,7 +3934,9 @@ useEffect(() => {
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : adSets.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhum conjunto de anúncios encontrado para esta conta.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum conjunto de anúncios encontrado para esta conta.
+                  </p>
                 ) : (
                   <>
                     <Table className="w-full border-collapse">
@@ -3888,8 +3952,13 @@ useEffect(() => {
                       </TableHeader>
                       <TableBody>
                         {pagedAdSets.map((set) => (
-                          <TableRow key={set.id} className="border-b border-white/10 last:border-b-0 [&>td]:py-3">
-                            <TableCell className="font-medium">{set.name}</TableCell>
+                          <TableRow
+                            key={set.id}
+                            className="border-b border-white/10 last:border-b-0 [&>td]:py-3"
+                          >
+                            <TableCell className="font-medium">
+                              {set.name}
+                            </TableCell>
                             <TableCell>
                               <span
                                 className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -3901,10 +3970,16 @@ useEffect(() => {
                                 {set.status}
                               </span>
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{set.campaign_id || "-"}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {set.campaign_id || "-"}
+                            </TableCell>
                             <TableCell>{set.daily_budget ?? "-"}</TableCell>
-                            <TableCell className="text-right">{set.start_time ?? "-"}</TableCell>
-                            <TableCell className="text-right">{set.end_time ?? "-"}</TableCell>
+                            <TableCell className="text-right">
+                              {set.start_time ?? "-"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {set.end_time ?? "-"}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -3913,7 +3988,8 @@ useEffect(() => {
                     {/* Paginação Conjuntos */}
                     <div className="flex items-center justify-between mt-3">
                       <div className="text-xs text-muted-foreground">
-                        Exibindo {pagedAdSets.length} de {filteredAdSets.length} conjuntos
+                        Exibindo {pagedAdSets.length} de{" "}
+                        {filteredAdSets.length} conjuntos
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -3925,12 +4001,17 @@ useEffect(() => {
                           Anterior
                         </Button>
                         <div className="text-sm">
-                          Página <span className="font-semibold">{adSetsPage}</span>
+                          Página{" "}
+                          <span className="font-semibold">{adSetsPage}</span>
                         </div>
                         <Button
                           variant="outline"
                           className="h-8 px-3"
-                          disabled={loadingAdSets || adSetsPage * adSetsPageSize >= filteredAdSets.length}
+                          disabled={
+                            loadingAdSets ||
+                            adSetsPage * adSetsPageSize >=
+                              filteredAdSets.length
+                          }
                           onClick={() => setAdSetsPage((p) => p + 1)}
                         >
                           Próxima
@@ -3943,7 +4024,9 @@ useEffect(() => {
             </Card>
           ) : (
             <div className="flex items-center justify-center h-60">
-              <p className="text-muted-foreground">Selecione uma conta para ver os conjuntos.</p>
+              <p className="text-muted-foreground">
+                Selecione uma conta para ver os conjuntos.
+              </p>
             </div>
           ))}
 
@@ -4002,7 +4085,8 @@ useEffect(() => {
                         setAdsPage(1)
                       }}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && selectedAccountId) fetchAds(selectedAccountId)
+                        if (e.key === "Enter" && selectedAccountId)
+                          fetchAds(selectedAccountId)
                       }}
                       placeholder="Buscar por nome do anúncio..."
                       className="h-8 w-full md:w-[280px] rounded-md bg-background border px-3 text-sm outline-none"
@@ -4010,7 +4094,9 @@ useEffect(() => {
                     <Button
                       variant="outline"
                       className="h-8"
-                      onClick={() => selectedAccountId && fetchAds(selectedAccountId)}
+                      onClick={() =>
+                        selectedAccountId && fetchAds(selectedAccountId)
+                      }
                       disabled={loadingAds}
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
@@ -4027,7 +4113,9 @@ useEffect(() => {
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : ads.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhum anúncio encontrado para esta conta.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum anúncio encontrado para esta conta.
+                  </p>
                 ) : (
                   <>
                     <Table className="w-full border-collapse">
@@ -4038,13 +4126,20 @@ useEffect(() => {
                           <TableHead>Conjunto</TableHead>
                           <TableHead>Campanha</TableHead>
                           <TableHead>Criativo</TableHead>
-                          <TableHead className="text-right">Atualizado</TableHead>
+                          <TableHead className="text-right">
+                            Atualizado
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {ads.map((ad: any) => (
-                          <TableRow key={ad.id} className="border-b border-white/10 last:border-b-0 [&>td]:py-3">
-                            <TableCell className="font-medium">{ad.name}</TableCell>
+                          <TableRow
+                            key={ad.id}
+                            className="border-b border-white/10 last:border-b-0 [&>td]:py-3"
+                          >
+                            <TableCell className="font-medium">
+                              {ad.name}
+                            </TableCell>
                             <TableCell>
                               <span
                                 className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -4058,13 +4153,21 @@ useEffect(() => {
                                 {ad.status}
                               </span>
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{ad.adset_id || "—"}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{ad.campaign_id || "—"}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {ad.adset_id || "—"}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {ad.campaign_id || "—"}
+                            </TableCell>
                             <TableCell className="truncate max-w-[240px]">
-                              {ad.creative_name || ad.creative_id || "—"}
+                              {ad.creative_name ||
+                                ad.creative_id ||
+                                "—"}
                             </TableCell>
                             <TableCell className="text-right text-sm">
-                              {ad.updated_time ? new Date(ad.updated_time).toLocaleString("pt-BR") : "—"}
+                              {ad.updated_time
+                                ? new Date(ad.updated_time).toLocaleString("pt-BR")
+                                : "—"}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -4074,7 +4177,9 @@ useEffect(() => {
                     {/* Paginação */}
                     <div className="flex items-center justify-between mt-3">
                       <div className="text-xs text-muted-foreground">
-                        {totalAds != null ? `Exibindo ${ads.length} de ${totalAds} anúncios` : `Exibindo ${ads.length} anúncios`}
+                        {totalAds != null
+                          ? `Exibindo ${ads.length} de ${totalAds} anúncios`
+                          : `Exibindo ${ads.length} anúncios`}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -4086,13 +4191,17 @@ useEffect(() => {
                           Anterior
                         </Button>
                         <div className="text-sm">
-                          Página <span className="font-semibold">{adsPage}</span>
+                          Página{" "}
+                          <span className="font-semibold">{adsPage}</span>
                         </div>
                         <Button
                           variant="outline"
                           className="h-8 px-3"
                           disabled={
-                            loadingAds || (totalAds != null && adsPage * adsPageSize >= totalAds) || ads.length < adsPageSize
+                            loadingAds ||
+                            (totalAds != null &&
+                              adsPage * adsPageSize >= totalAds) ||
+                            ads.length < adsPageSize
                           }
                           onClick={() => setAdsPage((p) => p + 1)}
                         >
@@ -4106,7 +4215,9 @@ useEffect(() => {
             </Card>
           ) : (
             <div className="flex items-center justify-center h-60">
-              <p className="text-muted-foreground">Selecione uma conta para ver os anúncios.</p>
+              <p className="text-muted-foreground">
+                Selecione uma conta para ver os anúncios.
+              </p>
             </div>
           ))}
       </div>

@@ -3645,7 +3645,7 @@ useEffect(() => {
                               </TableCell>
 
                               {/* Coluna 3 - Orçamento */}
-                              <TableCell className="sticky left-[320px] z-10 bg-background w-[140px] border-r border-white/10 p-0 pl-3">
+                              <TableCell className="sticky left-0 z-10 bg-background w-[140px] border-r border-white/10 p-0 pl-3">
                                 <div className="group flex flex-col">
                                   <div className="flex items-center gap-2 text-sm">
                                     <span className="font-medium">

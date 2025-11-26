@@ -248,15 +248,16 @@ export function AppSidebar({ children }: AppSidebarProps) {
 
     backdrop-blur-3xl
 
-    ${theme === "dark" 
-      ? `
-        bg-[rgba(20,20,20,0.55)]
-        border border-white/10
-        shadow-[0_25px_60px_rgba(0,0,0,0.65)]
-        before:content-[''] before:absolute before:inset-0
-        before:bg-[linear-gradient(145deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]
-        before:pointer-events-none
-      `
+    ${theme === "dark"
+  ? `
+    bg-gradient-to-b from-[#000000] via-[#0d0d0d] to-[#141414]
+    border border-white/10
+    shadow-[0_0_18px_rgba(255,255,255,0.05)]
+    before:content-[''] before:absolute before:inset-0
+    before:bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.85),rgba(15, 15, 15, 0.92))]
+    before:pointer-events-none
+  `
+
       : `
         bg-[rgba(255,255,255,0.45)]
         border border-black/10
@@ -308,102 +309,106 @@ export function AppSidebar({ children }: AppSidebarProps) {
             </div>
           </div>
 
-          {/* Menu (sem scroll) */}
-          <div className="flex-1 px-1 pb-4 overflow-hidden">
-            <div className="mt-4 space-y-2
-             pr-1">
-              {menuItems.map((item) => {
-                const active = pathname === item.href
-                const size = item.size ?? 24
-                const x = item.offsetX ?? 0
-                const y = item.offsetY ?? 0
-                const isMindmap = item.id === "mindmap"
+          {/* Menu ajustável à altura da tela (sem scroll) */}
+<div className="flex-1 px-1 pb-4 overflow-hidden">
+  <div className="mt-2 h-full flex flex-col justify-between pr-1">
+    {menuItems.map((item) => {
+      const active = pathname === item.href
+      const size = item.size ?? 24
+      const x = item.offsetX ?? 0
+      const y = item.offsetY ?? 0
+      const isMindmap = item.id === "mindmap"
 
-                return (
-                  <div key={item.id} className="relative group">
-                    <Button
-                      variant="ghost"
-                      onClick={() => handleNavigation(item.href)}
-                      className={`
-                        w-full h-12
-                         text-xs flex items-center py-0
-                        ${isExpanded ? "justify-start pl-4 pr-3" : "justify-start pl-4 pr-0"}
-                        ${
-  active
-    ? "bg-[rgba(0,0,0,0.50)] text-white"
-    : "hover:bg-[rgba(0,0,0,0.50)] text-white"
-}
-                        rounded-xl
-                      `}
-                    >
-                      {/* Ícone 3D */}
-                      {item.iconPath ? (
-                        <span
-                          className="relative inline-flex items-center justify-center shrink-0 transition-transform duration-300"
-                          style={{
-                            width: size,
-                            height: size,
-                            transform: isExpanded
-                              ? `translate(${x}px, ${y}px)`
-                              : `translate(0px, -2px)`,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <Image
-                            src={item.iconPath}
-                            alt={item.title}
-                            fill
-                            className={`object-contain ${
-                              theme === "dark"
-                                ? isMindmap
-                                  ? "" // mindmap já é branco no arquivo → mantém
-                                  : "invert"
-                                : isMindmap
-                                  ? "invert" // mindmap é branco → inverte pra preto
-                                  : "" // ícones normais já são pretos
-                            }`}
-                            style={{ objectPosition: "center" }}
-                          />
-                        </span>
-                      ) : item.icon ? (
-                        <item.icon
-                          className={`shrink-0 ${
-                            theme === "dark" ? "text-white" : "text-black"
-                          }`}
-                          style={{
-                            width: size,
-                            height: size,
-                            transform: isExpanded
-                              ? `translate(${x}px, ${y}px)`
-                              : `translate(0px, -2px)`,
-                          }}
-                        />
-                      ) : null}
+      return (
+        <div
+          key={item.id}
+          className="relative group flex-1 flex items-center"
+        >
+          <Button
+            variant="ghost"
+            onClick={() => handleNavigation(item.href)}
+            className={`
+              w-full
+              min-h-[32px] max-h-[44px]
+              text-xs flex items-center py-0
+              ${isExpanded ? "justify-start pl-4 pr-3" : "justify-start pl-4 pr-0"}
+              ${
+                active
+                  ? "bg-[rgba(0,0,0,0.50)] text-white"
+                  : "hover:bg-[rgba(0,0,0,0.50)] text-white"
+              }
+              rounded-xl
+            `}
+          >
+            {/* Ícone 3D */}
+            {item.iconPath ? (
+              <span
+                className="relative inline-flex items-center justify-center shrink-0 transition-transform duration-300"
+                style={{
+                  width: size,
+                  height: size,
+                  transform: isExpanded
+                    ? `translate(${x}px, ${y}px)`
+                    : `translate(0px, -2px)`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Image
+                  src={item.iconPath}
+                  alt={item.title}
+                  fill
+                  className={`object-contain ${
+                    theme === "dark"
+                      ? isMindmap
+                        ? ""
+                        : "invert"
+                      : isMindmap
+                        ? "invert"
+                        : ""
+                  }`}
+                  style={{ objectPosition: "center" }}
+                />
+              </span>
+            ) : item.icon ? (
+              <item.icon
+                className={`shrink-0 ${
+                  theme === "dark" ? "text-white" : "text-black"
+                }`}
+                style={{
+                  width: size,
+                  height: size,
+                  transform: isExpanded
+                    ? `translate(${x}px, ${y}px)`
+                    : `translate(0px, -2px)`,
+                }}
+              />
+            ) : null}
 
-                      {/* Label */}
-                      {isExpanded && (
-                        <span
-                          className="ml-3 overflow-hidden transition-all duration-200"
-                          style={{ maxWidth: `calc(var(--sb-w) - 56px)` }}
-                        >
-                          {item.title}
-                        </span>
-                      )}
-                    </Button>
+            {/* Label */}
+            {isExpanded && (
+              <span
+                className="ml-3 overflow-hidden transition-all duration-200"
+                style={{ maxWidth: `calc(var(--sb-w) - 56px)` }}
+              >
+                {item.title}
+              </span>
+            )}
+          </Button>
 
-                    {/* Tooltip quando colapsado */}
-                    {!isExpanded && (
-                      <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-border">
-                        {item.title}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+          {/* Tooltip quando colapsado */}
+          {!isExpanded && (
+            <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-border">
+              {item.title}
             </div>
-          </div>
+          )}
+        </div>
+      )
+    })}
+  </div>
+</div>
+
         </div>
 
         {/* Content */}

@@ -2411,7 +2411,7 @@ const makeCustomerKey = (t: any) => {
           </TabsContent>
           {/* POPUP WHATSAPP (usado por Não Concluídas e Pagas) */}
           <Dialog open={whatsDialogOpen} onOpenChange={setWhatsDialogOpen}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-4xl w-full max-h-[90vh]">
               <DialogHeader>
                 <DialogTitle>Enviar mensagem no WhatsApp</DialogTitle>
                 <DialogDescription>
@@ -2420,11 +2420,11 @@ const makeCustomerKey = (t: any) => {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-4">
+              <div className="flex gap-4 w-full py-2 justify-between">
                 {whatsTemplates[whatsContext].map((tpl) => (
                   <div
                     key={tpl.slot}
-                    className="relative rounded-md border border-white/10 bg-black/40 p-3 space-y-2"
+                    className="relative w-[260px] flex-shrink-0 rounded-md border border-white/10 bg-black/40 p-3 space-y-2"
                   >
                     <button
                       type="button"
@@ -2440,7 +2440,7 @@ const makeCustomerKey = (t: any) => {
 
                     <textarea
                       className="mt-1 w-full rounded-md border border-white/10 bg-black/60 p-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                      rows={3}
+                      rows={7}
                       value={tpl.body}
                       onChange={(e) =>
   setWhatsTemplates((prev) => ({

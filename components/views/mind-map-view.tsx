@@ -1415,7 +1415,7 @@ function FlowBuilder({
     [selectedEdges, setEdges],
   )
 
-  // IA – geração automática de funil (usando texto da IA e convertendo em nodes/edges)
+  // ========= IA – geração automática de funil com layout horizontal organizado =========
   const handleGenerateFunnelWithAI = useCallback(
     async () => {
       if (!aiPrompt.trim()) {
@@ -1448,8 +1448,6 @@ function FlowBuilder({
         }
 
         const data = await res.json()
-
-        // backend retorna { result: string }
         const funnelText =
           typeof data === "string"
             ? data
@@ -1467,68 +1465,270 @@ function FlowBuilder({
           return
         }
 
-        // 1) Quebra em linhas, limpando markdown
-        const lines = funnelText
-          .split(/\r?\n/)
-          .map((l: string) => l.trim())
-          .filter((l: string) => l && !/^```/.test(l))
+        // ========= PARSE TOPO / MEIO / FUNDO =========
+        type SectionName = "topo" | "meio" | "fundo"
 
-        if (lines.length === 0) {
+        const sections: { name: SectionName; bullets: string[] }[] = []
+        const raw = funnelText.replace(/\r/g, "")
+        const parts = raw.split(/(TOPO DO FUNIL:|MEIO DO FUNIL:|FUNDO DO FUNIL:)/i)
+
+        const labelToName = (label: string): SectionName | null => {
+          const up = label.toUpperCase()
+          if (up.includes("TOPO")) return "topo"
+          if (up.includes("MEIO")) return "meio"
+          if (up.includes("FUNDO")) return "fundo"
+          return null
+        }
+
+        for (let i = 1; i < parts.length; i += 2) {
+          const label = parts[i]
+          const body = parts[i + 1] ?? ""
+          const name = labelToName(label)
+          if (!name) continue
+
+          const bullets = body
+            .split("\n")
+            .map((l) => l.replace(/^[-•\s]+/, "").trim())
+            .filter(Boolean)
+
+          if (bullets.length) {
+            sections.push({ name, bullets })
+          }
+        }
+
+        // fallback: tudo vira TOPO se não tiver seções
+        if (!sections.length) {
+          const bullets = raw
+            .split("\n")
+            .map((l) => l.replace(/^[-•\s]+/, "").trim())
+            .filter(Boolean)
+          if (!bullets.length) {
+            toast({
+              title: "Erro ao usar IA",
+              description: "Não foi possível interpretar a resposta da IA.",
+              variant: "destructive",
+            })
+            return
+          }
+          sections.push({ name: "topo", bullets })
+        }
+
+        // ========= MAPEAR BULLETS PARA TIPOS DE PÁGINA =========
+        type BulletEntry = {
+          section: SectionName
+          bullet: string
+          pageType: string
+          nodeId: string
+        }
+
+        const entries: BulletEntry[] = []
+        const now = Date.now()
+
+        const topoPages = pageItems.filter((p: any) =>
+          ["landing", "webinar", "blog", "content-creation", "social-media"].includes(
+            p.pageType,
+          ),
+        )
+        const meioPages = pageItems.filter((p: any) =>
+          ["webinar", "email-marketing", "marketing-analysis", "comparison"].includes(
+            p.pageType,
+          ),
+        )
+        const fundoPages = pageItems.filter((p: any) =>
+          ["sales", "checkout", "thank-you", "members"].includes(p.pageType),
+        )
+
+        const randomFrom = (arr: any[]) =>
+          arr[Math.floor(Math.random() * arr.length)]
+
+        const pickPageType = (sec: SectionName) => {
+          if (sec === "topo") return randomFrom(topoPages).pageType
+          if (sec === "meio") return randomFrom(meioPages).pageType
+          return randomFrom(fundoPages).pageType
+        }
+
+        sections.forEach((section, sIndex) => {
+          section.bullets.forEach((bullet, idx) => {
+            entries.push({
+              section: section.name,
+              bullet,
+              pageType: pickPageType(section.name),
+              nodeId: `ia-${section.name}-${sIndex}-${idx}-${now}`,
+            })
+          })
+        })
+
+        if (!entries.length) {
           toast({
             title: "Erro ao usar IA",
-            description: "Não foi possível interpretar a resposta da IA.",
+            description: "Não foi possível gerar nós para o funil.",
             variant: "destructive",
           })
           return
         }
 
-        // 2) Cria nodes básicos (1 raiz + 1 por linha), em coluna
-        const baseX = 0
-        const baseY = 0
-        const verticalGap = 120
-
-        const rootId = `ia-root-${Date.now()}`
-        const newNodes: Node[] = [
-          {
-            id: rootId,
-            type: "campaignNode",
-            position: { x: baseX, y: baseY },
-            data: {
-              label: "Funil gerado pela IA",
-              description: "Estrutura inicial baseada na sua descrição.",
-            },
-          },
-        ]
-
+        // ========= LAYOUT HORIZONTAL LIMPO =========
+        const newNodes: Node[] = []
         const newEdges: Edge[] = []
 
-        lines.forEach((line, index) => {
-          const nodeId = `ia-node-${index}-${Date.now()}`
-          const y = baseY + (index + 1) * verticalGap
-
-          let nodeType: Node["type"] = "pageNode"
-          if (/topo/i.test(line)) nodeType = "marketingCampaignNode"
-          else if (/meio/i.test(line)) nodeType = "contentCreationNode"
-          else if (/fundo/i.test(line)) nodeType = "conversionNode"
-
-          newNodes.push({
-            id: nodeId,
-            type: nodeType,
-            position: { x: baseX, y },
-            data: {
-              label: line.slice(0, 60),
-              description: line,
-            },
-          })
-
-          newEdges.push({
-            id: `ia-edge-${index}-${Date.now()}`,
-            source: index === 0 ? rootId : newNodes[newNodes.length - 2].id,
-            target: nodeId,
-            type: "smooth",
-          })
+        // nó raiz
+        const rootId = `ia-root-${now}`
+        newNodes.push({
+          id: rootId,
+          type: "campaignNode",
+          position: { x: -300, y: -40 },
+          data: {
+            label: "Funil gerado com IA",
+            description: "Estrutura inicial baseada na sua descrição.",
+          },
         })
 
+        type SectionMap = Record<SectionName, BulletEntry[]>
+        const bySection: SectionMap = { topo: [], meio: [], fundo: [] }
+        entries.forEach((e) => bySection[e.section].push(e))
+
+        // Y fixo por estágio (tudo horizontal)
+        const stageY: Record<SectionName, number> = {
+          topo: -220,
+          meio: 0,
+          fundo: 220,
+        }
+
+        const stageStartX = 0
+        const xGap = 260
+
+        const stageOrder: SectionName[] = ["topo", "meio", "fundo"]
+
+        const firstNodeIdsByStage: Partial<Record<SectionName, string>> = {}
+        const lastNodeIdsByStage: Partial<Record<SectionName, string>> = {}
+
+        stageOrder.forEach((stage) => {
+          const group = bySection[stage]
+          if (!group.length) return
+
+          group.forEach((entry, idx) => {
+            const x = stageStartX + idx * xGap
+            const y = stageY[stage]
+
+            newNodes.push({
+              id: entry.nodeId,
+              type: "pageNode",
+              position: { x, y },
+              data: {
+                label: entry.bullet.slice(0, 60),
+                description: entry.bullet,
+                pageType: entry.pageType,
+              },
+            })
+
+            // corrente dentro do próprio estágio
+            if (idx > 0) {
+              const prev = group[idx - 1].nodeId
+              newEdges.push({
+                id: `edge-${prev}-${entry.nodeId}`,
+                source: prev,
+                target: entry.nodeId,
+                type: "smooth",
+              })
+            }
+          })
+
+          firstNodeIdsByStage[stage] = group[0].nodeId
+          lastNodeIdsByStage[stage] = group[group.length - 1].nodeId
+        })
+
+        // ROOT → primeira página do topo
+        if (firstNodeIdsByStage.topo) {
+          newEdges.push({
+            id: `edge-root-topo-${now}`,
+            source: rootId,
+            target: firstNodeIdsByStage.topo,
+            type: "smooth",
+          })
+        }
+
+        // última do TOPO → primeira do MEIO
+        if (lastNodeIdsByStage.topo && firstNodeIdsByStage.meio) {
+          newEdges.push({
+            id: `edge-topo-meio-${now}`,
+            source: lastNodeIdsByStage.topo,
+            target: firstNodeIdsByStage.meio,
+            type: "smooth",
+          })
+        }
+
+        // última do MEIO → primeira do FUNDO
+        if (lastNodeIdsByStage.meio && firstNodeIdsByStage.fundo) {
+          newEdges.push({
+            id: `edge-meio-fundo-${now}`,
+            source: lastNodeIdsByStage.meio,
+            target: firstNodeIdsByStage.fundo,
+            type: "smooth",
+          })
+        }
+
+        // ========= ÍCONES EM BLOCOS, SEM BAGUNÇA =========
+        const acquisitionIcons = marketingIcons.filter(
+          (i) => i.category === "acquisition",
+        )
+        const commIcons = marketingIcons.filter(
+          (i) => i.category === "communication",
+        )
+        const salesIcons = marketingIcons.filter((i) => i.category === "sales")
+
+        const iconBlockConfigs: {
+          icons: typeof marketingIcons
+          stage: SectionName
+          offsetY: number
+        }[] = [
+          { icons: acquisitionIcons, stage: "topo", offsetY: -110 },
+          { icons: commIcons, stage: "meio", offsetY: 110 },
+          { icons: salesIcons, stage: "fundo", offsetY: 110 },
+        ]
+
+        iconBlockConfigs.forEach((block, blockIndex) => {
+          const stageFirstId = firstNodeIdsByStage[block.stage]
+          if (!stageFirstId || !block.icons.length) return
+
+          const stageGroup = bySection[block.stage]
+          const baseX =
+            stageGroup.length > 1
+              ? stageStartX - 200
+              : stageStartX - 80
+
+          const baseY = stageY[block.stage] + block.offsetY
+          const count = Math.min(4, block.icons.length)
+          const gapY = 70
+          const startY = baseY - gapY * ((count - 1) / 2)
+
+          for (let i = 0; i < count; i++) {
+            const iconDef = block.icons[i]
+            const nodeId = `ia-icon-${blockIndex}-${i}-${now}`
+
+            newNodes.push({
+              id: nodeId,
+              type: "marketingIconNode",
+              position: {
+                x: baseX,
+                y: startY + i * gapY,
+              },
+              data: {
+                label: iconDef.label,
+                color: iconDef.color,
+                iconId: iconDef.id,
+              },
+            })
+
+            newEdges.push({
+              id: `edge-icon-${blockIndex}-${i}-${now}`,
+              source: nodeId,
+              target: stageFirstId,
+              type: "smooth",
+            })
+          }
+        })
+
+        // aplicar no ReactFlow
         setNodes(newNodes)
         setEdges(enhanceEdges(newEdges))
         setFlowName("Funil gerado com IA")
@@ -1539,8 +1739,12 @@ function FlowBuilder({
         toast({
           title: "Funil gerado com IA",
           description:
-            "A estrutura inicial do seu funil foi criada. Ajuste os nós, textos e conexões como quiser.",
+            "Estrutura organizada em 3 linhas horizontais (TOPO, MEIO e FUNDO) e conexões limpas.",
         })
+
+        setTimeout(() => {
+          reactFlowInstance?.fitView?.({ padding: 0.2 })
+        }, 80)
       } catch (err: any) {
         console.error("Erro ao gerar funil com IA:", err)
         toast({
@@ -1554,7 +1758,7 @@ function FlowBuilder({
         setIsGeneratingAI(false)
       }
     },
-    [aiPrompt, setNodes, setEdges, setFlowName, toast],
+    [aiPrompt, setNodes, setEdges, setFlowName, toast, reactFlowInstance],
   )
 
   const saveFlow = useCallback(() => {

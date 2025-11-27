@@ -343,3 +343,44 @@ body {
     0 0 0 1px rgba(255, 255, 255, 0.06) inset;
   border-color: rgba(255, 255, 255, 0.28);
 }
+
+/* 🔹 Caixa com borda neon azul estilo Meta */
+.neon-meta-border {
+  position: relative;
+  border-radius: 18px;
+  padding: 1px; /* espessura da borda */
+  background: linear-gradient(120deg, #1d4ed8, #38bdf8, #1d4ed8);
+  background-size: 200% 200%;
+  animation: meta-glow 6s ease-in-out infinite;
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.35);
+}
+
+/* Fundo interno da caixa (onde ficam os conteúdos) */
+.neon-meta-inner {
+  border-radius: 16px;
+  background: hsl(var(--muted)); /* cinza suave do shadcn */
+  backdrop-filter: blur(4px);
+}
+
+/* Força todos os elementos internos a usarem o fundo do card cinza */
+.neon-meta-inner .table-surface {
+  background: hsl(var(--muted));
+}
+
+
+/* Animação oscilando do azul claro pro azul escuro */
+@keyframes meta-glow {
+  0% {
+    background-position: 0% 50%;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+  }
+  50% {
+    background-position: 100% 50%;
+    box-shadow: 0 0 22px rgba(56, 189, 248, 0.45);
+  }
+  100% {
+    background-position: 0% 50%;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+  }
+}
+

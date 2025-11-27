@@ -16,26 +16,130 @@ type Offer = {
   link: string
 }
 
-const ALL_COUNTRIES = [
-  "Afeganistão","África do Sul","Albânia","Alemanha","Andorra","Angola","Antígua e Barbuda","Arábia Saudita","Argélia","Argentina","Armênia","Austrália","Áustria","Azerbaijão","Bahamas","Bangladesh","Barbados","Bahrein","Bélgica","Belize","Benin","Bielorrússia","Bolívia","Bósnia e Herzegovina","Botsuana","Brasil","Brunei","Bulgária","Burkina Faso","Burundi","Butão","Cabo Verde","Camarões","Camboja","Canadá","Catar","Cazaquistão","Chade","Chile","China","Chipre","Colômbia","Comores","Congo","Coreia do Norte","Coreia do Sul","Costa do Marfim","Costa Rica","Croácia","Cuba","Dinamarca","Djibuti","Dominica","Egito","El Salvador","Emirados Árabes Unidos","Equador","Eritreia","Eslováquia","Eslovênia","Espanha","Estados Unidos","Estônia","Eswatini","Etiópia","Fiji","Filipinas","Finlândia","França","Gabão","Gâmbia","Gana","Geórgia","Granada","Grécia","Guatemala","Guiana","Guiné","Guiné-Bissau","Guiné Equatorial","Haiti","Honduras","Hungria","Iêmen","Ilhas Marshall","Ilhas Salomão","Índia","Indonésia","Irã","Iraque","Irlanda","Islândia","Israel","Itália","Jamaica","Japão","Jordânia","Kiribati","Kosovo","Kuwait","Laos","Lesoto","Letônia","Líbano","Libéria","Líbia","Liechtenstein","Lituânia","Luxemburgo","Macedônia do Norte","Madagascar","Malásia","Malawi","Maldivas","Mali","Malta","Marrocos","Maurícia","Mauritânia","México","Mianmar","Micronésia","Moçambique","Moldávia","Mônaco","Mongólia","Montenegro","Namíbia","Nauru","Nepal","Nicarágua","Níger","Nigéria","Noruega","Nova Zelândia","Omã","Países Baixos","Palau","Panamá","Papua-Nova Guiné","Paquistão","Paraguai","Peru","Polônia","Portugal","Quênia","Quirguistão","Reino Unido","República Centro-Africana","República Democrática do Congo","República Dominicana","República Tcheca","Romênia","Ruanda","Rússia","Samoa","San Marino","Santa Lúcia","São Cristóvão e Névis","São Tomé e Príncipe","São Vicente e Granadinas","Senegal","Serra Leoa","Sérvia","Seychelles","Singapura","Síria","Somália","Sri Lanka","Sudão","Sudão do Sul","Suécia","Suíça","Suriname","Tailândia","Taiwan","Tajiquistão","Tanzânia","Timor-Leste","Togo","Tonga","Trinidad e Tobago","Tunísia","Turcomenistão","Turquia","Tuvalu","Ucrânia","Uganda","Uruguai","Uzbequistão","Vanuatu","Vaticano","Venezuela","Vietnã","Zâmbia","Zimbábue",
+// =======================
+// 🔥 BLOQUEIO DE PALAVRAS
+// =======================
+const BLOCKED_KEYWORDS = [
+  "dorama",
+  "doramas",
+  "kdrama",
+  "k-drama",
+  "drama coreano",
+  "novela coreana",
+  "kpop",
+  "k-pop",
+  "anime",
+  "mangá",
+  "manga",
+  "kdramas",
+  "kdramas coreanos",
 ]
 
-const COUNTRY_TO_ISO2: Record<string, string> = {
-  Brasil: "BR",
-  "Estados Unidos": "US",
-  Portugal: "PT",
-  México: "MX",
-  Argentina: "AR",
-  Chile: "CL",
-  Colômbia: "CO",
-  Peru: "PE",
-  Espanha: "ES",
-  França: "FR",
-  Alemanha: "DE",
-  "Reino Unido": "GB",
-  Itália: "IT",
-  Canadá: "CA",
-  Austrália: "AU",
+function normalizeText(text: string): string {
+  if (!text) return ""
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+}
+
+function isBlockedOffer(offer: Offer): boolean {
+  const base = normalizeText(
+    [offer.title, offer.description, offer.niche, offer.link]
+      .filter(Boolean)
+      .join(" ")
+  )
+
+  if (!base) return false
+
+  return BLOCKED_KEYWORDS.some((keyword) =>
+    base.includes(normalizeText(keyword))
+  )
+}
+
+// =======================
+// 🎯 MAPEAMENTO DE NICHOS
+// =======================
+function resolveNicheFromTerm(term: string): string {
+  const t = normalizeText(term)
+
+  // SAÚDE / EMAGRECIMENTO
+  if (
+    t.includes("emagrec") ||
+    t.includes("dieta") ||
+    t.includes("peso") ||
+    t.includes("saude") ||
+    t.includes("saúde") ||
+    t.includes("fitness") ||
+    t.includes("treino")
+  ) {
+    return "Saúde / Emagrecimento"
+  }
+
+  // DROPSHIPPING / ECOMMERCE / PLR
+  if (
+    t.includes("dropshipping") ||
+    t.includes("drop") ||
+    t.includes("ecommerce") ||
+    t.includes("e commerce") ||
+    t.includes("loja virtual") ||
+    t.includes("loja online") ||
+    t.includes("shopee") ||
+    t.includes("plr") ||
+    t.includes("infoproduto") ||
+    t.includes("infoprodutos")
+  ) {
+    return "Dropshipping / Ecommerce"
+  }
+
+  // RENDA EXTRA / BET / IGAME
+  if (
+    t.includes("renda extra") ||
+    t.includes("ganhar dinheiro") ||
+    t.includes("ganhe dinheiro") ||
+    t.includes("aposta") ||
+    t.includes("bet") ||
+    t.includes("cassino") ||
+    t.includes("trader esportivo") ||
+    t.includes("igame")
+  ) {
+    return "Renda Extra / Bet / Igame"
+  }
+
+  // MARKETING / VENDAS / TRÁFEGO
+  if (
+    t.includes("marketing digital") ||
+    t.includes("trafego pago") ||
+    t.includes("tráfego pago") ||
+    t.includes("gestor de trafego") ||
+    t.includes("copywriting") ||
+    t.includes("copy") ||
+    t.includes("funil") ||
+    t.includes("lancamento") ||
+    t.includes("lançamento") ||
+    t.includes("perpetuo") ||
+    t.includes("perpétuo") ||
+    t.includes("vendas") ||
+    t.includes("social media")
+  ) {
+    return "Marketing / Vendas"
+  }
+
+  // DESENVOLVIMENTO PESSOAL
+  if (
+    t.includes("desenvolvimento pessoal") ||
+    t.includes("produtividade") ||
+    t.includes("mentalidade") ||
+    t.includes("mindset") ||
+    t.includes("habito") ||
+    t.includes("hábito") ||
+    t.includes("inteligencia emocional") ||
+    t.includes("inteligência emocional")
+  ) {
+    return "Desenvolvimento Pessoal"
+  }
+
+  return "Outros"
 }
 
 export default function HomePage() {
@@ -44,26 +148,17 @@ export default function HomePage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [selectedCountry, setSelectedCountry] = useState<string>("all")
-  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false)
-  const [countrySearchTerm, setCountrySearchTerm] = useState("")
-
+  // Estados de nicho mantidos
   const [selectedNiche, setSelectedNiche] = useState<string>("all")
   const [isNicheDropdownOpen, setIsNicheDropdownOpen] = useState(false)
   const [nicheSearchTerm, setNicheSearchTerm] = useState("")
 
-  const countryDropdownRef = useRef<HTMLDivElement>(null)
   const nicheDropdownRef = useRef<HTMLDivElement>(null)
 
   const [after, setAfter] = useState<string | null>(null)
 
   const getFireFillPercentage = (adCount: number) =>
     Math.min((adCount / 50) * 100, 100)
-
-  // países filtrados
-  const filteredCountries = ["Todos", ...ALL_COUNTRIES].filter((country) =>
-    country.toLowerCase().includes(countrySearchTerm.toLowerCase())
-  )
 
   // lista de nichos únicos (a partir das ofertas carregadas)
   const allNiches = Array.from(
@@ -93,81 +188,59 @@ export default function HomePage() {
       setError(null)
 
       const params = new URLSearchParams()
-      params.set("q", "oferta")
-      params.set("ad_type", "ALL")
-      params.set("limit", "25")
+      params.set("limit", "80")
       if (cursor) params.set("after", cursor)
 
-      if (selectedCountry !== "all") {
-        const iso2 = COUNTRY_TO_ISO2[selectedCountry]
-        if (iso2) params.set("countries", JSON.stringify([iso2]))
-      }
+      // Removido o bloco que adicionava o parâmetro "countries"
 
       const response = await fetch(`/api/ads?${params.toString()}`)
       if (!response.ok)
         throw new Error(`Erro na API: ${response.status} ${response.statusText}`)
 
       const json = await response.json()
-      const rows = Array.isArray(json) ? json : json?.data
-      const nextAfter: string | null = json?.paging?.cursors?.after ?? null
+      const rows = Array.isArray(json) ? json : json?.data ?? []
+      const nextAfter: string | null = null
+
       if (!Array.isArray(rows)) throw new Error("Formato de dados inválido")
 
+      console.log("DEBUG /api/ads -> exemplo de item:", rows[0])
+
       // 1) mapeia ofertas básicas
-      const mappedBase: Offer[] = rows.map((ad: any) => ({
-        id: ad.id?.toString() ?? `${Date.now()}-${Math.random()}`,
-        title: ad.page_name
-          ? `Anúncio de ${ad.page_name}`
-          : `Anúncio ${ad.id}`,
-        description: ad.ad_creative_body ?? "",
-        imageUrl: `/api/ad-image?id=${ad.id}`,
-        category: "Meta",
-        adCount: 1,
-        level: "low",
-        niche: "",
-        country: selectedCountry === "all" ? "Todos" : selectedCountry,
-        link: ad.ad_snapshot_url_public,
-      }))
+      const mappedBase: Offer[] = rows.map((ad: any) => {
+        const rawNiche =
+          typeof ad.search_term === "string" ? ad.search_term : ad.__source_q || ""
+        const resolvedNiche = rawNiche ? resolveNicheFromTerm(rawNiche) : "Outros"
 
-      // 2) chama IA UMA VEZ só em lote pra descobrir nichos
-      let mappedWithNiche: Offer[] = mappedBase
+        const adCountFromBackend =
+          typeof ad.group_size === "number" && ad.group_size > 0
+            ? ad.group_size
+            : 1
 
-      try {
-        const res = await fetch("/api/detect-niche", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ads: mappedBase.map((o) => ({
-              id: o.id,
-              title: o.title,
-              description: o.description,
-            })),
-          }),
-        })
-
-        if (res.ok) {
-          const data = await res.json()
-          const result: any[] = Array.isArray(data.result) ? data.result : []
-
-          const nicheMap = new Map<string, string>()
-          for (const item of result) {
-            if (item?.id && typeof item.niche === "string") {
-              nicheMap.set(String(item.id), item.niche.trim())
-            }
-          }
-
-          mappedWithNiche = mappedBase.map((o) => ({
-            ...o,
-            niche: nicheMap.get(o.id) || "",
-          }))
+        return {
+          id: ad.id?.toString() ?? `${Date.now()}-${Math.random()}`,
+          title: ad.page_name ? `Anúncio de ${ad.page_name}` : `Anúncio ${ad.id}`,
+          description: "",
+          imageUrl: `/api/ad-image?id=${ad.id}`,
+          category: "Meta",
+          adCount: adCountFromBackend,
+          level: "low",
+          niche: resolvedNiche,
+          country: "Todos", // Hardcoded pois o filtro foi removido
+          link: ad.ad_snapshot_url_public,
         }
-      } catch (e) {
-        console.error("Falha ao detectar nichos em lote:", e)
-        // se der erro, segue com niche vazio mesmo
-      }
+      })
 
-      // 3) salva as ofertas (respeitando paginação)
+      // 2) aplica filtro de blacklist
+      const cleanedOffers = mappedBase.filter((offer) => !isBlockedOffer(offer))
+
+      // 3) ordena por mais escalado
+      const sortedOffers = cleanedOffers.sort(
+        (a, b) => b.adCount - a.adCount
+      )
+
+      // 4) salva as ofertas
       setOffers((prev) =>
-        mode === "more" ? [...prev, ...mappedWithNiche] : mappedWithNiche
+        mode === "more" ? [...prev, ...sortedOffers] : sortedOffers
       )
       setAfter(nextAfter)
     } catch (err: any) {
@@ -180,28 +253,16 @@ export default function HomePage() {
     }
   }
 
-  // quando trocar o país, resetar nicho e recarregar
-  useEffect(() => {
-    setSelectedNiche("all")
-  }, [selectedCountry])
-
-  // carga inicial / troca de país
+  // Carga inicial
   useEffect(() => {
     fetchOffers(undefined, "initial")
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCountry])
+  }, [])
 
   // fecha dropdowns ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node
-
-      if (
-        countryDropdownRef.current &&
-        !countryDropdownRef.current.contains(target)
-      ) {
-        setIsCountryDropdownOpen(false)
-      }
 
       if (
         nicheDropdownRef.current &&
@@ -259,9 +320,6 @@ export default function HomePage() {
           <p className="text-2xl font-semibold text-foreground">
             Nenhuma oferta encontrada
           </p>
-          <p className="mt-2 text-muted-foreground">
-            Tente selecionar outro país
-          </p>
         </div>
       </div>
     )
@@ -279,86 +337,8 @@ export default function HomePage() {
           </h1>
 
           {/* Filtros */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            {/* País */}
-            <div className="flex items-center gap-3">
-              <label
-                htmlFor="country-filter"
-                className="text-base sm:text-lg font-medium text-muted-foreground"
-              >
-                País:
-              </label>
-              <div ref={countryDropdownRef} className="relative">
-                <button
-                  onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
-                  className="flex min-w-[180px] sm:min-w-[220px] items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-2.5 text-sm sm:text-base font-medium shadow-sm transition-colors hover:bg-card/80"
-                >
-                  <span>
-                    {selectedCountry === "all" ? "Todos" : selectedCountry}
-                  </span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    className={`h-5 w-5 transition-transform ${
-                      isCountryDropdownOpen ? "rotate-180" : ""
-                    }`}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-
-                {isCountryDropdownOpen && (
-                  <div className="absolute left-0 z-50 mt-2 w-[280px] sm:w-[320px] rounded-lg border border-border bg-popover shadow-lg">
-                    <div className="border-b border-border p-3">
-                      <input
-                        type="text"
-                        placeholder="Buscar país..."
-                        value={countrySearchTerm}
-                        onChange={(e) => setCountrySearchTerm(e.target.value)}
-                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none"
-                        autoFocus
-                      />
-                    </div>
-                    <div className="max-h-[380px] overflow-y-auto">
-                      {filteredCountries.length > 0 ? (
-                        filteredCountries.map((country) => (
-                          <button
-                            key={country}
-                            onClick={() => {
-                              setSelectedCountry(
-                                country === "Todos" ? "all" : country
-                              )
-                              setIsCountryDropdownOpen(false)
-                              setCountrySearchTerm("")
-                            }}
-                            className={`w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-muted ${
-                              (selectedCountry === "all" &&
-                                country === "Todos") ||
-                              selectedCountry === country
-                                ? "bg-muted font-semibold"
-                                : "text-foreground"
-                            }`}
-                          >
-                            {country}
-                          </button>
-                        ))
-                      ) : (
-                        <div className="px-6 py-4 text-center text-sm text-muted-foreground">
-                          Nenhum país encontrado
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            {/* O Filtro de País foi removido daqui */}
 
             {/* Nicho */}
             <div className="flex items-center gap-3">
@@ -526,9 +506,9 @@ export default function HomePage() {
                       viewBox="0 0 24 24"
                       fill="currentColor"
                       className={`h-7 w-7 sm:h-8 sm:w-8 transition-all ${
-                        offer.adCount >= 15
+                        offer.adCount >= 50
                           ? "text-red-500"
-                          : offer.adCount >= 10
+                          : offer.adCount >= 20
                           ? "text-orange-500"
                           : "text-yellow-500"
                       }`}

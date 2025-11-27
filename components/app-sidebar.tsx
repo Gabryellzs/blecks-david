@@ -375,17 +375,23 @@ export function AppSidebar({ children }: AppSidebarProps) {
                       variant="ghost"
                       onClick={() => handleNavigation(item.href)}
                       className={`
-                        w-full
-                        min-h-[32px] max-h-[44px]
-                        text-xs flex items-center py-0
-                        ${isExpanded ? "justify-start pl-4 pr-3" : "justify-start pl-4 pr-0"}
-                        ${
-                          active
-                            ? "bg-[rgba(0,0,0,0.50)] text-white"
-                            : "hover:bg-[rgba(0,0,0,0.50)] text-white"
-                        }
-                        rounded-xl
-                      `}
+  w-full
+  min-h-[32px] max-h-[44px]
+  text-xs flex items-center py-0
+  ${isExpanded ? "justify-start pl-4 pr-3" : "justify-start pl-4 pr-0"}
+  rounded-xl
+  transition-colors
+  ${
+    theme === "dark"
+      ? active
+        ? "bg-[rgba(0,0,0,0.50)] text-white"
+        : "text-white hover:bg-[rgba(0,0,0,0.40)]"
+      : active
+        ? "bg-[#d9d9d9] text-[#1a1a1a]"
+        : "bg-[#f2f2f2] text-[#1a1a1a] hover:bg-[#e5e5e5]"
+  }
+`}
+
                     >
                       {/* Ícone PNG */}
                       {item.iconPath ? (

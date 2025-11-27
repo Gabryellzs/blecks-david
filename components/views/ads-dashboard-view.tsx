@@ -3570,7 +3570,7 @@ useEffect(() => {
 {activeSubTab === "campanhas" &&
   (activeTab === "facebook" && selectedAccountId ? (
     <Card className="border-0 shadow-none bg-transparent">
-      <CardContent className="p-0">
+      <CardContent>
         {/* ===== Toolbar Campanhas ===== */}
         <div className="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
@@ -3638,138 +3638,160 @@ useEffect(() => {
         </div>
         {/* ===== /Toolbar ===== */}
 
-        {loadingCampaigns ? (
-          <div className="space-y-2 mt-3">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ) : campaigns.length === 0 ? (
-          <div className="mt-3 neon-meta-border">
-            <div className="neon-meta-inner px-3 py-2 md:px-4 md:py-3">
+        {/* 🔹 Caixa neon envolvendo tudo */}
+        <div className="mt-3 neon-meta-border">
+          <div className="neon-meta-inner px-3 py-2 md:px-4 md:py-3">
+            {loadingCampaigns ? (
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : campaigns.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Nenhuma campanha encontrada para esta conta.
               </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* ===== CARD NEON 1 – RESUMO DOS TOTAIS ===== */}
-            <div className="mt-3 neon-meta-border">
-              <div className="neon-meta-inner px-3 py-2 md:px-4 md:py-3">
-                <div className="flex flex-col md:flex-row md:flex-wrap gap-4 text-xs md:text-sm">
-                  <div className="flex flex-col min-w-[180px]">
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Resumo
-                    </span>
-                    <span className="font-semibold">
-                      Resultados de {filteredCampaigns.length} campanhas
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col min-w-[140px]">
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Total usado
-                    </span>
-                    <span className="font-semibold">
-                      {campaignsSummary.totalSpend > 0
-                        ? moneyBRL(campaignsSummary.totalSpend)
-                        : "—"}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col min-w-[140px]">
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Total resultados
-                    </span>
-                    <span className="font-semibold">
-                      {campaignsSummary.totalResults ?? 0}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col min-w-[120px]">
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Total ROAS
-                    </span>
-                    <span className="font-semibold">
-                      {campaignsSummary.avgRoas != null
-                        ? campaignsSummary.avgRoas.toFixed(2)
-                        : "—"}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col min-w-[140px]">
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Total CPR
-                    </span>
-                    <span className="font-semibold">
-                      {campaignsSummary.avgCostPerResult != null
-                        ? moneyBRL(campaignsSummary.avgCostPerResult)
-                        : "—"}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col min-w-[160px]">
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Total custo por 1.000
-                    </span>
-                    <span className="font-semibold">
-                      {campaignsSummary.avgCpm != null
-                        ? moneyBRL(campaignsSummary.avgCpm)
-                        : "—"}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col min-w-[140px]">
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Total de cliques
-                    </span>
-                    <span className="font-semibold">
-                      {campaignsSummary.totalClicks ?? 0}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col min-w-[140px]">
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Total CPC
-                    </span>
-                    <span className="font-semibold">
-                      {campaignsSummary.avgCpc != null
-                        ? moneyBRL(campaignsSummary.avgCpc)
-                        : "—"}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col min-w-[120px]">
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Total CTR
-                    </span>
-                    <span className="font-semibold">
-                      {campaignsSummary.avgCtr != null
-                        ? `${Number(campaignsSummary.avgCtr).toFixed(2)}%`
-                        : "—"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ===== CARD NEON 2 – TABELA (começa em STATUS) ===== */}
-            <div className="mt-3 neon-meta-border">
-              <div className="neon-meta-inner px-3 py-0">
+            ) : (
+              <>
                 <div className="w-full overflow-x-auto">
-                  <Table className="min-w-[1100px] border-collapse">
+                  <Table className="min-w-[1100px] border-collapse table-surface">
                     <TableHeader className="border-b border-white/10">
-                      <TableRow>
-                        <TableHead className="sticky left-3 z-20 bg-[hsl(var(--muted))] w-[100px] border-r border-white/10 border-b border-white/20">
+                      {/* 🔹 Linha de totais/médias */}
+                      <TableRow className="table-row-border">
+                        {/* Status + Campanha + Orçamento */}
+                        <TableHead
+                          className="sticky left-0 z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] border-r border-white/10"
+                          colSpan={3}
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              Resultados de {filteredCampaigns.length} campanhas
+                            </span>
+                          </div>
+                        </TableHead>
+
+                        {/* Valor usado */}
+                        <TableHead className="border-r border-white/10">
+                          <span className="text-[11px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                            Total usado
+                          </span>
+
+                          <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                            {campaignsSummary.totalSpend > 0
+                              ? moneyBRL(campaignsSummary.totalSpend)
+                              : "—"}
+                          </span>
+                        </TableHead>
+
+                        {/* Resultados */}
+                        <TableHead className="border-r border-white/10">
+                          <span className="text-[11px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                            Total resultados
+                          </span>
+                          <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                            {campaignsSummary.totalResults ?? 0}
+                          </span>
+                        </TableHead>
+
+                        {/* ROAS */}
+                        <TableHead className="border-r border-white/10">
+                          <div className="flex flex-col">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Total ROAS
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {campaignsSummary.avgRoas != null
+                                ? campaignsSummary.avgRoas.toFixed(2)
+                                : "—"}
+                            </span>
+                          </div>
+                        </TableHead>
+
+                        {/* Custo por resultado (CPR) */}
+                        <TableHead className="border-r border-white/10">
+                          <div className="flex flex-col">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Total CPR
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {campaignsSummary.avgCostPerResult != null
+                                ? moneyBRL(campaignsSummary.avgCostPerResult)
+                                : "—"}
+                            </span>
+                          </div>
+                        </TableHead>
+
+                        {/* CPM */}
+                        <TableHead className="border-r border-white/10">
+                          <div className="flex flex-col">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Total CPM
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {campaignsSummary.avgCpm != null
+                                ? moneyBRL(campaignsSummary.avgCpm)
+                                : "—"}
+                            </span>
+                          </div>
+                        </TableHead>
+
+                        {/* Cliques no link */}
+                        <TableHead className="border-r border-white/10">
+                          <div className="flex flex-col">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Total cliques
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {campaignsSummary.totalClicks ?? 0}
+                            </span>
+                          </div>
+                        </TableHead>
+
+                        {/* CPC */}
+                        <TableHead className="border-r border-white/10">
+                          <div className="flex flex-col">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Total CPC
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {campaignsSummary.avgCpc != null
+                                ? moneyBRL(campaignsSummary.avgCpc)
+                                : "—"}
+                            </span>
+                          </div>
+                        </TableHead>
+
+                        {/* CTR */}
+                        <TableHead>
+                          <div className="flex flex-col">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Total CTR
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {campaignsSummary.avgCtr != null
+                                ? `${Number(
+                                    campaignsSummary.avgCtr,
+                                  ).toFixed(2)}%`
+                                : "—"}
+                            </span>
+                          </div>
+                        </TableHead>
+                      </TableRow>
+
+                      {/* ⬇️ Cabeçalho normal das colunas */}
+                      <TableRow className="table-row-border">
+                        <TableHead className="sticky left-0 z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[100px] border-r border-white/10 border-b border-white/20">
                           Status
                         </TableHead>
-                        <TableHead className="sticky left-3 z-20 bg-[hsl(var(--muted))] min-w-[260px] border-r border-white/10 border-b border-white/20">
+
+                        <TableHead className="sticky left-0 z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] min-w-[260px] border-r border-white/10 border-b border-white/20">
                           Campanha
                         </TableHead>
-                        <TableHead className="sticky left-[calc(380px+12px)] z-20 bg-[hsl(var(--muted))] w-[160px] border-r border-white/10 border-b border-white/20">
+
+                        <TableHead className="sticky left-[380px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[160px] border-r border-white/10 border-b border-white/20">
                           Orçamento
                         </TableHead>
+
                         <TableHead className="border-r border-white/10 border-b border-white/20">
                           Valor usado
                         </TableHead>
@@ -3804,14 +3826,16 @@ useEffect(() => {
                           className="border-b border-white/10 last:border-b-0 [&>td]:py-3"
                         >
                           {/* Coluna 1 - toggle ativar/desativar */}
-                          <TableCell className="sticky left-0 z-10 bg-[hsl(var(--muted))] text-center w-[100px] border-r border-white/10 p-0">
+                          <TableCell className="sticky left-0 z-10 table-surface text-center w-[100px] border-r border-white/10 p-0">
                             {(() => {
                               const isActive = c.status === "ACTIVE"
-
                               return (
                                 <button
                                   onClick={() =>
-                                    handleCampaignStatusChange(c.id, c.status)
+                                    handleCampaignStatusChange(
+                                      c.id,
+                                      c.status,
+                                    )
                                   }
                                   className={cn(
                                     "relative inline-flex h-6 w-14 items-center rounded-full border transition-all duration-300",
@@ -3824,13 +3848,17 @@ useEffect(() => {
                                   <span
                                     className={cn(
                                       "pointer-events-none absolute inset-[2px] rounded-full opacity-60 blur-[2px]",
-                                      isActive ? "bg-emerald-300/50" : "bg-zinc-500/40",
+                                      isActive
+                                        ? "bg-emerald-300/50"
+                                        : "bg-zinc-500/40",
                                     )}
                                   />
                                   <span
                                     className={cn(
                                       "relative inline-block h-5 w-5 transform rounded-full bg-gradient-to-br from-white to-zinc-100 shadow-[0_4px_8px_rgba(0,0,0,0.35)] transition-all duration-300",
-                                      isActive ? "translate-x-7" : "translate-x-1",
+                                      isActive
+                                        ? "translate-x-7"
+                                        : "translate-x-1",
                                     )}
                                   />
                                 </button>
@@ -3839,12 +3867,16 @@ useEffect(() => {
                           </TableCell>
 
                           {/* Coluna 2 - Campanha (nome + lápis) */}
-                          <TableCell className="sticky left-0 z-10 bg-[hsl(var(--muted))] font-medium min-w-[220px] border-r border-white/10 p-0 pl-3">
+                          <TableCell className="sticky left-0 z-10 bg-[hsl(var(--muted))] dark:bg-[#111317] text-center w-[100px] border-r border-white/10 p-3">
                             <div className="group flex items-center gap-2">
-                              <span className="truncate max-w-xs">{c.name}</span>
+                              <span className="truncate max-w-xs">
+                                {c.name}
+                              </span>
                               <button
                                 type="button"
-                                onClick={() => handleStartEditCampaignName(c)}
+                                onClick={() =>
+                                  handleStartEditCampaignName(c)
+                                }
                                 className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
                               >
                                 <Pencil className="h-3 w-3" />
@@ -3853,17 +3885,21 @@ useEffect(() => {
                           </TableCell>
 
                           {/* Coluna 3 - Orçamento */}
-                          <TableCell className="sticky left-0 z-10 bg-[hsl(var(--muted))] w-[140px] border-r border-white/10 p-0 pl-3">
+                          <TableCell className="sticky left-0 z-10 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[140px] border-r border-white/10 p-0 pl-3">
                             <div className="group flex flex-col">
                               <div className="flex items-center gap-2 text-sm">
                                 <span className="font-medium">
-                                  {c.budget != null ? moneyBRL(c.budget) : "—"}
+                                  {c.budget != null
+                                    ? moneyBRL(c.budget)
+                                    : "—"}
                                 </span>
 
                                 {c.budget != null && (
                                   <button
                                     type="button"
-                                    onClick={() => handleStartEditCampaignBudget(c)}
+                                    onClick={() =>
+                                      handleStartEditCampaignBudget(c)
+                                    }
                                     className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
                                   >
                                     <Pencil className="h-3 w-3" />
@@ -3884,7 +3920,9 @@ useEffect(() => {
 
                           <TableCell className="border-r border-white/10">
                             <div className="flex flex-col">
-                              <span className="font-medium">{c.results ?? 0}</span>
+                              <span className="font-medium">
+                                {c.results ?? 0}
+                              </span>
                               <span className="text-xs text-muted-foreground">
                                 {c.resultLabel || "Resultados"}
                               </span>
@@ -3902,7 +3940,9 @@ useEffect(() => {
                           </TableCell>
 
                           <TableCell className="border-r border-white/10">
-                            {c.cpm != null ? moneyBRL(c.cpm) : "—"}
+                            {c.cpm != null
+                              ? moneyBRL(c.cpm)
+                              : "—"}
                           </TableCell>
 
                           <TableCell className="border-r border-white/10">
@@ -3910,153 +3950,64 @@ useEffect(() => {
                           </TableCell>
 
                           <TableCell className="border-r border-white/10">
-                            {c.cpc != null ? moneyBRL(c.cpc) : "—"}
+                            {c.cpc != null
+                              ? moneyBRL(c.cpc)
+                              : "—"}
                           </TableCell>
 
                           {/* Última coluna → sem border-r para não duplicar */}
                           <TableCell>
-                            {c.ctr != null ? `${Number(c.ctr).toFixed(2)}%` : "—"}
+                            {c.ctr != null
+                              ? `${Number(c.ctr).toFixed(2)}%`
+                              : "—"}
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
-              </div>
-            </div>
 
-            {/* Dialog para editar nome da campanha */}
-            <Dialog
-              open={!!editingCampaign}
-              onOpenChange={(open) => {
-                if (!open) handleCancelEditCampaignName()
-              }}
-            >
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Editar nome da campanha</DialogTitle>
-                </DialogHeader>
-
-                <div className="space-y-4 pt-2">
-                  <p className="text-sm text-muted-foreground">
-                    Altere o nome da campanha para organizar melhor suas estratégias.
-                  </p>
-
-                  <Input
-                    autoFocus
-                    value={editingCampaignName}
-                    onChange={(e) => setEditingCampaignName(e.target.value)}
-                    placeholder="Nome da campanha"
-                  />
+                {/* Paginação Campanhas */}
+                <div className="flex items-center justify-between mt-3">
+                  <div className="text-xs text-muted-foreground">
+                    Exibindo {pagedCampaigns.length} de{" "}
+                    {filteredCampaigns.length} campanhas
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      className="h-8 px-3"
+                      disabled={campaignsPage === 1 || loadingCampaigns}
+                      onClick={() =>
+                        setCampaignsPage((p) => Math.max(1, p - 1))
+                      }
+                    >
+                      Anterior
+                    </Button>
+                    <div className="text-sm">
+                      Página{" "}
+                      <span className="font-semibold">
+                        {campaignsPage}
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="h-8 px-3"
+                      disabled={
+                        loadingCampaigns ||
+                        campaignsPage * campaignsPageSize >=
+                          filteredCampaigns.length
+                      }
+                      onClick={() => setCampaignsPage((p) => p + 1)}
+                    >
+                      Próxima
+                    </Button>
+                  </div>
                 </div>
-
-                <DialogFooter className="mt-4 flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={handleCancelEditCampaignName}
-                    disabled={isSavingCampaignName}
-                  >
-                    Cancelar
-                  </Button>
-
-                  <Button
-                    onClick={handleSaveCampaignName}
-                    disabled={
-                      isSavingCampaignName || !editingCampaignName.trim()
-                    }
-                  >
-                    {isSavingCampaignName ? "Publicando..." : "Publicar"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            {/* Popup de edição de orçamento da campanha */}
-            <Dialog
-              open={!!editingBudgetCampaign}
-              onOpenChange={(open) => {
-                if (!open) handleCancelEditCampaignBudget()
-              }}
-            >
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Editar orçamento diário</DialogTitle>
-                </DialogHeader>
-
-                <div className="space-y-4 pt-2">
-                  <p className="text-sm text-muted-foreground">
-                    Defina o orçamento diário da campanha em reais.
-                  </p>
-                  <Input
-                    autoFocus
-                    value={editingBudgetValue}
-                    onChange={(e) => setEditingBudgetValue(e.target.value)}
-                    placeholder="Ex: 100,00"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Esse valor será enviado como orçamento diário (daily_budget) para o Facebook Ads.
-                  </p>
-                </div>
-
-                <DialogFooter className="mt-4 flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={handleCancelEditCampaignBudget}
-                    disabled={isSavingBudget}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={handleSaveCampaignBudget}
-                    disabled={
-                      isSavingBudget || !editingBudgetValue.trim()
-                    }
-                  >
-                    {isSavingBudget ? "Salvando..." : "Publicar"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            {/* Paginação Campanhas */}
-            <div className="flex items-center justify-between mt-3">
-              <div className="text-xs text-muted-foreground">
-                Exibindo {pagedCampaigns.length} de{" "}
-                {filteredCampaigns.length} campanhas
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  className="h-8 px-3"
-                  disabled={campaignsPage === 1 || loadingCampaigns}
-                  onClick={() =>
-                    setCampaignsPage((p) => Math.max(1, p - 1))
-                  }
-                >
-                  Anterior
-                </Button>
-                <div className="text-sm">
-                  Página{" "}
-                  <span className="font-semibold">
-                    {campaignsPage}
-                  </span>
-                </div>
-                <Button
-                  variant="outline"
-                  className="h-8 px-3"
-                  disabled={
-                    loadingCampaigns ||
-                    campaignsPage * campaignsPageSize >=
-                      filteredCampaigns.length
-                  }
-                  onClick={() => setCampaignsPage((p) => p + 1)}
-                >
-                  Próxima
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
+              </>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   ) : (
@@ -4066,7 +4017,6 @@ useEffect(() => {
       </p>
     </div>
   ))}
-
       </div>
     )}
   </>

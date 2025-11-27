@@ -27,6 +27,9 @@
     --input: 240 5.9% 90%;
     --ring: 240 5.9% 10%;
     --radius: 0.5rem;
+
+    /* 🔹 Cor das linhas da tabela de campanhas (tema claro = cinza) */
+    --table-border: 240 5% 84%;
   }
 
   .dark {
@@ -49,6 +52,9 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
+
+    /* 🔹 Cor das linhas da tabela de campanhas (tema escuro = branco suave) */
+    --table-border: 0 0% 80%;
   }
 }
 
@@ -358,15 +364,9 @@ body {
 /* Fundo interno da caixa (onde ficam os conteúdos) */
 .neon-meta-inner {
   border-radius: 16px;
-  background: hsl(var(--muted)); /* cinza suave do shadcn */
+  background: hsl(var(--muted));
   backdrop-filter: blur(4px);
 }
-
-/* Força todos os elementos internos a usarem o fundo do card cinza */
-.neon-meta-inner .table-surface {
-  background: hsl(var(--muted));
-}
-
 
 /* Animação oscilando do azul claro pro azul escuro */
 @keyframes meta-glow {
@@ -384,3 +384,21 @@ body {
   }
 }
 
+/* =========================================
+   📊 Linhas da tabela de campanhas (Meta Ads)
+   ========================================= */
+/* Use className="table-row-border" no <TableRow> da tabela de campanhas */
+.table-row-border td,
+.table-row-border th {
+  border-bottom: 1px solid hsl(var(--table-border));
+}
+
+/* Fundo mais escuro para o card grande no tema dark */
+.dark .neon-meta-inner {
+  background: #141518; /* cinza bem escuro */
+}
+
+/* 🟦 Card grande do Meta Ads (tema dark) — fundo mais escuro */
+.dark .neon-meta-border .neon-meta-inner {
+  background: #0f1012 !important; /* cinza bem escuro */
+}

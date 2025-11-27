@@ -41,8 +41,9 @@ type MenuItem = {
 // ---------------- Helpers ----------------
 const STORAGE_KEY = "blecks:sidebar:isExpanded"
 
-const COLLAPSED_WIDTH = "clamp(56px, 5vw, 88px)"
-const EXPANDED_WIDTH = "clamp(210px, 15vw, 260px)"
+// Larguras base (ajustadas para ficar mais largo)
+const COLLAPSED_WIDTH = "clamp(70px, 7vw, 100px)"
+const EXPANDED_WIDTH = "clamp(230px, 20vw, 300px)"
 
 const AUTO_COLLAPSE_MAX = 1024
 const AUTO_EXPAND_MIN = 1440
@@ -78,10 +79,13 @@ export function AppSidebar({ children }: AppSidebarProps) {
     return window.innerHeight || 900
   })
 
+  const [viewportWidth, setViewportWidth] = useState<number>(() => {
+    if (typeof window === "undefined") return 1440
+    return window.innerWidth || 1440
+  })
+
   const router = useRouter()
   const pathname = usePathname()
-
-  const sidebarWidth = isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH
 
   useEffect(() => {
     const initial = getInitialExpanded()
@@ -89,6 +93,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
 
     if (typeof window !== "undefined") {
       setViewportHeight(window.innerHeight || 900)
+      setViewportWidth(window.innerWidth || 1440)
     }
   }, [])
 
@@ -108,10 +113,22 @@ export function AppSidebar({ children }: AppSidebarProps) {
         setIsExpanded(inferred)
       }
       setViewportHeight(window.innerHeight || 900)
+      setViewportWidth(window.innerWidth || 1440)
     }, 180)
     window.addEventListener("resize", onResize)
     return () => window.removeEventListener("resize", onResize)
   }, [])
+
+  // --------- largura dinâmica do sidebar (mais largo em telas menores) ----------
+  const smallScreen = viewportWidth < 900
+
+  const sidebarWidth = isExpanded
+    ? smallScreen
+      ? "300px"
+      : EXPANDED_WIDTH
+    : smallScreen
+      ? "110px"
+      : COLLAPSED_WIDTH
 
   const ICON_BASE = "/icons-siderbar"
 
@@ -263,7 +280,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
     </svg>
   )
 
-  // escala dos ícones
+  // escala dos ícones com base na altura
   const BASE_HEIGHT = 900
   const vh = viewportHeight || BASE_HEIGHT
   let scaleFactor = vh / BASE_HEIGHT

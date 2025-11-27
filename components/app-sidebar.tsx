@@ -33,9 +33,9 @@ type MenuItem = {
   href: string
   icon?: LucideIcon
   iconPath?: string
-  size?: number // tamanho base do ícone
-  offsetX?: number // ajuste lateral
-  offsetY?: number // ajuste vertical
+  size?: number
+  offsetX?: number
+  offsetY?: number
 }
 
 // ---------------- Helpers ----------------
@@ -347,9 +347,12 @@ export function AppSidebar({ children }: AppSidebarProps) {
                 const active = pathname === item.href
                 const baseSize = item.size ?? 24
                 const size = Math.round(baseSize * scaleFactor)
-                const x = item.offsetX ?? 0
-                const y = item.offsetY ?? 0
+
                 const isMindmap = item.id === "mindmap"
+
+                // offset só quando o menu está EXPANDIDO
+                const x = isExpanded ? item.offsetX ?? 0 : 0
+                const y = isExpanded ? item.offsetY ?? 0 : 0
 
                 return (
                   <div
@@ -363,7 +366,11 @@ export function AppSidebar({ children }: AppSidebarProps) {
                         w-full
                         min-h-[32px] max-h-[44px]
                         text-xs flex items-center py-0
-                        ${isExpanded ? "justify-start pl-4 pr-3" : "justify-start pl-4 pr-0"}
+                        ${
+                          isExpanded
+                            ? "justify-start pl-4 pr-3"
+                            : "justify-center px-0"
+                        }
                         rounded-xl
                         transition-colors
                         ${

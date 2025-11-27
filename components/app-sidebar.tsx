@@ -33,9 +33,9 @@ type MenuItem = {
   href: string
   icon?: LucideIcon
   iconPath?: string
-  size?: number        // tamanho base do ícone (que você já ajustou)
-  offsetX?: number     // ajuste lateral (esquerda / direita)
-  offsetY?: number     // ajuste vertical (cima / baixo)
+  size?: number // tamanho base do ícone (que você já ajustou)
+  offsetX?: number // ajuste lateral (esquerda / direita)
+  offsetY?: number // ajuste vertical (cima / baixo)
 }
 
 // ---------------- Helpers ----------------
@@ -109,7 +109,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
       const inferred = w >= AUTO_EXPAND_MIN ? true : w <= AUTO_COLLAPSE_MAX ? false : true
       const saved = window.localStorage.getItem(STORAGE_KEY)
       const userPref = saved === "true" || saved === "false" ? saved === "true" : null
-      if (userPref === null) {
+      if (userPref == null) {
         setIsExpanded(inferred)
       }
 
@@ -288,34 +288,32 @@ export function AppSidebar({ children }: AppSidebarProps) {
         {/* Sidebar FLUTUANTE */}
         <div
           className={`
-    fixed z-40
-    left-7 top-1/2 -translate-y-1/2
-    flex flex-col
-    rounded-[32px]
-    overflow-hidden
-    transition-[width,transform] duration-300 ease-in-out
-
-    backdrop-blur-3xl
-
-    ${theme === "dark"
-      ? `
-    bg-gradient-to-b from-[#000000] via-[#0d0d0d] to-[#141414]
-    border border-white/10
-    shadow-[0_0_18px_rgba(255,255,255,0.05)]
-    before:content-[''] before:absolute before:inset-0
-    before:bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.85),rgba(15, 15, 15, 0.92))]
-    before:pointer-events-none
-  `
-      : `
-        bg-[rgba(255,255,255,0.45)]
-        border border-black/10
-        shadow-[0_20px_45px_rgba(0,0,0,0.15)]
-        before:content-[''] before:absolute before:inset-0
-        before:bg-[linear-gradient(145deg,rgba(255,255,255,0.6),rgba(255,255,255,0.1))]
-        before:pointer-events-none
-      `
-    }
-  `}
+            fixed z-40
+            left-7 top-1/2 -translate-y-1/2
+            flex flex-col
+            rounded-[32px]
+            transition-[width,transform] duration-300 ease-in-out
+            backdrop-blur-3xl
+            ${
+              theme === "dark"
+                ? `
+                  bg-gradient-to-b from-[#000000] via-[#0d0d0d] to-[#141414]
+                  border border-white/10
+                  shadow-[0_0_18px_rgba(255,255,255,0.05)]
+                  before:content-[''] before:absolute before:inset-0
+                  before:bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.85),rgba(15,15,15,0.92))]
+                  before:pointer-events-none
+                `
+                : `
+                  bg-[rgba(255,255,255,0.45)]
+                  border border-black/10
+                  shadow-[0_20px_45px_rgba(0,0,0,0.15)]
+                  before:content-[''] before:absolute before:inset-0
+                  before:bg-[linear-gradient(145deg,rgba(255,255,255,0.6),rgba(255,255,255,0.1))]
+                  before:pointer-events-none
+                `
+            }
+          `}
           style={{
             width: "var(--sb-w)",
             height: "92vh",
@@ -358,7 +356,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           </div>
 
           {/* Menu ajustável à altura da tela (sem scroll) */}
-          <div className="flex-1 px-1 pb-4 overflow-hidden">
+          <div className="flex-1 px-1 pb-4 overflow-visible">
             <div className="mt-2 h-full flex flex-col justify-between pr-1">
               {menuItems.map((item) => {
                 const active = pathname === item.href
@@ -377,17 +375,17 @@ export function AppSidebar({ children }: AppSidebarProps) {
                       variant="ghost"
                       onClick={() => handleNavigation(item.href)}
                       className={`
-              w-full
-              min-h-[32px] max-h-[44px]
-              text-xs flex items-center py-0
-              ${isExpanded ? "justify-start pl-4 pr-3" : "justify-start pl-4 pr-0"}
-              ${
-                active
-                  ? "bg-[rgba(0,0,0,0.50)] text-white"
-                  : "hover:bg-[rgba(0,0,0,0.50)] text-white"
-              }
-              rounded-xl
-            `}
+                        w-full
+                        min-h-[32px] max-h-[44px]
+                        text-xs flex items-center py-0
+                        ${isExpanded ? "justify-start pl-4 pr-3" : "justify-start pl-4 pr-0"}
+                        ${
+                          active
+                            ? "bg-[rgba(0,0,0,0.50)] text-white"
+                            : "hover:bg-[rgba(0,0,0,0.50)] text-white"
+                        }
+                        rounded-xl
+                      `}
                     >
                       {/* Ícone PNG */}
                       {item.iconPath ? (
@@ -431,7 +429,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
                         />
                       ) : null}
 
-                      {/* Label */}
+                      {/* Label normal quando expandido */}
                       {isExpanded && (
                         <span
                           className="ml-3 overflow-hidden transition-all duration-200"
@@ -444,7 +442,21 @@ export function AppSidebar({ children }: AppSidebarProps) {
 
                     {/* Tooltip quando colapsado */}
                     {!isExpanded && (
-                      <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-border">
+                      <div
+                        className="
+                          absolute left-full top-1/2 ml-3 -translate-y-1/2
+                          rounded-lg border border-border
+                          bg-popover text-popover-foreground
+                          px-3 py-1 text-xs
+                          shadow-lg
+                          opacity-0 scale-95
+                          group-hover:opacity-100 group-hover:scale-100
+                          transition-all duration-150
+                          origin-left
+                          whitespace-nowrap
+                          z-50
+                        "
+                      >
                         {item.title}
                       </div>
                     )}
@@ -471,29 +483,29 @@ export function AppSidebar({ children }: AppSidebarProps) {
           size="sm"
           onClick={toggleSidebar}
           className={`
-    fixed z-50
-    h-8 w-8 rounded-full p-0
-    flex items-center justify-center
-    backdrop-blur-3xl
-    transition-all
-
-    ${theme === "dark"
-      ? `
-        bg-[rgba(20, 20, 20, 0.9)]
-        border border-white/15
-        text-white
-        shadow-[0_18px_40px_rgba(0,0,0,0.85)]
-        hover:bg-[rgba(25,25,25,0.95)]
-      `
-      : `
-        bg-[rgba(255,255,255,0.9)]
-        border border-black/10
-        text-slate-900
-        shadow-[0_12px_30px_rgba(15,23,42,0.25)]
-        hover:bg-[rgba(255,255,255,1)]
-      `
-    }
-  `}
+            fixed z-50
+            h-8 w-8 rounded-full p-0
+            flex items-center justify-center
+            backdrop-blur-3xl
+            transition-all
+            ${
+              theme === "dark"
+                ? `
+                  bg-[rgba(20,20,20,0.9)]
+                  border border-white/15
+                  text-white
+                  shadow-[0_18px_40px_rgba(0,0,0,0.85)]
+                  hover:bg-[rgba(25,25,25,0.95)]
+                `
+                : `
+                  bg-[rgba(255,255,255,0.9)]
+                  border border-black/10
+                  text-slate-900
+                  shadow-[0_12px_30px_rgba(15,23,42,0.25)]
+                  hover:bg-[rgba(255,255,255,1)]
+                `
+            }
+          `}
           aria-label="Alternar largura do menu"
           style={{
             top: "120px",

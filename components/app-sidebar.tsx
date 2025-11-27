@@ -33,9 +33,9 @@ type MenuItem = {
   href: string
   icon?: LucideIcon
   iconPath?: string
-  size?: number
-  offsetX?: number
-  offsetY?: number
+  size?: number        // tamanho base do ícone (que você já ajustou)
+  offsetX?: number     // ajuste lateral (esquerda / direita)
+  offsetY?: number     // ajuste vertical (cima / baixo)
 }
 
 // ---------------- Helpers ----------------
@@ -76,6 +76,13 @@ export function AppSidebar({ children }: AppSidebarProps) {
   const { theme } = useTheme()
   const isDark = theme === "dark"
   const [isExpanded, setIsExpanded] = useState<boolean>(false)
+
+  // Altura da tela para escalar os ícones
+  const [viewportHeight, setViewportHeight] = useState<number>(() => {
+    if (typeof window === "undefined") return 900
+    return window.innerHeight || 900
+  })
+
   const router = useRouter()
   const pathname = usePathname()
 
@@ -84,6 +91,10 @@ export function AppSidebar({ children }: AppSidebarProps) {
   useEffect(() => {
     const initial = getInitialExpanded()
     setIsExpanded(initial)
+
+    if (typeof window !== "undefined") {
+      setViewportHeight(window.innerHeight || 900)
+    }
   }, [])
 
   useEffect(() => {
@@ -101,6 +112,9 @@ export function AppSidebar({ children }: AppSidebarProps) {
       if (userPref === null) {
         setIsExpanded(inferred)
       }
+
+      // Atualiza altura da tela para escalar ícones
+      setViewportHeight(window.innerHeight || 900)
     }, 180)
     window.addEventListener("resize", onResize)
     return () => window.removeEventListener("resize", onResize)
@@ -116,6 +130,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
         iconPath: `${ICON_BASE}/dashboard-gateways.png`,
         href: "/dashboard/gateways",
         size: 33,
+        offsetX: 5,
+        offsetY: 0,
       },
       {
         id: "billing-analysis",
@@ -123,6 +139,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
         iconPath: `${ICON_BASE}/analise-faturamento.png`,
         href: `/dashboard/billing-analysis`,
         size: 36,
+        offsetX: 7,
+        offsetY: 0,
       },
       {
         id: "ads-dashboard",
@@ -130,6 +148,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
         iconPath: `${ICON_BASE}/Dashboard ADS.png`,
         href: "/dashboard/ads",
         size: 36,
+        offsetX: 5,
+        offsetY: 0,
       },
       {
         id: "dashboard",
@@ -137,6 +157,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
         iconPath: `${ICON_BASE}/dashboard.png`,
         href: "/dashboard",
         size: 35,
+        offsetX: 5,
+        offsetY: 0,
       },
       {
         id: "diary",
@@ -144,6 +166,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
         iconPath: `${ICON_BASE}/Diario-Semanal.png`,
         href: "/dashboard/diary",
         size: 35,
+        offsetX: 6,
+        offsetY: 0,
       },
       {
         id: "productivity",
@@ -151,6 +175,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
         iconPath: `${ICON_BASE}/productivity.png`,
         href: "/dashboard/productivity",
         size: 42,
+        offsetX: 2,
+        offsetY: 0,
       },
       {
         id: "calendar",
@@ -158,13 +184,17 @@ export function AppSidebar({ children }: AppSidebarProps) {
         iconPath: `${ICON_BASE}/calendario.png`,
         href: "/dashboard/calendar",
         size: 40,
+        offsetX: 1,
+        offsetY: 0,
       },
       {
         id: "mindmap",
         title: "Funnel's",
-        iconPath: `${ICON_BASE}/funnel.png`,
+        iconPath: `${ICON_BASE}/mindmap.png`,
         href: "/dashboard/mindmap",
         size: 44,
+        offsetX: 2,
+        offsetY: 0,
       },
       {
         id: "ai",
@@ -172,6 +202,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
         iconPath: `${ICON_BASE}/ias.png`,
         href: "/dashboard/ai",
         size: 40,
+        offsetX: 5,
+        offsetY: 0,
       },
       {
         id: "copywriting",
@@ -179,6 +211,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
         iconPath: `${ICON_BASE}/copywriting.png`,
         href: "/dashboard/copywriting",
         size: 35,
+        offsetX: 9,
+        offsetY: 0,
       },
       {
         id: "oferta-escalada",
@@ -186,6 +220,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
         iconPath: `${ICON_BASE}/oferta.png`,
         href: "/dashboard/oferta-escalada",
         size: 40,
+        offsetX: 4,
+        offsetY: 0,
       },
       {
         id: "finances",
@@ -193,6 +229,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
         iconPath: `${ICON_BASE}/financeiro.png`,
         href: "/dashboard/finances",
         size: 35,
+        offsetX: 5,
+        offsetY: 0,
       },
       {
         id: "editor-paginas",
@@ -200,6 +238,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
         iconPath: `${ICON_BASE}/suporte.png`,
         href: "/dashboard/support",
         size: 35,
+        offsetX: 5,
+        offsetY: 0,
       },
     ],
     []
@@ -230,6 +270,15 @@ export function AppSidebar({ children }: AppSidebarProps) {
     </svg>
   )
 
+  // ---------- ESCALA GLOBAL DOS ÍCONES (proporcional à altura da tela) ----------
+  const BASE_HEIGHT = 900 // altura de referência
+  const vh = viewportHeight || BASE_HEIGHT
+  let scaleFactor = vh / BASE_HEIGHT
+
+  // trava pra não ficar exagerado em telas muito grandes/pequenas
+  if (scaleFactor < 0.8) scaleFactor = 0.8
+  if (scaleFactor > 1.2) scaleFactor = 1.2
+
   return (
     <SidebarContext.Provider value={{ isExpanded, toggleSidebar }}>
       <div
@@ -238,7 +287,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
       >
         {/* Sidebar FLUTUANTE */}
         <div
-  className={`
+          className={`
     fixed z-40
     left-7 top-1/2 -translate-y-1/2
     flex flex-col
@@ -249,7 +298,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
     backdrop-blur-3xl
 
     ${theme === "dark"
-  ? `
+      ? `
     bg-gradient-to-b from-[#000000] via-[#0d0d0d] to-[#141414]
     border border-white/10
     shadow-[0_0_18px_rgba(255,255,255,0.05)]
@@ -257,7 +306,6 @@ export function AppSidebar({ children }: AppSidebarProps) {
     before:bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.85),rgba(15, 15, 15, 0.92))]
     before:pointer-events-none
   `
-
       : `
         bg-[rgba(255,255,255,0.45)]
         border border-black/10
@@ -268,13 +316,13 @@ export function AppSidebar({ children }: AppSidebarProps) {
       `
     }
   `}
-  style={{
-    width: "var(--sb-w)",
-    height: "92vh",
-    maxHeight: "1000px",
-    minHeight: "600px",
-  }}
->
+          style={{
+            width: "var(--sb-w)",
+            height: "92vh",
+            maxHeight: "1000px",
+            minHeight: "600px",
+          }}
+        >
           {/* Header */}
           <div className="px-4 pt-4 pb-3">
             <div className="relative h-[72px]">
@@ -310,24 +358,25 @@ export function AppSidebar({ children }: AppSidebarProps) {
           </div>
 
           {/* Menu ajustável à altura da tela (sem scroll) */}
-<div className="flex-1 px-1 pb-4 overflow-hidden">
-  <div className="mt-2 h-full flex flex-col justify-between pr-1">
-    {menuItems.map((item) => {
-      const active = pathname === item.href
-      const size = item.size ?? 24
-      const x = item.offsetX ?? 0
-      const y = item.offsetY ?? 0
-      const isMindmap = item.id === "mindmap"
+          <div className="flex-1 px-1 pb-4 overflow-hidden">
+            <div className="mt-2 h-full flex flex-col justify-between pr-1">
+              {menuItems.map((item) => {
+                const active = pathname === item.href
+                const baseSize = item.size ?? 24
+                const size = Math.round(baseSize * scaleFactor)
+                const x = item.offsetX ?? 0
+                const y = item.offsetY ?? 0
+                const isMindmap = item.id === "mindmap"
 
-      return (
-        <div
-          key={item.id}
-          className="relative group flex-1 flex items-center"
-        >
-          <Button
-            variant="ghost"
-            onClick={() => handleNavigation(item.href)}
-            className={`
+                return (
+                  <div
+                    key={item.id}
+                    className="relative group flex-1 flex items-center"
+                  >
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleNavigation(item.href)}
+                      className={`
               w-full
               min-h-[32px] max-h-[44px]
               text-xs flex items-center py-0
@@ -339,76 +388,71 @@ export function AppSidebar({ children }: AppSidebarProps) {
               }
               rounded-xl
             `}
-          >
-            {/* Ícone 3D */}
-            {item.iconPath ? (
-              <span
-                className="relative inline-flex items-center justify-center shrink-0 transition-transform duration-300"
-                style={{
-                  width: size,
-                  height: size,
-                  transform: isExpanded
-                    ? `translate(${x}px, ${y}px)`
-                    : `translate(0px, -2px)`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Image
-                  src={item.iconPath}
-                  alt={item.title}
-                  fill
-                  className={`object-contain ${
-                    theme === "dark"
-                      ? isMindmap
-                        ? ""
-                        : "invert"
-                      : isMindmap
-                        ? "invert"
-                        : ""
-                  }`}
-                  style={{ objectPosition: "center" }}
-                />
-              </span>
-            ) : item.icon ? (
-              <item.icon
-                className={`shrink-0 ${
-                  theme === "dark" ? "text-white" : "text-black"
-                }`}
-                style={{
-                  width: size,
-                  height: size,
-                  transform: isExpanded
-                    ? `translate(${x}px, ${y}px)`
-                    : `translate(0px, -2px)`,
-                }}
-              />
-            ) : null}
+                    >
+                      {/* Ícone PNG */}
+                      {item.iconPath ? (
+                        <span
+                          className="relative inline-flex items-center justify-center shrink-0 transition-transform duration-300"
+                          style={{
+                            width: size,
+                            height: size,
+                            transform: `translate(${x}px, ${y}px)`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Image
+                            src={item.iconPath}
+                            alt={item.title}
+                            fill
+                            className={`object-contain ${
+                              theme === "dark"
+                                ? isMindmap
+                                  ? ""
+                                  : "invert"
+                                : isMindmap
+                                  ? "invert"
+                                  : ""
+                            }`}
+                            style={{ objectPosition: "center" }}
+                          />
+                        </span>
+                      ) : item.icon ? (
+                        <item.icon
+                          className={`shrink-0 ${
+                            theme === "dark" ? "text-white" : "text-black"
+                          }`}
+                          style={{
+                            width: size,
+                            height: size,
+                            transform: `translate(${x}px, ${y}px)`,
+                          }}
+                        />
+                      ) : null}
 
-            {/* Label */}
-            {isExpanded && (
-              <span
-                className="ml-3 overflow-hidden transition-all duration-200"
-                style={{ maxWidth: `calc(var(--sb-w) - 56px)` }}
-              >
-                {item.title}
-              </span>
-            )}
-          </Button>
+                      {/* Label */}
+                      {isExpanded && (
+                        <span
+                          className="ml-3 overflow-hidden transition-all duration-200"
+                          style={{ maxWidth: `calc(var(--sb-w) - 56px)` }}
+                        >
+                          {item.title}
+                        </span>
+                      )}
+                    </Button>
 
-          {/* Tooltip quando colapsado */}
-          {!isExpanded && (
-            <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-border">
-              {item.title}
+                    {/* Tooltip quando colapsado */}
+                    {!isExpanded && (
+                      <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-border">
+                        {item.title}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-          )}
-        </div>
-      )
-    })}
-  </div>
-</div>
-
+          </div>
         </div>
 
         {/* Content */}
@@ -422,11 +466,11 @@ export function AppSidebar({ children }: AppSidebarProps) {
         </div>
 
         {/* Toggle em cima da LINHA entre sidebar e conteúdo */}
-<Button
-  variant="ghost"
-  size="sm"
-  onClick={toggleSidebar}
-  className={`
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleSidebar}
+          className={`
     fixed z-50
     h-8 w-8 rounded-full p-0
     flex items-center justify-center
@@ -450,14 +494,14 @@ export function AppSidebar({ children }: AppSidebarProps) {
       `
     }
   `}
-  aria-label="Alternar largura do menu"
-  style={{
-    top: "120px",
-    left: `calc(var(--sb-w) + ${SIDEBAR_OFFSET_LEFT} - 16px)`,
-  }}
->
-  <SidebarToggleIcon />
-</Button>
+          aria-label="Alternar largura do menu"
+          style={{
+            top: "120px",
+            left: `calc(var(--sb-w) + ${SIDEBAR_OFFSET_LEFT} - 16px)`,
+          }}
+        >
+          <SidebarToggleIcon />
+        </Button>
       </div>
     </SidebarContext.Provider>
   )

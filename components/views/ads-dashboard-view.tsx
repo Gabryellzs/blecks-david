@@ -3779,28 +3779,38 @@ useEffect(() => {
                       </TableRow>
 
                       {/* ⬇️ Cabeçalho normal das colunas */}
-                      <TableRow className="table-row-border">
-                        <TableHead className="sticky left-0 z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[100px] border-r border-white/10 border-b border-white/20">
-                          Status
-                        </TableHead>
+<TableRow className="table-row-border">
+  {/* Coluna 1 - Status */}
+  <TableHead
+    className="sticky left-0 z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[100px] border-r border-white/10 border-b border-white/20"
+  >
+    Status
+  </TableHead>
 
-                        <TableHead className="sticky left-0 z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] min-w-[260px] border-r border-white/10 border-b border-white/20">
-                          Campanha
-                        </TableHead>
+  {/* Coluna 2 - Campanha */}
+  <TableHead
+    className="sticky left-[100px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] min-w-[260px] border-r border-white/10 border-b border-white/20"
+  >
+    Campanha
+  </TableHead>
 
-                        <TableHead className="sticky left-[380px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[160px] border-r border-white/10 border-b border-white/20">
-                          Orçamento
-                        </TableHead>
+  {/* Coluna 3 - Orçamento */}
+  <TableHead
+    className="sticky left-[360px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[160px] border-r border-white/10 border-b border-white/20"
+  >
+    Orçamento
+  </TableHead>
 
-                        <TableHead className="border-r border-white/10 border-b border-white/20">
-                          Valor usado
-                        </TableHead>
-                        <TableHead className="border-r border-white/10 border-b border-white/20">
-                          Resultados
-                        </TableHead>
-                        <TableHead className="border-r border-white/10 border-b border-white/20">
-                          ROAS de resultados
-                        </TableHead>
+  {/* resto das colunas permanece igual */}
+  <TableHead className="border-r border-white/10 border-b border-white/20">
+    Valor usado
+  </TableHead>
+  <TableHead className="border-r border-white/10 border-b border-white/20">
+    Resultados
+  </TableHead>
+  <TableHead className="border-r border-white/10 border-b border-white/20">
+    ROAS de resultados
+  </TableHead>
                         <TableHead className="border-r border-white/10 border-b border-white/20">
                           Custo por resultado
                         </TableHead>
@@ -3826,92 +3836,79 @@ useEffect(() => {
                           className="border-b border-white/10 last:border-b-0 [&>td]:py-3"
                         >
                           {/* Coluna 1 - toggle ativar/desativar */}
-                          <TableCell className="sticky left-0 z-10 table-surface text-center w-[100px] border-r border-white/10 p-0">
-                            {(() => {
-                              const isActive = c.status === "ACTIVE"
-                              return (
-                                <button
-                                  onClick={() =>
-                                    handleCampaignStatusChange(
-                                      c.id,
-                                      c.status,
-                                    )
-                                  }
-                                  className={cn(
-                                    "relative inline-flex h-6 w-14 items-center rounded-full border transition-all duration-300",
-                                    isActive
-                                      ? "border-emerald-300 bg-gradient-to-br from-emerald-300 to-emerald-400 shadow-[0_5px_10px_rgba(16,185,129,0.6)]"
-                                      : "border-zinc-500/60 bg-gradient-to-br from-zinc-700 to-zinc-800 shadow-inner",
-                                  )}
-                                  aria-pressed={isActive}
-                                >
-                                  <span
-                                    className={cn(
-                                      "pointer-events-none absolute inset-[2px] rounded-full opacity-60 blur-[2px]",
-                                      isActive
-                                        ? "bg-emerald-300/50"
-                                        : "bg-zinc-500/40",
-                                    )}
-                                  />
-                                  <span
-                                    className={cn(
-                                      "relative inline-block h-5 w-5 transform rounded-full bg-gradient-to-br from-white to-zinc-100 shadow-[0_4px_8px_rgba(0,0,0,0.35)] transition-all duration-300",
-                                      isActive
-                                        ? "translate-x-7"
-                                        : "translate-x-1",
-                                    )}
-                                  />
-                                </button>
-                              )
-                            })()}
-                          </TableCell>
+<TableCell
+  className="sticky left-0 z-10 bg-[hsl(var(--muted))] dark:bg-[#111317] text-center w-[100px] border-r border-white/10 p-0"
+>
+  {(() => {
+    const isActive = c.status === "ACTIVE"
+    return (
+      <button
+        onClick={() => handleCampaignStatusChange(c.id, c.status)}
+        className={cn(
+          "relative inline-flex h-6 w-14 items-center rounded-full border transition-all duration-300",
+          isActive
+            ? "border-emerald-300 bg-gradient-to-br from-emerald-300 to-emerald-400 shadow-[0_5px_10px_rgba(16,185,129,0.6)]"
+            : "border-zinc-500/60 bg-gradient-to-br from-zinc-700 to-zinc-800 shadow-inner",
+        )}
+        aria-pressed={isActive}
+      >
+        <span
+          className={cn(
+            "pointer-events-none absolute inset-[2px] rounded-full opacity-60 blur-[2px]",
+            isActive ? "bg-emerald-300/50" : "bg-zinc-500/40",
+          )}
+        />
+        <span
+          className={cn(
+            "relative inline-block h-5 w-5 transform rounded-full bg-gradient-to-br from-white to-zinc-100 shadow-[0_4px_8px_rgba(0,0,0,0.35)] transition-all duration-300",
+            isActive ? "translate-x-7" : "translate-x-1",
+          )}
+        />
+      </button>
+    )
+  })()}
+</TableCell>
 
-                          {/* Coluna 2 - Campanha (nome + lápis) */}
-                          <TableCell className="sticky left-0 z-10 bg-[hsl(var(--muted))] dark:bg-[#111317] text-center w-[100px] border-r border-white/10 p-3">
-                            <div className="group flex items-center gap-2">
-                              <span className="truncate max-w-xs">
-                                {c.name}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleStartEditCampaignName(c)
-                                }
-                                className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </TableCell>
+{/* Coluna 2 - Campanha (nome + lápis) */}
+<TableCell
+  className="sticky left-[70px] z-10 bg-[hsl(var(--muted))] dark:bg-[#111317] min-w-[260px] border-r border-white/10 px-3"
+>
+  <div className="group flex items-center gap-2">
+    <span className="truncate max-w-xs">{c.name}</span>
+    <button
+      type="button"
+      onClick={() => handleStartEditCampaignName(c)}
+      className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
+    >
+      <Pencil className="h-3 w-3" />
+    </button>
+  </div>
+</TableCell>
 
-                          {/* Coluna 3 - Orçamento */}
-                          <TableCell className="sticky left-0 z-10 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[140px] border-r border-white/10 p-0 pl-3">
-                            <div className="group flex flex-col">
-                              <div className="flex items-center gap-2 text-sm">
-                                <span className="font-medium">
-                                  {c.budget != null
-                                    ? moneyBRL(c.budget)
-                                    : "—"}
-                                </span>
+{/* Coluna 3 - Orçamento */}
+<TableCell
+  className="sticky left-[430px] z-10 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[140px] border-r border-white/10 pl-3 pr-2 py-1"
+>
+  <div className="group flex flex-col">
+    <div className="flex items-center gap-2 text-sm">
+      <span className="font-medium">
+        {c.budget != null ? moneyBRL(c.budget) : "—"}
+      </span>
 
-                                {c.budget != null && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleStartEditCampaignBudget(c)
-                                    }
-                                    className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
-                                  >
-                                    <Pencil className="h-3 w-3" />
-                                  </button>
-                                )}
-                              </div>
+      {c.budget != null && (
+        <button
+          type="button"
+          onClick={() => handleStartEditCampaignBudget(c)}
+          className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+    <span className="text-xs text-muted-foreground">Diário</span>
+  </div>
+</TableCell>
 
-                              <span className="text-[11px] text-muted-foreground leading-none mt-0.5">
-                                Diário
-                              </span>
-                            </div>
-                          </TableCell>
 
                           {/* Coluna 4 em diante */}
                           <TableCell className="border-r border-white/10">

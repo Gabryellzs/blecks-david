@@ -3789,14 +3789,14 @@ useEffect(() => {
 
   {/* Coluna 2 - Campanha */}
   <TableHead
-    className="sticky left-[100px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] min-w-[260px] border-r border-white/10 border-b border-white/20"
+    className="sticky left-[73px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] min-w-[260px] border-r border-white/10 border-b border-white/20"
   >
     Campanha
   </TableHead>
 
   {/* Coluna 3 - Orçamento */}
   <TableHead
-    className="sticky left-[360px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[160px] border-r border-white/10 border-b border-white/20"
+    className="sticky left-[433px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[160px] border-r border-white/10 border-b border-white/20"
   >
     Orçamento
   </TableHead>
@@ -3871,7 +3871,7 @@ useEffect(() => {
 
 {/* Coluna 2 - Campanha (nome + lápis) */}
 <TableCell
-  className="sticky left-[70px] z-10 bg-[hsl(var(--muted))] dark:bg-[#111317] min-w-[260px] border-r border-white/10 px-3"
+  className="sticky left-[73px] z-10 bg-[hsl(var(--muted))] dark:bg-[#111317] min-w-[260px] border-r border-white/10 px-3"
 >
   <div className="group flex items-center gap-2">
     <span className="truncate max-w-xs">{c.name}</span>
@@ -3887,7 +3887,7 @@ useEffect(() => {
 
 {/* Coluna 3 - Orçamento */}
 <TableCell
-  className="sticky left-[430px] z-10 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[140px] border-r border-white/10 pl-3 pr-2 py-1"
+  className="sticky left-[433px] z-10 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[140px] border-r border-white/10 pl-3 pr-2 py-1"
 >
   <div className="group flex flex-col">
     <div className="flex items-center gap-2 text-sm">

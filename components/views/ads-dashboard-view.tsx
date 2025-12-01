@@ -3570,7 +3570,7 @@ useEffect(() => {
 {activeSubTab === "campanhas" &&
   (activeTab === "facebook" && selectedAccountId ? (
     <Card className="border-0 shadow-none bg-transparent">
-      <CardContent>
+      <CardContent className="p-0">
         {/* ===== Toolbar Campanhas ===== */}
         <div className="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">

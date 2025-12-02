@@ -77,7 +77,10 @@ import {
 import type { FacebookAdAccount, FacebookCampaign } from "@/lib/types/facebook-ads"
 import { Skeleton } from "@/components/ui/skeleton"
 console.log("✅ RENDER AdsDashboardView atualizado")
-import { getFacebookAdSets } from "@/lib/facebook-ads-service" 
+import {
+  getFacebookAdSets,
+  updateFacebookAdSetStatus,
+} from "@/lib/facebook-ads-service"
 import { createClient } from "@supabase/supabase-js"
 import { getFacebookCampaignsWithInsights } from "@/lib/facebook-ads-service"
 import { cn } from "@/lib/utils"
@@ -356,6 +359,41 @@ const ALL_CAMPAIGN_COLUMNS: { id: CampaignColumnId; label: string; description?:
 const DEFAULT_CAMPAIGN_COLUMNS: CampaignColumnId[] = ALL_CAMPAIGN_COLUMNS.map((c) => c.id)
 
 
+// 🔵 COLUNAS DOS CONJUNTOS (AdSets)
+type AdSetColumnId =
+  | "spend"
+  | "results"
+  | "cpa"
+  | "roas"
+  | "impressions"
+  | "clicks"
+  | "ctr"
+  | "cpc"
+  | "id"
+  | "campaign"
+  | "name"
+  | "status"
+  | "budget"
+
+export const ALL_ADSET_COLUMNS = [
+  { id: "name", label: "Nome do Conjunto" },
+  { id: "status", label: "Status" },
+  { id: "budget", label: "Orçamento" },
+  { id: "impressions", label: "Impressões" },
+  { id: "clicks", label: "Cliques" },
+  { id: "ctr", label: "CTR" },
+  { id: "cpc", label: "CPC" },
+  { id: "results", label: "Resultados" },
+  { id: "cpa", label: "CPA" },
+  { id: "spend", label: "Gasto" },
+  { id: "roas", label: "ROAS" },
+  { id: "campaign", label: "Campanha" },
+  { id: "id", label: "ID do Conjunto" },
+]
+
+const DEFAULT_ADSET_COLUMNS: AdSetColumnId[] = ALL_ADSET_COLUMNS.map((c) => c.id)
+
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
@@ -372,16 +410,36 @@ export default function AdsDashboardView() {
   const [campaignsPage, setCampaignsPage] = useState(1)
   const [campaignsPageSize, setCampaignsPageSize] = useState(25)
 // 🔧 colunas da tabela de campanhas (salvo no localStorage)
-  const [campaignColumns, setCampaignColumns] = useLocalStorage<CampaignColumnId[]>(
-    "ads-campaign-columns",
-    DEFAULT_CAMPAIGN_COLUMNS,
-  )
-  const [isCampaignColumnsDialogOpen, setIsCampaignColumnsDialogOpen] = useState(false)
+const [campaignColumns, setCampaignColumns] = useLocalStorage<CampaignColumnId[]>(
+  "ads-campaign-columns",
+  DEFAULT_CAMPAIGN_COLUMNS,
+)
+const [isCampaignColumnsDialogOpen, setIsCampaignColumnsDialogOpen] = useState(false)
 
-  const isCampaignColumnVisible = useCallback(
-    (id: CampaignColumnId) => campaignColumns.includes(id),
-    [campaignColumns],
-  )
+// 🔵 Colunas visíveis dos CONJUNTOS (AdSets) – também salvas no localStorage
+const [adSetColumns, setAdSetColumns] = useLocalStorage<AdSetColumnId[]>(
+  "ads-adset-columns",
+  DEFAULT_ADSET_COLUMNS,
+)
+const [isAdSetColumnsDialogOpen, setIsAdSetColumnsDialogOpen] = useState(false)
+
+// 🔵 Filtros Conjuntos
+const [statusAdSetsFilter, setStatusAdSetsFilter] = useState<"ALL" | "ACTIVE" | "PAUSED">("ALL")
+const [searchAdSets, setSearchAdSets] = useState("")
+
+// 🔵 Paginação Conjuntos
+const [adSetsPageSize, setAdSetsPageSize] = useState(25)
+const [adSetsPage, setAdSetsPage] = useState(1)
+
+const isCampaignColumnVisible = useCallback(
+  (id: CampaignColumnId) => campaignColumns.includes(id),
+  [campaignColumns],
+)
+
+const isAdSetColumnVisible = useCallback(
+  (id: AdSetColumnId) => adSetColumns.includes(id),
+  [adSetColumns],
+)
 
   const [loadingAccounts, setLoadingAccounts] = useState(true)
   const [loadingCampaigns, setLoadingCampaigns] = useState(true)
@@ -391,10 +449,6 @@ export default function AdsDashboardView() {
   const [isMenuOpen, setIsMenuOpen] = useLocalStorage("ads-menu-open", true)
   const isMobile = useMediaQuery("(max-width: 768px)")
   const [adSets, setAdSets] = useState<any[]>([])
-  const [searchAdSets, setSearchAdSets] = useState("")
-  const [statusAdSetsFilter, setStatusAdSetsFilter] = useState<"ALL" | "ACTIVE" | "PAUSED">("ALL")
-  const [adSetsPage, setAdSetsPage] = useState(1)
-  const [adSetsPageSize, setAdSetsPageSize] = useState(25)
   const [loadingAdSets, setLoadingAdSets] = useState(false)
   const [activeSubTab, setActiveSubTab] = useState("graficos")
   const [selectedAccount, setSelectedAccountInternal] = useState("") // Renamed to avoid conflict
@@ -702,6 +756,72 @@ const pagedAdSets = useMemo(() => {
   return filteredAdSets.slice(start, start + adSetsPageSize)
 }, [filteredAdSets, adSetsPage, adSetsPageSize])
 
+// 🔹 RESUMO GERAL DOS CONJUNTOS (AdSets) – para a linha de totais
+const adSetsSummary = useMemo(() => {
+  if (!filteredAdSets.length) {
+    return {
+      totalSpend: 0,
+      totalResults: 0,
+      avgCpa: null as number | null,
+      avgRoas: null as number | null,
+      totalImpressions: 0,
+      totalClicks: 0,
+      avgCtr: null as number | null,
+      avgCpc: null as number | null,
+    }
+  }
+
+  let totalSpend = 0
+  let totalResults = 0
+  let totalImpressions = 0
+  let totalClicks = 0
+
+  let sumCpa = 0,
+    countCpa = 0
+  let sumRoas = 0,
+    countRoas = 0
+  let sumCtr = 0,
+    countCtr = 0
+  let sumCpc = 0,
+    countCpc = 0
+
+  filteredAdSets.forEach((s: any) => {
+    if (s.spend != null) totalSpend += s.spend
+    if (s.results != null) totalResults += s.results
+    if (s.impressions != null) totalImpressions += s.impressions
+    if (s.clicks != null) totalClicks += s.clicks
+
+    if (s.cpa != null) {
+      sumCpa += Number(s.cpa)
+      countCpa++
+    }
+    if (s.roas != null) {
+      sumRoas += Number(s.roas)
+      countRoas++
+    }
+    if (s.ctr != null) {
+      sumCtr += Number(s.ctr)
+      countCtr++
+    }
+    if (s.cpc != null) {
+      sumCpc += Number(s.cpc)
+      countCpc++
+    }
+  })
+
+  return {
+    totalSpend,
+    totalResults,
+    avgCpa: countCpa ? sumCpa / countCpa : null,
+    avgRoas: countRoas ? sumRoas / countRoas : null,
+    totalImpressions,
+    totalClicks,
+    avgCtr: countCtr ? sumCtr / countCtr : null,
+    avgCpc: countCpc ? sumCpc / countCpc : null,
+  }
+}, [filteredAdSets])
+
+
 
 const handleSelectAccount = useCallback(
   (accId: string) => {
@@ -909,7 +1029,7 @@ useEffect(() => {
     fetchAds(selectedAccountId)
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [activeTab, activeSubTab, selectedAccountId, searchAds, statusFilter, , dateRange, adsPage, adsPageSize])
+}, [activeTab, activeSubTab, selectedAccountId, searchAds, statusFilter, dateRange, adsPage, adsPageSize])
 
 
 
@@ -940,17 +1060,6 @@ useEffect(() => {
     selectedAccountId !== "all"
   ) {
     fetchAdSets(selectedAccountId)
-  }
-}, [activeTab, activeSubTab, selectedAccountId, dateRange])
-
-// (opcional) Anúncios — se tiver a aba
-useEffect(() => {
-  if (
-    activeTab === "facebook" &&
-    activeSubTab === "anuncios" &&
-    selectedAccountId
-  ) {
-    fetchAds(selectedAccountId)
   }
 }, [activeTab, activeSubTab, selectedAccountId, dateRange])
 
@@ -1126,6 +1235,34 @@ useEffect(() => {
       })
     }
   }
+
+// 🔵 Alterar status do Conjunto de Anúncios (AdSet)
+const handleAdSetStatusChange = async (adSetId: string, currentStatus: string) => {
+  const newStatus = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE"
+
+  // se não tiver conta selecionada ou for "todas", não faz nada
+  if (!selectedAccountId || selectedAccountId === "all") return
+
+  try {
+    await updateFacebookAdSetStatus(selectedAccountId, adSetId, newStatus)
+
+    toast({
+      title: "Status do Conjunto Atualizado",
+      description: `O conjunto ${adSetId} foi ${newStatus === "ACTIVE" ? "ativado" : "pausado"}.`,
+    })
+
+    // Recarrega os conjuntos dessa conta
+    await fetchAdSets(selectedAccountId)
+  } catch (error) {
+    console.error("Erro ao atualizar status do conjunto:", error)
+    toast({
+      title: "Erro",
+      description: "Não foi possível atualizar o status do conjunto.",
+      variant: "destructive",
+    })
+  }
+}
+
 
   // Definição dos ícones com fallbacks
   const tabs = [
@@ -3986,6 +4123,8 @@ useEffect(() => {
   (activeTab === "facebook" && selectedAccountId ? (
     <Card className="border-0 shadow-none bg-transparent">
       <CardContent className="p-0">
+
+        
         {/* ===== Toolbar Campanhas ===== */}
 <div className="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
   <div className="flex items-center gap-2">
@@ -4097,6 +4236,7 @@ useEffect(() => {
       </DialogContent>
     </Dialog>
   </div>
+
 
   {/* Busca + atualizar */}
   <div className="flex items-center gap-2">
@@ -5179,6 +5319,572 @@ useEffect(() => {
       </p>
     </div>
   ))}
+
+  {/* CONJUNTOS */}
+{activeSubTab === "conjuntos" &&
+  (activeTab === "facebook" && selectedAccountId ? (
+    <Card className="border-0 shadow-none bg-transparent">
+      <CardContent className="p-0">
+        {/* ===== Toolbar Conjuntos ===== */}
+        <div className="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            {/* Filtro de status */}
+            <Select
+              value={statusAdSetsFilter}
+              onValueChange={(v) =>
+                setStatusAdSetsFilter(v as "ALL" | "ACTIVE" | "PAUSED")
+              }
+            >
+              <SelectTrigger className="h-8 w-[160px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos os status</SelectItem>
+                <SelectItem value="ACTIVE">Apenas ativos</SelectItem>
+                <SelectItem value="PAUSED">Apenas pausados</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Itens por página */}
+            <Select
+              value={String(adSetsPageSize)}
+              onValueChange={(v) => {
+                setAdSetsPageSize(Number(v))
+                setAdSetsPage(1)
+              }}
+            >
+              <SelectTrigger className="h-8 w-[120px]">
+                <SelectValue placeholder="Itens/página" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* ⚙️ Botão de engrenagem – personalizar colunas CONJUNTOS */}
+            <Dialog open={isAdSetColumnsDialogOpen} onOpenChange={setIsAdSetColumnsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-full border-white/20 bg-background/70 hover:bg-background"
+                  title="Personalizar colunas"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Personalizar colunas da tabela de conjuntos</DialogTitle>
+                </DialogHeader>
+
+                <p className="text-sm text-muted-foreground mb-2">
+                  Escolha quais informações você quer ver nas colunas dos conjuntos. O sistema salva sua escolha
+                  automaticamente para os próximos acessos.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[380px] overflow-y-auto pr-1">
+                  {ALL_ADSET_COLUMNS.map((col) => (
+                    <label
+                      key={col.id}
+                      className="flex items-start gap-2 rounded-md border border-white/10 bg-muted/40 px-3 py-2 cursor-pointer hover:bg-muted/70"
+                    >
+                      <Checkbox
+                        checked={adSetColumns.includes(col.id)}
+                        onCheckedChange={(checked) => {
+                          setAdSetColumns((prev) => {
+                            const isChecked = checked === true
+                            if (isChecked) {
+                              if (prev.includes(col.id)) return prev
+                              return [...prev, col.id]
+                            }
+                            return prev.filter((cId) => cId !== col.id)
+                          })
+                        }}
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{col.label}</span>
+                        {col.description && (
+                          <span className="text-xs text-muted-foreground">{col.description}</span>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+
+                <DialogFooter className="mt-3 flex items-center justify-between gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-xs"
+                    onClick={() => setAdSetColumns(DEFAULT_ADSET_COLUMNS)}
+                  >
+                    Restaurar padrão
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={() => setIsAdSetColumnsDialogOpen(false)}
+                  >
+                    Salvar
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {/* Busca + atualizar */}
+          <div className="flex items-center gap-2">
+            <input
+              value={searchAdSets}
+              onChange={(e) => setSearchAdSets(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && selectedAccountId)
+                  fetchAdSets(selectedAccountId)
+              }}
+              placeholder="Buscar por nome do conjunto..."
+              className="h-8 w-full md:w-[280px] rounded-md bg-background border px-3 text-sm outline-none"
+            />
+            <Button
+              variant="outline"
+              className="h-8"
+              onClick={() =>
+                selectedAccountId && fetchAdSets(selectedAccountId)
+              }
+              disabled={loadingAdSets}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Atualizar
+            </Button>
+          </div>
+        </div>
+        {/* ===== /Toolbar Conjuntos ===== */}
+
+        {/* 🔹 Caixa neon envolvendo tudo */}
+        <div className="mt-3 neon-meta-border">
+          <div className="neon-meta-inner px-3 py-2 md:px-4 md:py-3">
+            {loadingAdSets ? (
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : adSets.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhum conjunto encontrado para esta conta.
+              </p>
+            ) : (
+              <>
+                <div className="w-full overflow-x-auto">
+                  <Table className="min-w-[1100px] border-collapse table-surface">
+                    <TableHeader className="border-b border-white/10">
+                      {/* 🔹 Linha de totais/médias CONJUNTOS */}
+                      <TableRow className="table-row-border">
+                        {/* Status + Conjunto + Orçamento */}
+                        <TableHead
+                          className="sticky left-0 z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] border-r border-white/10"
+                          colSpan={3}
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              Resultados de {filteredAdSets.length} conjuntos
+                            </span>
+                          </div>
+                        </TableHead>
+
+                        {/* Valor usado */}
+                        {isAdSetColumnVisible("spend") && (
+                          <TableHead className="border-r border-white/10">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                              Total usado
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {adSetsSummary.totalSpend > 0 ? moneyBRL(adSetsSummary.totalSpend) : "—"}
+                            </span>
+                          </TableHead>
+                        )}
+
+                        {/* Resultados */}
+                        {isAdSetColumnVisible("results") && (
+                          <TableHead className="border-r border-white/10">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                              Total resultados
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {adSetsSummary.totalResults ?? 0}
+                            </span>
+                          </TableHead>
+                        )}
+
+                        {/* ROAS */}
+                        {isAdSetColumnVisible("roas") && (
+                          <TableHead className="border-r border-white/10">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Total ROAS
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {adSetsSummary.avgRoas != null ? adSetsSummary.avgRoas.toFixed(2) : "—"}
+                            </span>
+                          </TableHead>
+                        )}
+
+                        {/* CPA */}
+                        {isAdSetColumnVisible("cpa") && (
+                          <TableHead className="border-r border-white/10">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Total CPA
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {adSetsSummary.avgCpa != null
+                                ? moneyBRL(adSetsSummary.avgCpa)
+                                : "—"}
+                            </span>
+                          </TableHead>
+                        )}
+
+                        {/* CPM */}
+                        {isAdSetColumnVisible("cpm") && (
+                          <TableHead className="border-r border-white/10">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Total CPM
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {adSetsSummary.avgCpm != null ? moneyBRL(adSetsSummary.avgCpm) : "—"}
+                            </span>
+                          </TableHead>
+                        )}
+
+                        {/* Cliques */}
+                        {isAdSetColumnVisible("clicks") && (
+                          <TableHead className="border-r border-white/10">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Total cliques
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {adSetsSummary.totalClicks ?? 0}
+                            </span>
+                          </TableHead>
+                        )}
+
+                        {/* CPC */}
+                        {isAdSetColumnVisible("cpc") && (
+                          <TableHead className="border-r border-white/10">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Total CPC
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {adSetsSummary.avgCpc != null ? moneyBRL(adSetsSummary.avgCpc) : "—"}
+                            </span>
+                          </TableHead>
+                        )}
+
+                        {/* CTR */}
+                        {isAdSetColumnVisible("ctr") && (
+                          <TableHead className="border-r border-white/10">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Total CTR
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {adSetsSummary.avgCtr != null
+                                ? `${Number(adSetsSummary.avgCtr).toFixed(2)}%`
+                                : "—"}
+                            </span>
+                          </TableHead>
+                        )}
+
+                        {/* Impressões */}
+                        {isAdSetColumnVisible("impressions") && (
+                          <TableHead className="border-r border-white/10">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Total impressões
+                            </span>
+                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+                              {adSetsSummary.totalImpressions ?? 0}
+                            </span>
+                          </TableHead>
+                        )}
+                      </TableRow>
+
+                      {/* ⬇️ Cabeçalho normal das colunas */}
+                      <TableRow className="table-row-border">
+                        {/* Coluna 1 - Status */}
+                        <TableHead
+                          className="sticky left-0 z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[100px] border-r border-white/10 border-b border-white/20"
+                        >
+                          Status
+                        </TableHead>
+
+                        {/* Coluna 2 - Conjunto */}
+                        <TableHead
+                          className="sticky left-[73px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] min-w-[260px] border-r border-white/10 border-b border-white/20"
+                        >
+                          Conjunto
+                        </TableHead>
+
+                        {/* Coluna 3 - Orçamento */}
+                        <TableHead
+                          className="sticky left-[350px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[160px] border-r border-white/10 border-b border-white/20"
+                        >
+                          Orçamento
+                        </TableHead>
+
+                        {/* 🔧 Colunas de métricas dinâmicas */}
+                        {isAdSetColumnVisible("spend") && (
+                          <TableHead className="border-r border-white/10 border-b border-white/20">
+                            Valor usado
+                          </TableHead>
+                        )}
+
+                        {isAdSetColumnVisible("results") && (
+                          <TableHead className="border-r border-white/10 border-b border-white/20">
+                            Resultados
+                          </TableHead>
+                        )}
+
+                        {isAdSetColumnVisible("roas") && (
+                          <TableHead className="border-r border-white/10 border-b border-white/20">
+                            ROAS de resultados
+                          </TableHead>
+                        )}
+
+                        {isAdSetColumnVisible("cpa") && (
+                          <TableHead className="border-r border-white/10 border-b border-white/20">
+                            Custo por resultado (CPA)
+                          </TableHead>
+                        )}
+
+                        {isAdSetColumnVisible("cpm") && (
+                          <TableHead className="border-r border-white/10 border-b border-white/20">
+                            CPM (custo por 1.000)
+                          </TableHead>
+                        )}
+
+                        {isAdSetColumnVisible("clicks") && (
+                          <TableHead className="border-r border-white/10 border-b border-white/20">
+                            Cliques
+                          </TableHead>
+                        )}
+
+                        {isAdSetColumnVisible("cpc") && (
+                          <TableHead className="border-r border-white/10 border-b border-white/20">
+                            CPC
+                          </TableHead>
+                        )}
+
+                        {isAdSetColumnVisible("ctr") && (
+                          <TableHead className="border-r border-white/10 border-b border-white/20">
+                            CTR
+                          </TableHead>
+                        )}
+
+                        {isAdSetColumnVisible("impressions") && (
+                          <TableHead className="border-r border-white/10 border-b border-white/20">
+                            Impressões
+                          </TableHead>
+                        )}
+
+                        {isAdSetColumnVisible("campaign") && (
+                          <TableHead className="border-r border-white/10 border-b border-white/20">
+                            Campanha
+                          </TableHead>
+                        )}
+
+                        {isAdSetColumnVisible("id") && (
+                          <TableHead className="border-r border-white/10 border-b border-white/20">
+                            ID do Conjunto
+                          </TableHead>
+                        )}
+                      </TableRow>
+                    </TableHeader>
+
+                    <TableBody>
+  {pagedAdSets.map((adSet: any) => (
+    <TableRow
+      key={adSet.id}
+      className="border-b border-white/10 last:border-b-0 [&>td]:py-3"
+    >
+      {/* Coluna 1 - toggle ativar/desativar */}
+      <TableCell
+        className="sticky left-0 z-10 bg-[hsl(var(--muted))] dark:bg-[#111317] text-center w-[100px] border-r border-white/10 p-0"
+      >
+        {(() => {
+          const isActive = adSet.status === "ACTIVE"
+          return (
+            <button
+              onClick={() => handleAdSetStatusChange(adSet.id, adSet.status)}
+              className={cn(
+                "relative inline-flex h-6 w-14 items-center rounded-full border transition-all duration-300",
+                isActive
+                  ? "border-emerald-300 bg-gradient-to-br from-emerald-300 to-emerald-400 shadow-[0_5px_10px_rgba(16,185,129,0.6)]"
+                  : "border-zinc-500/60 bg-gradient-to-br from-zinc-700 to-zinc-800 shadow-inner",
+              )}
+              aria-pressed={isActive}
+            >
+              <span
+                className={cn(
+                  "pointer-events-none absolute inset-[2px] rounded-full opacity-60 blur-[2px]",
+                  isActive ? "bg-emerald-300/50" : "bg-zinc-500/40",
+                )}
+              />
+              <span
+                className={cn(
+                  "relative inline-block h-5 w-5 transform rounded-full bg-gradient-to-br from-white to-zinc-100 shadow-[0_4px_8px_rgba(0,0,0,0.35)] transition-all duration-300",
+                  isActive ? "translate-x-7" : "translate-x-1",
+                )}
+              />
+            </button>
+          )
+        })()}
+      </TableCell>
+
+      {/* Nome do conjunto */}
+      {isAdSetColumnVisible("name") && (
+        <TableCell className="sticky left-[73px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] min-w-[260px] border-r border-white/10 border-b border-white/20">
+          <div className="items-center gap-2">
+            <span className="truncate max-w-xs">{adSet.name}</span>
+          </div>
+        </TableCell>
+      )}
+
+      {/* Orçamento */}
+      {isAdSetColumnVisible("budget") && (
+        <TableCell className="sticky left-[350px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[160px] border-r border-white/10 border-b border-white/20">
+          <span className="font-medium">
+            {adSet.budget != null ? moneyBRL(adSet.budget) : "—"}
+          </span>
+        </TableCell>
+      )}
+
+      {/* Impressões */}
+      {isAdSetColumnVisible("impressions") && (
+        <TableCell className="border-r border-white/10">
+          {adSet.impressions ?? "—"}
+        </TableCell>
+      )}
+
+      {/* Cliques */}
+      {isAdSetColumnVisible("clicks") && (
+        <TableCell className="border-r border-white/10">
+          {adSet.clicks ?? 0}
+        </TableCell>
+      )}
+
+      {/* CTR */}
+      {isAdSetColumnVisible("ctr") && (
+        <TableCell className="border-r border-white/10">
+          {adSet.ctr != null ? `${Number(adSet.ctr).toFixed(2)}%` : "—"}
+        </TableCell>
+      )}
+
+      {/* CPC */}
+      {isAdSetColumnVisible("cpc") && (
+        <TableCell className="border-r border-white/10">
+          {adSet.cpc != null ? moneyBRL(adSet.cpc) : "—"}
+        </TableCell>
+      )}
+
+      {/* Resultados */}
+      {isAdSetColumnVisible("results") && (
+        <TableCell className="border-r border-white/10">
+          {adSet.results ?? 0}
+        </TableCell>
+      )}
+
+      {/* CPA */}
+      {isAdSetColumnVisible("cpa") && (
+        <TableCell className="border-r border-white/10">
+          {adSet.cpa != null ? moneyBRL(adSet.cpa) : "—"}
+        </TableCell>
+      )}
+
+      {/* Gasto */}
+      {isAdSetColumnVisible("spend") && (
+        <TableCell className="border-r border-white/10">
+          {adSet.spend != null ? moneyBRL(adSet.spend) : "—"}
+        </TableCell>
+      )}
+
+      {/* ROAS */}
+      {isAdSetColumnVisible("roas") && (
+        <TableCell className="border-r border-white/10">
+          {adSet.roas != null ? adSet.roas.toFixed(2) : "—"}
+        </TableCell>
+      )}
+
+      {/* Campanha */}
+      {isAdSetColumnVisible("campaign") && (
+        <TableCell className="border-r border-white/10">
+          {adSet.campaign_name ?? "—"}
+        </TableCell>
+      )}
+
+      {/* ID */}
+      {isAdSetColumnVisible("id") && (
+        <TableCell>
+          {adSet.id}
+        </TableCell>
+      )}
+    </TableRow>
+  ))}
+</TableBody>
+                  </Table>
+                </div>
+
+                {/* Paginação Conjuntos */}
+                <div className="flex items-center justify-between mt-3">
+                  <div className="text-xs text-muted-foreground">
+                    Exibindo {pagedAdSets.length} de{" "}
+                    {filteredAdSets.length} conjuntos
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      className="h-8 px-3"
+                      disabled={adSetsPage === 1 || loadingAdSets}
+                      onClick={() =>
+                        setAdSetsPage((p) => Math.max(1, p - 1))
+                      }
+                    >
+                      Anterior
+                    </Button>
+                    <div className="text-sm">
+                      Página{" "}
+                      <span className="font-semibold">
+                        {adSetsPage}
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="h-8 px-3"
+                      disabled={
+                        loadingAdSets ||
+                        adSetsPage * adSetsPageSize >=
+                          filteredAdSets.length
+                      }
+                      onClick={() => setAdSetsPage((p) => p + 1)}
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  ) : (
+    <div className="flex items-center justify-center h-60">
+      <p className="text-muted-foreground">
+        Conteúdo da aba Conjuntos (em desenvolvimento)
+      </p>
+    </div>
+  ))}
+
       </div>
     )}
   </>

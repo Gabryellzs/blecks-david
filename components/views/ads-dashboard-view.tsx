@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { BarChart, LineChart, DonutChart } from "@/components/ui/charts"
 import { useLocalStorage } from "@/hooks/use-local-storage"
 import { useMediaQuery } from "@/hooks/use-media-query"
@@ -74,7 +75,14 @@ import { getFacebookAdSets } from "@/lib/facebook-ads-service"
 import { createClient } from "@supabase/supabase-js"
 import { getFacebookCampaignsWithInsights } from "@/lib/facebook-ads-service"
 import { cn } from "@/lib/utils"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 
 
@@ -136,6 +144,63 @@ const platformLogos: Record<AdPlatform, string> = {
   kwai: "/icons/kwai-logo.png",
 }
 
+// 🔧 Colunas personalizáveis da tabela de campanhas
+type CampaignColumnId =
+  | "spend"
+  | "results"
+  | "roas"
+  | "costPerResult"
+  | "cpm"
+  | "linkClicks"
+  | "cpc"
+  | "ctr"
+
+const ALL_CAMPAIGN_COLUMNS: { id: CampaignColumnId; label: string; description?: string }[] = [
+  {
+    id: "spend",
+    label: "Valor usado",
+    description: "Quanto a campanha já gastou no período selecionado.",
+  },
+  {
+    id: "results",
+    label: "Resultados",
+    description: "Quantidade de resultados e o tipo de objetivo da campanha.",
+  },
+  {
+    id: "roas",
+    label: "ROAS de resultados",
+    description: "Retorno sobre o gasto com anúncios.",
+  },
+  {
+    id: "costPerResult",
+    label: "Custo por resultado",
+    description: "Média de custo por conversão/resultado.",
+  },
+  {
+    id: "cpm",
+    label: "CPM (custo por 1.000)",
+    description: "Custo por mil impressões.",
+  },
+  {
+    id: "linkClicks",
+    label: "Cliques no link",
+    description: "Cliques no link de destino da campanha.",
+  },
+  {
+    id: "cpc",
+    label: "CPC",
+    description: "Custo médio por clique no link.",
+  },
+  {
+    id: "ctr",
+    label: "CTR",
+    description: "Taxa de cliques (%) em relação às impressões.",
+  },
+]
+
+const DEFAULT_CAMPAIGN_COLUMNS: CampaignColumnId[] = ALL_CAMPAIGN_COLUMNS.map((c) => c.id)
+
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
@@ -151,6 +216,18 @@ export default function AdsDashboardView() {
   const [statusCampaignsFilter, setStatusCampaignsFilter] = useState<"ALL" | "ACTIVE" | "PAUSED">("ALL")
   const [campaignsPage, setCampaignsPage] = useState(1)
   const [campaignsPageSize, setCampaignsPageSize] = useState(25)
+// 🔧 colunas da tabela de campanhas (salvo no localStorage)
+  const [campaignColumns, setCampaignColumns] = useLocalStorage<CampaignColumnId[]>(
+    "ads-campaign-columns",
+    DEFAULT_CAMPAIGN_COLUMNS,
+  )
+  const [isCampaignColumnsDialogOpen, setIsCampaignColumnsDialogOpen] = useState(false)
+
+  const isCampaignColumnVisible = useCallback(
+    (id: CampaignColumnId) => campaignColumns.includes(id),
+    [campaignColumns],
+  )
+
   const [loadingAccounts, setLoadingAccounts] = useState(true)
   const [loadingCampaigns, setLoadingCampaigns] = useState(true)
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
@@ -3572,47 +3649,119 @@ useEffect(() => {
     <Card className="border-0 shadow-none bg-transparent">
       <CardContent className="p-0">
         {/* ===== Toolbar Campanhas ===== */}
-        <div className="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2">
-            {/* Filtro de status */}
-            <Select
-              value={statusCampaignsFilter}
-              onValueChange={(v) =>
-                setStatusCampaignsFilter(v as "ALL" | "ACTIVE" | "PAUSED")
-              }
-            >
-              <SelectTrigger className="h-8 w-[160px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Todos os status</SelectItem>
-                <SelectItem value="ACTIVE">Apenas ativas</SelectItem>
-                <SelectItem value="PAUSED">Apenas pausadas</SelectItem>
-              </SelectContent>
-            </Select>
+<div className="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+  <div className="flex items-center gap-2">
+    {/* Filtro de status */}
+    <Select
+      value={statusCampaignsFilter}
+      onValueChange={(v) =>
+        setStatusCampaignsFilter(v as "ALL" | "ACTIVE" | "PAUSED")
+      }
+    >
+      <SelectTrigger className="h-8 w-[160px]">
+        <SelectValue placeholder="Status" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="ALL">Todos os status</SelectItem>
+        <SelectItem value="ACTIVE">Apenas ativas</SelectItem>
+        <SelectItem value="PAUSED">Apenas pausadas</SelectItem>
+      </SelectContent>
+    </Select>
 
-            {/* Itens por página */}
-            <Select
-              value={String(campaignsPageSize)}
-              onValueChange={(v) => {
-                setCampaignsPageSize(Number(v))
-                setCampaignsPage(1)
-              }}
-            >
-              <SelectTrigger className="h-8 w-[120px]">
-                <SelectValue placeholder="Itens/página" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+    {/* Itens por página */}
+    <Select
+      value={String(campaignsPageSize)}
+      onValueChange={(v) => {
+        setCampaignsPageSize(Number(v))
+        setCampaignsPage(1)
+      }}
+    >
+      <SelectTrigger className="h-8 w-[120px]">
+        <SelectValue placeholder="Itens/página" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="10">10</SelectItem>
+        <SelectItem value="25">25</SelectItem>
+        <SelectItem value="50">50</SelectItem>
+        <SelectItem value="100">100</SelectItem>
+      </SelectContent>
+    </Select>
 
-          {/* Busca + atualizar */}
-          <div className="flex items-center gap-2">
+    {/* ⚙️ Botão de engrenagem – personalizar colunas */}
+    <Dialog open={isCampaignColumnsDialogOpen} onOpenChange={setIsCampaignColumnsDialogOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 rounded-full border-white/20 bg-background/70 hover:bg-background"
+          title="Personalizar colunas"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Personalizar colunas da tabela</DialogTitle>
+        </DialogHeader>
+
+        <p className="text-sm text-muted-foreground mb-2">
+          Escolha quais informações você quer ver nas colunas das campanhas. O sistema salva sua escolha
+          automaticamente para os próximos acessos.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[380px] overflow-y-auto pr-1">
+          {ALL_CAMPAIGN_COLUMNS.map((col) => (
+            <label
+              key={col.id}
+              className="flex items-start gap-2 rounded-md border border-white/10 bg-muted/40 px-3 py-2 cursor-pointer hover:bg-muted/70"
+            >
+              <Checkbox
+                checked={campaignColumns.includes(col.id)}
+                onCheckedChange={(checked) => {
+                  setCampaignColumns((prev) => {
+                    const isChecked = checked === true
+                    if (isChecked) {
+                      if (prev.includes(col.id)) return prev
+                      return [...prev, col.id]
+                    }
+                    return prev.filter((cId) => cId !== col.id)
+                  })
+                }}
+              />
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">{col.label}</span>
+                {col.description && (
+                  <span className="text-xs text-muted-foreground">{col.description}</span>
+                )}
+              </div>
+            </label>
+          ))}
+        </div>
+
+        <DialogFooter className="mt-3 flex items-center justify-between gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            className="text-xs"
+            onClick={() => setCampaignColumns(DEFAULT_CAMPAIGN_COLUMNS)}
+          >
+            Restaurar padrão
+          </Button>
+
+          <Button
+            type="button"
+            onClick={() => setIsCampaignColumnsDialogOpen(false)}
+          >
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>
+
+  {/* Busca + atualizar */}
+  <div className="flex items-center gap-2">
             <input
               value={searchCampaigns}
               onChange={(e) => setSearchCampaigns(e.target.value)}
@@ -3794,39 +3943,56 @@ useEffect(() => {
     Campanha
   </TableHead>
 
-  {/* Coluna 3 - Orçamento */}
+    {/* Coluna 3 - Orçamento */}
   <TableHead
     className="sticky left-[433px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[160px] border-r border-white/10 border-b border-white/20"
   >
     Orçamento
   </TableHead>
 
-  {/* resto das colunas permanece igual */}
-  <TableHead className="border-r border-white/10 border-b border-white/20">
-    Valor usado
-  </TableHead>
-  <TableHead className="border-r border-white/10 border-b border-white/20">
-    Resultados
-  </TableHead>
-  <TableHead className="border-r border-white/10 border-b border-white/20">
-    ROAS de resultados
-  </TableHead>
-                        <TableHead className="border-r border-white/10 border-b border-white/20">
-                          Custo por resultado
-                        </TableHead>
-                        <TableHead className="border-r border-white/10 border-b border-white/20">
-                          CPM (custo por 1.000)
-                        </TableHead>
-                        <TableHead className="border-r border-white/10 border-b border-white/20">
-                          Cliques no link
-                        </TableHead>
-                        <TableHead className="border-r border-white/10 border-b border-white/20">
-                          CPC
-                        </TableHead>
-                        <TableHead className="border-b border-white/20">
-                          CTR
-                        </TableHead>
-                      </TableRow>
+  {/* 🔧 Colunas de métricas dinâmicas */}
+  {isCampaignColumnVisible("spend") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Valor usado
+    </TableHead>
+  )}
+  {isCampaignColumnVisible("results") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Resultados
+    </TableHead>
+  )}
+  {isCampaignColumnVisible("roas") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      ROAS de resultados
+    </TableHead>
+  )}
+  {isCampaignColumnVisible("costPerResult") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Custo por resultado
+    </TableHead>
+  )}
+  {isCampaignColumnVisible("cpm") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      CPM (custo por 1.000)
+    </TableHead>
+  )}
+  {isCampaignColumnVisible("linkClicks") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Cliques no link
+    </TableHead>
+  )}
+  {isCampaignColumnVisible("cpc") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      CPC
+    </TableHead>
+  )}
+  {isCampaignColumnVisible("ctr") && (
+    <TableHead className="border-b border-white/20">
+      CTR
+    </TableHead>
+  )}
+</TableRow>
+
                     </TableHeader>
 
                     <TableBody>
@@ -3910,54 +4076,62 @@ useEffect(() => {
 </TableCell>
 
 
-                          {/* Coluna 4 em diante */}
-                          <TableCell className="border-r border-white/10">
-                            {moneyBRL(c.spend)}
-                          </TableCell>
+                          {/* Coluna 4 em diante – métricas dinâmicas */}
+{isCampaignColumnVisible("spend") && (
+  <TableCell className="border-r border-white/10">
+    {c.spend != null ? moneyBRL(c.spend) : "—"}
+  </TableCell>
+)}
 
-                          <TableCell className="border-r border-white/10">
-                            <div className="flex flex-col">
-                              <span className="font-medium">
-                                {c.results ?? 0}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {c.resultLabel || "Resultados"}
-                              </span>
-                            </div>
-                          </TableCell>
+{isCampaignColumnVisible("results") && (
+  <TableCell className="border-r border-white/10">
+    <div className="flex flex-col">
+      <span className="font-medium">
+        {c.results ?? 0}
+      </span>
+      <span className="text-xs text-muted-foreground">
+        {c.resultLabel || "Resultados"}
+      </span>
+    </div>
+  </TableCell>
+)}
 
-                          <TableCell className="border-r border-white/10">
-                            {c.roas != null ? c.roas.toFixed(2) : "—"}
-                          </TableCell>
+{isCampaignColumnVisible("roas") && (
+  <TableCell className="border-r border-white/10">
+    {c.roas != null ? c.roas.toFixed(2) : "—"}
+  </TableCell>
+)}
 
-                          <TableCell className="border-r border-white/10">
-                            {c.cost_per_result != null
-                              ? moneyBRL(c.cost_per_result)
-                              : "—"}
-                          </TableCell>
+{isCampaignColumnVisible("costPerResult") && (
+  <TableCell className="border-r border-white/10">
+    {c.cost_per_result != null ? moneyBRL(c.cost_per_result) : "—"}
+  </TableCell>
+)}
 
-                          <TableCell className="border-r border-white/10">
-                            {c.cpm != null
-                              ? moneyBRL(c.cpm)
-                              : "—"}
-                          </TableCell>
+{isCampaignColumnVisible("cpm") && (
+  <TableCell className="border-r border-white/10">
+    {c.cpm != null ? moneyBRL(c.cpm) : "—"}
+  </TableCell>
+)}
 
-                          <TableCell className="border-r border-white/10">
-                            {c.inline_link_clicks ?? 0}
-                          </TableCell>
+{isCampaignColumnVisible("linkClicks") && (
+  <TableCell className="border-r border-white/10">
+    {c.inline_link_clicks ?? 0}
+  </TableCell>
+)}
 
-                          <TableCell className="border-r border-white/10">
-                            {c.cpc != null
-                              ? moneyBRL(c.cpc)
-                              : "—"}
-                          </TableCell>
+{isCampaignColumnVisible("cpc") && (
+  <TableCell className="border-r border-white/10">
+    {c.cpc != null ? moneyBRL(c.cpc) : "—"}
+  </TableCell>
+)}
 
-                          {/* Última coluna → sem border-r para não duplicar */}
-                          <TableCell>
-                            {c.ctr != null
-                              ? `${Number(c.ctr).toFixed(2)}%`
-                              : "—"}
-                          </TableCell>
+{isCampaignColumnVisible("ctr") && (
+  <TableCell>
+    {c.ctr != null ? `${Number(c.ctr).toFixed(2)}%` : "—"}
+  </TableCell>
+)}
+
                         </TableRow>
                       ))}
                     </TableBody>

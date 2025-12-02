@@ -99,14 +99,32 @@ export async function GET(req: NextRequest) {
       accessToken = lastMeta.access_token
     }
 
-    // 🔹 Inclui orçamento e insights
+    // 🔹 Campos de insights que vamos pedir ao Graph
+    const insightsFields = [
+      "spend",
+      "impressions",          // 👈 AGORA estamos pedindo impressões
+      "actions",
+      "action_values",
+      "cost_per_action_type",
+      "cpm",
+      "inline_link_clicks",
+      "cpc",
+      "ctr",
+      // Se quiser no futuro: video views, etc.
+      // "video_plays",
+      // "video_15_sec_watched_actions",
+    ].join(",")
+
+    // 🔹 Inclui orçamento, updated_time e insights
     const fields = [
       "id",
       "name",
       "status",
+      "updated_time",
+      "account_id",
       "daily_budget",
       "lifetime_budget",
-      `insights.date_preset(${datePreset}){spend,actions,action_values,cost_per_action_type,cpm,inline_link_clicks,cpc,ctr}`,
+      `insights.date_preset(${datePreset}){${insightsFields}}`,
     ].join(",")
 
     // URL base (1ª página)

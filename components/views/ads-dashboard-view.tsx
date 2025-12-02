@@ -146,14 +146,40 @@ const platformLogos: Record<AdPlatform, string> = {
 
 // 🔧 Colunas personalizáveis da tabela de campanhas
 type CampaignColumnId =
-  | "spend"
-  | "results"
-  | "roas"
-  | "costPerResult"
-  | "cpm"
-  | "linkClicks"
-  | "cpc"
-  | "ctr"
+  | "spend"            // Total gasto
+  | "results"          // Resultados
+  | "roas"             // ROAS
+  | "costPerResult"    // Custo por resultado
+  | "cpm"              // CPM
+  | "linkClicks"       // Cliques no link
+  | "cpc"              // CPC
+  | "ctr"              // CTR
+  // extras dos prints do Meta (você pode ir expandindo isso aqui):
+  | "impressions"      // Impressões
+  | "totalSales"       // Vendas totais
+  | "pendingSales"     // Vendas pendentes
+  | "refundSales"      // Vendas reembolsadas
+  | "grossRevenue"     // Faturamento bruto
+  | "pendingRevenue"   // Faturamento pendente
+  | "refundRevenue"    // Faturamento reembolsado
+  | "profit"           // Lucro
+  | "margin"           // Margem
+  | "roi"              // ROI
+  | "cpl"              // Custo por cadastro
+  | "cpp"              // Custo por vendas pendentes
+  | "cpt"              // Custo por vendas totais
+  | "arpu"             // Receita por usuário
+  | "connectionRate"   // Taxa de conexão
+  | "hookHoldRate"     // Hold Rate (vídeo 75%)
+  | "videoRetention75" // Retenção de vídeo 75%
+  | "bodyConversion"   // Conversão do body
+  | "bodyRetention75"  // Retenção do body 75%
+  | "ctaClickRate"     // Cliques no CTA
+  | "hookPlayRate"     // Play rate do hook
+  | "rejectedSales"    // Vendas recusadas
+  | "ids"              // IDs de campanhas/conjuntos/anúncios
+  | "lastUpdate"       // Última atualização
+
 
 const ALL_CAMPAIGN_COLUMNS: { id: CampaignColumnId; label: string; description?: string }[] = [
   {
@@ -195,6 +221,129 @@ const ALL_CAMPAIGN_COLUMNS: { id: CampaignColumnId; label: string; description?:
     id: "ctr",
     label: "CTR",
     description: "Taxa de cliques (%) em relação às impressões.",
+  },
+
+  // ====== Extras para ficar mais parecido com o BM ======
+
+  {
+    id: "impressions",
+    label: "Impressões",
+    description: "Quantidade de vezes que os anúncios foram exibidos.",
+  },
+  {
+    id: "totalSales",
+    label: "Vendas totais",
+    description: "Número total de vendas atribuídas à campanha.",
+  },
+  {
+    id: "pendingSales",
+    label: "Vendas pendentes",
+    description: "Vendas que ainda não foram confirmadas.",
+  },
+  {
+    id: "refundSales",
+    label: "Vendas reembolsadas",
+    description: "Vendas que foram estornadas/reembolsadas.",
+  },
+  {
+    id: "grossRevenue",
+    label: "Faturamento bruto",
+    description: "Receita total gerada antes de taxas e reembolsos.",
+  },
+  {
+    id: "pendingRevenue",
+    label: "Faturamento pendente",
+    description: "Receita de vendas que ainda não foram confirmadas.",
+  },
+  {
+    id: "refundRevenue",
+    label: "Faturamento reembolsado",
+    description: "Valor total de vendas estornadas.",
+  },
+  {
+    id: "profit",
+    label: "Lucro",
+    description: "Faturamento menos custos e reembolsos.",
+  },
+  {
+    id: "margin",
+    label: "Margem (%)",
+    description: "Lucro dividido pelo faturamento.",
+  },
+  {
+    id: "roi",
+    label: "ROI",
+    description: "Retorno sobre o investimento em porcentagem.",
+  },
+  {
+    id: "cpl",
+    label: "[CPL] - Custo por Cadastro",
+    description: "Custo médio por cadastro/lead gerado.",
+  },
+  {
+    id: "cpp",
+    label: "[CPP] - Custo por vendas pendentes",
+    description: "Custo médio por venda pendente.",
+  },
+  {
+    id: "cpt",
+    label: "[CPT] - Custo por vendas totais",
+    description: "Custo médio por venda confirmada.",
+  },
+  {
+    id: "arpu",
+    label: "[ARPU] - Receita por usuário",
+    description: "Faturamento dividido pelo número de clientes.",
+  },
+  {
+    id: "connectionRate",
+    label: "[CON] - Taxa de conexão",
+    description: "Vis. de página / cliques (%).",
+  },
+  {
+    id: "hookHoldRate",
+    label: "[Hold Rate] - Vídeo 75% / impressões (%)",
+    description: "Porcentagem que assistiu 75% do vídeo.",
+  },
+  {
+    id: "videoRetention75",
+    label: "[Retenção de Vídeo (75%)]",
+    description: "Taxa de retenção do vídeo em 75%.",
+  },
+  {
+    id: "bodyConversion",
+    label: "[Conversão do Body]",
+    description: "Compras / vídeos assistidos 75% (%).",
+  },
+  {
+    id: "bodyRetention75",
+    label: "[Retenção do Body]",
+    description: "Vídeos assistidos 75% / vídeos iniciados (%).",
+  },
+  {
+    id: "ctaClickRate",
+    label: "[CTA] - Cliques no link",
+    description: "Cliques no link / vídeos assistidos 75% (%).",
+  },
+  {
+    id: "hookPlayRate",
+    label: "[Play Rate do Hook]",
+    description: "Vídeos iniciados / impressões (%).",
+  },
+  {
+    id: "rejectedSales",
+    label: "Vendas recusadas",
+    description: "Compras recusadas pelo gateway.",
+  },
+  {
+    id: "ids",
+    label: "[ID] - IDs de Campanha / Conjunto / Anúncio",
+    description: "Identificadores internos das entidades.",
+  },
+  {
+    id: "lastUpdate",
+    label: "Última atualização",
+    description: "Última vez que os dados foram sincronizados.",
   },
 ]
 
@@ -304,82 +453,215 @@ const filteredCampaigns = useMemo(() => {
 
 // 🔹 RESUMO GERAL (soma/médias) – usado na linha de totais do cabeçalho
 const campaignsSummary = useMemo(() => {
-  const totals = (filteredCampaigns || []).reduce(
-    (acc, c: any) => {
-      const spend = Number(c.spend) || 0
-      const results = Number(c.results) || 0
-      const clicks = Number(c.inline_link_clicks) || 0
-      const roas = c.roas != null ? Number(c.roas) : null
-      const cpm = c.cpm != null ? Number(c.cpm) : null
-      const ctr = c.ctr != null ? Number(c.ctr) : null
-
-      acc.totalSpend += spend
-      acc.totalResults += results
-      acc.totalClicks += clicks
-
-      // ROAS médio ponderado por gasto
-      if (roas !== null && !Number.isNaN(roas) && spend > 0) {
-        acc.weightedRoasSum += roas * spend
-        acc.weightedRoasWeight += spend
-      }
-
-      // CPM médio ponderado por gasto
-      if (cpm !== null && !Number.isNaN(cpm) && spend > 0) {
-        acc.weightedCpmSum += cpm * spend
-        acc.weightedCpmWeight += spend
-      }
-
-      // CTR médio ponderado por cliques
-      if (ctr !== null && !Number.isNaN(ctr) && clicks > 0) {
-        acc.weightedCtrSum += ctr * clicks
-        acc.weightedCtrWeight += clicks
-      }
-
-      return acc
-    },
-    {
+  if (!filteredCampaigns.length) {
+    return {
       totalSpend: 0,
       totalResults: 0,
+      avgRoas: null as number | null,
+      avgCostPerResult: null as number | null,
+      avgCpm: null as number | null,
       totalClicks: 0,
-      weightedRoasSum: 0,
-      weightedRoasWeight: 0,
-      weightedCpmSum: 0,
-      weightedCpmWeight: 0,
-      weightedCtrSum: 0,
-      weightedCtrWeight: 0,
+      avgCpc: null as number | null,
+      avgCtr: null as number | null,
+
+      totalImpressions: 0,
+      totalSales: 0,
+      totalPendingSales: 0,
+      totalRefundSales: 0,
+      totalGrossRevenue: 0,
+      totalPendingRevenue: 0,
+      totalRefundRevenue: 0,
+      totalProfit: 0,
+      avgMargin: null as number | null,
+      avgRoi: null as number | null,
+      avgCpl: null as number | null,
+      avgCpp: null as number | null,
+      avgCpt: null as number | null,
+      avgArpu: null as number | null,
+      avgConnectionRate: null as number | null,
+      avgHookHoldRate: null as number | null,
+      avgVideoRetention75: null as number | null,
+      avgBodyConversion: null as number | null,
+      avgBodyRetention75: null as number | null,
+      avgCtaClickRate: null as number | null,
+      avgHookPlayRate: null as number | null,
+      totalRejectedSales: 0,
     }
-  )
+  }
 
-  const avgCostPerResult =
-    totals.totalResults > 0 ? totals.totalSpend / totals.totalResults : null
+  let totalSpend = 0
+  let totalResults = 0
+  let totalClicks = 0
+  let totalImpressions = 0
+  let totalSales = 0
+  let totalPendingSales = 0
+  let totalRefundSales = 0
+  let totalGrossRevenue = 0
+  let totalPendingRevenue = 0
+  let totalRefundRevenue = 0
+  let totalProfit = 0
+  let totalRejectedSales = 0
 
-  const avgCpc =
-    totals.totalClicks > 0 ? totals.totalSpend / totals.totalClicks : null
+  let sumRoas = 0,
+    countRoas = 0
+  let sumCostPerResult = 0,
+    countCostPerResult = 0
+  let sumCpm = 0,
+    countCpm = 0
+  let sumCpc = 0,
+    countCpc = 0
+  let sumCtr = 0,
+    countCtr = 0
+  let sumMargin = 0,
+    countMargin = 0
+  let sumRoi = 0,
+    countRoi = 0
+  let sumCpl = 0,
+    countCpl = 0
+  let sumCpp = 0,
+    countCpp = 0
+  let sumCpt = 0,
+    countCpt = 0
+  let sumArpu = 0,
+    countArpu = 0
+  let sumConnectionRate = 0,
+    countConnectionRate = 0
+  let sumHookHoldRate = 0,
+    countHookHoldRate = 0
+  let sumVideoRetention75 = 0,
+    countVideoRetention75 = 0
+  let sumBodyConversion = 0,
+    countBodyConversion = 0
+  let sumBodyRetention75 = 0,
+    countBodyRetention75 = 0
+  let sumCtaClickRate = 0,
+    countCtaClickRate = 0
+  let sumHookPlayRate = 0,
+    countHookPlayRate = 0
 
-  const avgRoas =
-    totals.weightedRoasWeight > 0
-      ? totals.weightedRoasSum / totals.weightedRoasWeight
-      : null
+  filteredCampaigns.forEach((c) => {
+    if (c.spend != null) totalSpend += c.spend
+    if (c.results != null) totalResults += c.results
+    if (c.inline_link_clicks != null) totalClicks += c.inline_link_clicks
+    if (c.impressions != null) totalImpressions += c.impressions
 
-  const avgCpm =
-    totals.weightedCpmWeight > 0
-      ? totals.weightedCpmSum / totals.weightedCpmWeight
-      : null
+    if (c.total_sales != null) totalSales += c.total_sales
+    if (c.pending_sales != null) totalPendingSales += c.pending_sales
+    if (c.refund_sales != null) totalRefundSales += c.refund_sales
 
-  const avgCtr =
-    totals.weightedCtrWeight > 0
-      ? totals.weightedCtrSum / totals.weightedCtrWeight
-      : null
+    if (c.gross_revenue != null) totalGrossRevenue += c.gross_revenue
+    if (c.pending_revenue != null) totalPendingRevenue += c.pending_revenue
+    if (c.refund_revenue != null) totalRefundRevenue += c.refund_revenue
+    if (c.profit != null) totalProfit += c.profit
+
+    if (c.rejected_sales != null) totalRejectedSales += c.rejected_sales
+
+    if (c.roas != null) {
+      sumRoas += c.roas
+      countRoas++
+    }
+    if (c.cost_per_result != null) {
+      sumCostPerResult += c.cost_per_result
+      countCostPerResult++
+    }
+    if (c.cpm != null) {
+      sumCpm += c.cpm
+      countCpm++
+    }
+    if (c.cpc != null) {
+      sumCpc += c.cpc
+      countCpc++
+    }
+    if (c.ctr != null) {
+      sumCtr += Number(c.ctr)
+      countCtr++
+    }
+    if (c.margin != null) {
+      sumMargin += Number(c.margin)
+      countMargin++
+    }
+    if (c.roi != null) {
+      sumRoi += Number(c.roi)
+      countRoi++
+    }
+    if (c.cpl != null) {
+      sumCpl += c.cpl
+      countCpl++
+    }
+    if (c.cpp != null) {
+      sumCpp += c.cpp
+      countCpp++
+    }
+    if (c.cpt != null) {
+      sumCpt += c.cpt
+      countCpt++
+    }
+    if (c.arpu != null) {
+      sumArpu += c.arpu
+      countArpu++
+    }
+    if (c.connection_rate != null) {
+      sumConnectionRate += Number(c.connection_rate)
+      countConnectionRate++
+    }
+    if (c.hook_hold_rate != null) {
+      sumHookHoldRate += Number(c.hook_hold_rate)
+      countHookHoldRate++
+    }
+    if (c.video_retention_75 != null) {
+      sumVideoRetention75 += Number(c.video_retention_75)
+      countVideoRetention75++
+    }
+    if (c.body_conversion != null) {
+      sumBodyConversion += Number(c.body_conversion)
+      countBodyConversion++
+    }
+    if (c.body_retention_75 != null) {
+      sumBodyRetention75 += Number(c.body_retention_75)
+      countBodyRetention75++
+    }
+    if (c.cta_click_rate != null) {
+      sumCtaClickRate += Number(c.cta_click_rate)
+      countCtaClickRate++
+    }
+    if (c.hook_play_rate != null) {
+      sumHookPlayRate += Number(c.hook_play_rate)
+      countHookPlayRate++
+    }
+  })
 
   return {
-    totalSpend: totals.totalSpend,
-    totalResults: totals.totalResults,
-    totalClicks: totals.totalClicks,
-    avgCostPerResult,
-    avgCpc,
-    avgRoas,
-    avgCpm,
-    avgCtr,
+    totalSpend,
+    totalResults,
+    avgRoas: countRoas ? sumRoas / countRoas : null,
+    avgCostPerResult: countCostPerResult ? sumCostPerResult / countCostPerResult : null,
+    avgCpm: countCpm ? sumCpm / countCpm : null,
+    totalClicks,
+    avgCpc: countCpc ? sumCpc / countCpc : null,
+    avgCtr: countCtr ? sumCtr / countCtr : null,
+
+    totalImpressions,
+    totalSales,
+    totalPendingSales,
+    totalRefundSales,
+    totalGrossRevenue,
+    totalPendingRevenue,
+    totalRefundRevenue,
+    totalProfit,
+    avgMargin: countMargin ? sumMargin / countMargin : null,
+    avgRoi: countRoi ? sumRoi / countRoi : null,
+    avgCpl: countCpl ? sumCpl / countCpl : null,
+    avgCpp: countCpp ? sumCpp / countCpp : null,
+    avgCpt: countCpt ? sumCpt / countCpt : null,
+    avgArpu: countArpu ? sumArpu / countArpu : null,
+    avgConnectionRate: countConnectionRate ? sumConnectionRate / countConnectionRate : null,
+    avgHookHoldRate: countHookHoldRate ? sumHookHoldRate / countHookHoldRate : null,
+    avgVideoRetention75: countVideoRetention75 ? sumVideoRetention75 / countVideoRetention75 : null,
+    avgBodyConversion: countBodyConversion ? sumBodyConversion / countBodyConversion : null,
+    avgBodyRetention75: countBodyRetention75 ? sumBodyRetention75 / countBodyRetention75 : null,
+    avgCtaClickRate: countCtaClickRate ? sumCtaClickRate / countCtaClickRate : null,
+    avgHookPlayRate: countHookPlayRate ? sumHookPlayRate / countHookPlayRate : null,
+    totalRejectedSales,
   }
 }, [filteredCampaigns])
 
@@ -3806,126 +4088,392 @@ useEffect(() => {
                   <Table className="min-w-[1100px] border-collapse table-surface">
                     <TableHeader className="border-b border-white/10">
                       {/* 🔹 Linha de totais/médias */}
-                      <TableRow className="table-row-border">
-                        {/* Status + Campanha + Orçamento */}
-                        <TableHead
-                          className="sticky left-0 z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] border-r border-white/10"
-                          colSpan={3}
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
-                              Resultados de {filteredCampaigns.length} campanhas
-                            </span>
-                          </div>
-                        </TableHead>
+<TableRow className="table-row-border">
+  {/* Status + Campanha + Orçamento */}
+  <TableHead
+    className="sticky left-0 z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] border-r border-white/10"
+    colSpan={3}
+  >
+    <div className="flex flex-col">
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        Resultados de {filteredCampaigns.length} campanhas
+      </span>
+    </div>
+  </TableHead>
 
-                        {/* Valor usado */}
-                        <TableHead className="border-r border-white/10">
-                          <span className="text-[11px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
-                            Total usado
-                          </span>
+  {/* Valor usado */}
+  {isCampaignColumnVisible("spend") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+        Total usado
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.totalSpend > 0 ? moneyBRL(campaignsSummary.totalSpend) : "—"}
+      </span>
+    </TableHead>
+  )}
 
-                          <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
-                            {campaignsSummary.totalSpend > 0
-                              ? moneyBRL(campaignsSummary.totalSpend)
-                              : "—"}
-                          </span>
-                        </TableHead>
+  {/* Resultados */}
+  {isCampaignColumnVisible("results") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+        Total resultados
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.totalResults ?? 0}
+      </span>
+    </TableHead>
+  )}
 
-                        {/* Resultados */}
-                        <TableHead className="border-r border-white/10">
-                          <span className="text-[11px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
-                            Total resultados
-                          </span>
-                          <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
-                            {campaignsSummary.totalResults ?? 0}
-                          </span>
-                        </TableHead>
+  {/* ROAS */}
+  {isCampaignColumnVisible("roas") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Total ROAS
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgRoas != null ? campaignsSummary.avgRoas.toFixed(2) : "—"}
+      </span>
+    </TableHead>
+  )}
 
-                        {/* ROAS */}
-                        <TableHead className="border-r border-white/10">
-                          <div className="flex flex-col">
-                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                              Total ROAS
-                            </span>
-                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
-                              {campaignsSummary.avgRoas != null
-                                ? campaignsSummary.avgRoas.toFixed(2)
-                                : "—"}
-                            </span>
-                          </div>
-                        </TableHead>
+  {/* CPR */}
+  {isCampaignColumnVisible("costPerResult") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Total CPR
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgCostPerResult != null
+          ? moneyBRL(campaignsSummary.avgCostPerResult)
+          : "—"}
+      </span>
+    </TableHead>
+  )}
 
-                        {/* Custo por resultado (CPR) */}
-                        <TableHead className="border-r border-white/10">
-                          <div className="flex flex-col">
-                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                              Total CPR
-                            </span>
-                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
-                              {campaignsSummary.avgCostPerResult != null
-                                ? moneyBRL(campaignsSummary.avgCostPerResult)
-                                : "—"}
-                            </span>
-                          </div>
-                        </TableHead>
+  {/* CPM */}
+  {isCampaignColumnVisible("cpm") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Total CPM
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgCpm != null ? moneyBRL(campaignsSummary.avgCpm) : "—"}
+      </span>
+    </TableHead>
+  )}
 
-                        {/* CPM */}
-                        <TableHead className="border-r border-white/10">
-                          <div className="flex flex-col">
-                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                              Total CPM
-                            </span>
-                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
-                              {campaignsSummary.avgCpm != null
-                                ? moneyBRL(campaignsSummary.avgCpm)
-                                : "—"}
-                            </span>
-                          </div>
-                        </TableHead>
+  {/* Cliques */}
+  {isCampaignColumnVisible("linkClicks") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Total cliques
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.totalClicks ?? 0}
+      </span>
+    </TableHead>
+  )}
 
-                        {/* Cliques no link */}
-                        <TableHead className="border-r border-white/10">
-                          <div className="flex flex-col">
-                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                              Total cliques
-                            </span>
-                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
-                              {campaignsSummary.totalClicks ?? 0}
-                            </span>
-                          </div>
-                        </TableHead>
+  {/* CPC */}
+  {isCampaignColumnVisible("cpc") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Total CPC
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgCpc != null ? moneyBRL(campaignsSummary.avgCpc) : "—"}
+      </span>
+    </TableHead>
+  )}
 
-                        {/* CPC */}
-                        <TableHead className="border-r border-white/10">
-                          <div className="flex flex-col">
-                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                              Total CPC
-                            </span>
-                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
-                              {campaignsSummary.avgCpc != null
-                                ? moneyBRL(campaignsSummary.avgCpc)
-                                : "—"}
-                            </span>
-                          </div>
-                        </TableHead>
+  {/* CTR */}
+  {isCampaignColumnVisible("ctr") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Total CTR
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgCtr != null
+          ? `${Number(campaignsSummary.avgCtr).toFixed(2)}%`
+          : "—"}
+      </span>
+    </TableHead>
+  )}
 
-                        {/* CTR */}
-                        <TableHead>
-                          <div className="flex flex-col">
-                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                              Total CTR
-                            </span>
-                            <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
-                              {campaignsSummary.avgCtr != null
-                                ? `${Number(
-                                    campaignsSummary.avgCtr,
-                                  ).toFixed(2)}%`
-                                : "—"}
-                            </span>
-                          </div>
-                        </TableHead>
-                      </TableRow>
+  {/* Impressões */}
+  {isCampaignColumnVisible("impressions") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Total impressões
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.totalImpressions ?? 0}
+      </span>
+    </TableHead>
+  )}
+
+  {/* Vendas */}
+  {isCampaignColumnVisible("totalSales") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Vendas totais
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.totalSales ?? 0}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("pendingSales") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Vendas pendentes
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.totalPendingSales ?? 0}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("refundSales") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Vendas reembolsadas
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.totalRefundSales ?? 0}
+      </span>
+    </TableHead>
+  )}
+
+  {/* Faturamento */}
+  {isCampaignColumnVisible("grossRevenue") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Faturamento bruto
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.totalGrossRevenue
+          ? moneyBRL(campaignsSummary.totalGrossRevenue)
+          : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("pendingRevenue") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Fat. pendente
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.totalPendingRevenue
+          ? moneyBRL(campaignsSummary.totalPendingRevenue)
+          : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("refundRevenue") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Fat. reembolsado
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.totalRefundRevenue
+          ? moneyBRL(campaignsSummary.totalRefundRevenue)
+          : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {/* Lucro / Margem / ROI */}
+  {isCampaignColumnVisible("profit") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Lucro total
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.totalProfit ? moneyBRL(campaignsSummary.totalProfit) : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("margin") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Margem média
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgMargin != null
+          ? `${campaignsSummary.avgMargin.toFixed(2)}%`
+          : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("roi") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        ROI médio
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgRoi != null
+          ? `${campaignsSummary.avgRoi.toFixed(2)}%`
+          : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {/* CPL / CPP / CPT / ARPU */}
+  {isCampaignColumnVisible("cpl") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        CPL médio
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgCpl != null ? moneyBRL(campaignsSummary.avgCpl) : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("cpp") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        CPP médio
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgCpp != null ? moneyBRL(campaignsSummary.avgCpp) : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("cpt") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        CPT médio
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgCpt != null ? moneyBRL(campaignsSummary.avgCpt) : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("arpu") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        ARPU médio
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgArpu != null ? moneyBRL(campaignsSummary.avgArpu) : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {/* Taxas avançadas */}
+  {isCampaignColumnVisible("connectionRate") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        CON médio
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgConnectionRate != null
+          ? `${campaignsSummary.avgConnectionRate.toFixed(2)}%`
+          : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("hookHoldRate") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Hold Rate méd.
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgHookHoldRate != null
+          ? `${campaignsSummary.avgHookHoldRate.toFixed(2)}%`
+          : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("videoRetention75") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Retenção 75% méd.
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgVideoRetention75 != null
+          ? `${campaignsSummary.avgVideoRetention75.toFixed(2)}%`
+          : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("bodyConversion") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Conv. Body méd.
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgBodyConversion != null
+          ? `${campaignsSummary.avgBodyConversion.toFixed(2)}%`
+          : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("bodyRetention75") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Retenção Body 75% méd.
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgBodyRetention75 != null
+          ? `${campaignsSummary.avgBodyRetention75.toFixed(2)}%`
+          : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("ctaClickRate") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        CTA méd.
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgCtaClickRate != null
+          ? `${campaignsSummary.avgCtaClickRate.toFixed(2)}%`
+          : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("hookPlayRate") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Play Rate méd.
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.avgHookPlayRate != null
+          ? `${campaignsSummary.avgHookPlayRate.toFixed(2)}%`
+          : "—"}
+      </span>
+    </TableHead>
+  )}
+
+  {/* Vendas recusadas */}
+  {isCampaignColumnVisible("rejectedSales") && (
+    <TableHead className="border-r border-white/10">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Vendas recusadas
+      </span>
+      <span className="font-semibold whitespace-nowrap flex items-center gap-1 text-foreground dark:text-white">
+        {campaignsSummary.totalRejectedSales ?? 0}
+      </span>
+    </TableHead>
+  )}
+</TableRow>
 
                       {/* ⬇️ Cabeçalho normal das colunas */}
 <TableRow className="table-row-border">
@@ -3943,7 +4491,7 @@ useEffect(() => {
     Campanha
   </TableHead>
 
-    {/* Coluna 3 - Orçamento */}
+  {/* Coluna 3 - Orçamento */}
   <TableHead
     className="sticky left-[433px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[160px] border-r border-white/10 border-b border-white/20"
   >
@@ -3956,39 +4504,190 @@ useEffect(() => {
       Valor usado
     </TableHead>
   )}
+
   {isCampaignColumnVisible("results") && (
     <TableHead className="border-r border-white/10 border-b border-white/20">
       Resultados
     </TableHead>
   )}
+
   {isCampaignColumnVisible("roas") && (
     <TableHead className="border-r border-white/10 border-b border-white/20">
       ROAS de resultados
     </TableHead>
   )}
+
   {isCampaignColumnVisible("costPerResult") && (
     <TableHead className="border-r border-white/10 border-b border-white/20">
       Custo por resultado
     </TableHead>
   )}
+
   {isCampaignColumnVisible("cpm") && (
     <TableHead className="border-r border-white/10 border-b border-white/20">
       CPM (custo por 1.000)
     </TableHead>
   )}
+
   {isCampaignColumnVisible("linkClicks") && (
     <TableHead className="border-r border-white/10 border-b border-white/20">
       Cliques no link
     </TableHead>
   )}
+
   {isCampaignColumnVisible("cpc") && (
     <TableHead className="border-r border-white/10 border-b border-white/20">
       CPC
     </TableHead>
   )}
+
   {isCampaignColumnVisible("ctr") && (
-    <TableHead className="border-b border-white/20">
+    <TableHead className="border-r border-white/10 border-b border-white/20">
       CTR
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("impressions") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Impressões
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("totalSales") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Vendas totais
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("pendingSales") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Vendas pendentes
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("refundSales") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Vendas reembolsadas
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("grossRevenue") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Faturamento bruto
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("pendingRevenue") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Faturamento pendente
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("refundRevenue") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Faturamento reembolsado
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("profit") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Lucro
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("margin") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Margem (%)
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("roi") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      ROI
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("cpl") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      [CPL] - Custo por Cadastro
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("cpp") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      [CPP] - Custo por vendas pendentes
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("cpt") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      [CPT] - Custo por vendas totais
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("arpu") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      [ARPU] - Receita por usuário
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("connectionRate") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      [CON] - Taxa de conexão
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("hookHoldRate") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      [Hold Rate] - Vídeos 75% / impressões
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("videoRetention75") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      [Retenção de Vídeo (75%)]
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("bodyConversion") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      [Conversão do Body]
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("bodyRetention75") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      [Retenção do Body (75%)]
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("ctaClickRate") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      [CTA] - Cliques no link
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("hookPlayRate") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      [Play Rate do Hook]
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("rejectedSales") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      Vendas recusadas
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("ids") && (
+    <TableHead className="border-r border-white/10 border-b border-white/20">
+      [ID] - Campanhas / Conjuntos / Anúncios
+    </TableHead>
+  )}
+
+  {isCampaignColumnVisible("lastUpdate") && (
+    <TableHead className="border-b border-white/20">
+      Última atualização
     </TableHead>
   )}
 </TableRow>
@@ -4076,7 +4775,7 @@ useEffect(() => {
 </TableCell>
 
 
-                          {/* Coluna 4 em diante – métricas dinâmicas */}
+{/* Coluna 4 em diante – métricas dinâmicas */}
 {isCampaignColumnVisible("spend") && (
   <TableCell className="border-r border-white/10">
     {c.spend != null ? moneyBRL(c.spend) : "—"}
@@ -4127,8 +4826,155 @@ useEffect(() => {
 )}
 
 {isCampaignColumnVisible("ctr") && (
-  <TableCell>
+  <TableCell className="border-r border-white/10">
     {c.ctr != null ? `${Number(c.ctr).toFixed(2)}%` : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("impressions") && (
+  <TableCell className="border-r border-white/10">
+    {/* se você ainda não tiver esse campo na campanha, vai ficar "—" */}
+    {c.impressions ?? "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("totalSales") && (
+  <TableCell className="border-r border-white/10">
+    {c.total_sales ?? "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("pendingSales") && (
+  <TableCell className="border-r border-white/10">
+    {c.pending_sales ?? "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("refundSales") && (
+  <TableCell className="border-r border-white/10">
+    {c.refund_sales ?? "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("grossRevenue") && (
+  <TableCell className="border-r border-white/10">
+    {c.gross_revenue != null ? moneyBRL(c.gross_revenue) : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("pendingRevenue") && (
+  <TableCell className="border-r border-white/10">
+    {c.pending_revenue != null ? moneyBRL(c.pending_revenue) : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("refundRevenue") && (
+  <TableCell className="border-r border-white/10">
+    {c.refund_revenue != null ? moneyBRL(c.refund_revenue) : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("profit") && (
+  <TableCell className="border-r border-white/10">
+    {c.profit != null ? moneyBRL(c.profit) : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("margin") && (
+  <TableCell className="border-r border-white/10">
+    {c.margin != null ? `${Number(c.margin).toFixed(2)}%` : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("roi") && (
+  <TableCell className="border-r border-white/10">
+    {c.roi != null ? `${Number(c.roi).toFixed(2)}%` : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("cpl") && (
+  <TableCell className="border-r border-white/10">
+    {c.cpl != null ? moneyBRL(c.cpl) : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("cpp") && (
+  <TableCell className="border-r border-white/10">
+    {c.cpp != null ? moneyBRL(c.cpp) : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("cpt") && (
+  <TableCell className="border-r border-white/10">
+    {c.cpt != null ? moneyBRL(c.cpt) : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("arpu") && (
+  <TableCell className="border-r border-white/10">
+    {c.arpu != null ? moneyBRL(c.arpu) : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("connectionRate") && (
+  <TableCell className="border-r border-white/10">
+    {c.connection_rate != null ? `${Number(c.connection_rate).toFixed(2)}%` : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("hookHoldRate") && (
+  <TableCell className="border-r border-white/10">
+    {c.hook_hold_rate != null ? `${Number(c.hook_hold_rate).toFixed(2)}%` : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("videoRetention75") && (
+  <TableCell className="border-r border-white/10">
+    {c.video_retention_75 != null ? `${Number(c.video_retention_75).toFixed(2)}%` : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("bodyConversion") && (
+  <TableCell className="border-r border-white/10">
+    {c.body_conversion != null ? `${Number(c.body_conversion).toFixed(2)}%` : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("bodyRetention75") && (
+  <TableCell className="border-r border-white/10">
+    {c.body_retention_75 != null ? `${Number(c.body_retention_75).toFixed(2)}%` : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("ctaClickRate") && (
+  <TableCell className="border-r border-white/10">
+    {c.cta_click_rate != null ? `${Number(c.cta_click_rate).toFixed(2)}%` : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("hookPlayRate") && (
+  <TableCell className="border-r border-white/10">
+    {c.hook_play_rate != null ? `${Number(c.hook_play_rate).toFixed(2)}%` : "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("rejectedSales") && (
+  <TableCell className="border-r border-white/10">
+    {c.rejected_sales ?? "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("ids") && (
+  <TableCell className="border-r border-white/10">
+    {c.ids ?? "—"}
+  </TableCell>
+)}
+
+{isCampaignColumnVisible("lastUpdate") && (
+  <TableCell>
+    {c.last_update
+      ? new Date(c.last_update).toLocaleString("pt-BR")
+      : "—"}
   </TableCell>
 )}
 
@@ -4137,6 +4983,95 @@ useEffect(() => {
                     </TableBody>
                   </Table>
                 </div>
+
+{/* Popup de edição de orçamento da campanha */}
+      <Dialog
+        open={!!editingBudgetCampaign}
+        onOpenChange={(open) => {
+          if (!open) handleCancelEditCampaignBudget()
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar orçamento diário</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Defina o orçamento diário da campanha em reais.
+            </p>
+            <Input
+              autoFocus
+              value={editingBudgetValue}
+              onChange={(e) => setEditingBudgetValue(e.target.value)}
+              placeholder="Ex: 100,00"
+            />
+            <p className="text-xs text-muted-foreground">
+              Esse valor será enviado como orçamento diário (daily_budget) para o Facebook Ads.
+            </p>
+          </div>
+
+          <DialogFooter className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCancelEditCampaignBudget}
+              disabled={isSavingBudget}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveCampaignBudget}
+              disabled={isSavingBudget || !editingBudgetValue.trim()}
+            >
+              {isSavingBudget ? "Salvando..." : "Publicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para editar nome da campanha */}
+<Dialog
+  open={!!editingCampaign}
+  onOpenChange={(open) => {
+    if (!open) handleCancelEditCampaignName()
+  }}
+>
+  <DialogContent className="max-w-md">
+    <DialogHeader>
+      <DialogTitle>Editar nome da campanha</DialogTitle>
+    </DialogHeader>
+
+    <div className="space-y-4 pt-2">
+      <p className="text-sm text-muted-foreground">
+        Altere o nome da campanha para organizar melhor suas estratégias.
+      </p>
+
+      <Input
+        autoFocus
+        value={editingCampaignName}
+        onChange={(e) => setEditingCampaignName(e.target.value)}
+        placeholder="Nome da campanha"
+      />
+    </div>
+
+    <DialogFooter className="mt-4 flex justify-end gap-2">
+      <Button
+        variant="outline"
+        onClick={handleCancelEditCampaignName}
+        disabled={isSavingCampaignName}
+      >
+        Cancelar
+      </Button>
+
+      <Button
+        onClick={handleSaveCampaignName}
+        disabled={isSavingCampaignName || !editingCampaignName.trim()}
+      >
+        {isSavingCampaignName ? "Publicando..." : "Publicar"}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 
                 {/* Paginação Campanhas */}
                 <div className="flex items-center justify-between mt-3">

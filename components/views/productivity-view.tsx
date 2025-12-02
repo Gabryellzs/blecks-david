@@ -651,8 +651,8 @@ export default function ProductivityView() {
     })
   }
 
-  return (
-    <div className="container mx-auto px-2 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-8">
+return (
+  <div className="w-full min-h-screen px-2 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Organização / Produtividade</h1>
         <div className="flex items-center gap-1 text-xs sm:text-sm">

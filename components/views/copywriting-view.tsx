@@ -307,7 +307,7 @@ export default function CopywritingView() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-3 py-0 sm:py-0 space-y-0 sm:space-y-2">
+  <div className="w-full min-h-screen px-2 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-8">
       {/* TOPO LIMPO, SEM TÍTULO E DESCRIÇÃO */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="space-y-1" />

@@ -46,7 +46,13 @@ import {
 } from "lucide-react"
 import { ConnectAccountsPage } from "@/components/connect-accounts-page"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import {
   MoreHorizontal,
   PlusCircle,
@@ -409,9 +415,15 @@ export default function AdsDashboardView() {
   const [isSavingBudget, setIsSavingBudget] = useState(false)
   const selectedAccountName = useMemo(() => {
   if (!selectedAccountId) return "Contas"
-  const acc = adAccounts?.find(a => a.id === selectedAccountId)
+
+  if (selectedAccountId === "all") {
+    return "Todas as BMs"
+  }
+
+  const acc = adAccounts?.find((a) => a.id === selectedAccountId)
   return acc?.name || "Contas"
 }, [adAccounts, selectedAccountId])
+
 
 const mapDateRangeToMetaPreset = (range: string): string => {
   switch (range) {
@@ -691,16 +703,24 @@ const pagedAdSets = useMemo(() => {
 }, [filteredAdSets, adSetsPage, adSetsPageSize])
 
 
-const handleSelectAccount = useCallback((accId: string) => {
-  setSelectedAccountId(accId)
+const handleSelectAccount = useCallback(
+  (accId: string) => {
+    setSelectedAccountId(accId)
 
-  // mantém o string interno sincronizado (se você ainda usa em outros lugares)
-  const acc = adAccounts?.find(a => a.id === accId)
-  setSelectedAccountInternal(acc?.name ?? "")
+    if (accId === "all") {
+      setSelectedAccountInternal("Todas as BMs")
+      return
+    }
 
-  // se quiser mudar de aba ao selecionar uma conta, descomente:
-  // setActiveSubTab("campanhas")
-}, [adAccounts])
+    const acc = adAccounts?.find((a) => a.id === accId)
+    setSelectedAccountInternal(acc?.name ?? "")
+
+    // se quiser mudar de aba ao selecionar uma conta:
+    // setActiveSubTab("campanhas")
+  },
+  [adAccounts],
+)
+
 
   
   useEffect(() => {
@@ -757,14 +777,28 @@ const handleSelectAccount = useCallback((accId: string) => {
     const { data } = await supabase.auth.getUser()
     const uuid = data?.user?.id || undefined
 
-    // usa o filtro selecionado no topo (incluindo "Máximo" = 1 ano)
     const preset = mapDateRangeToMetaPreset(dateRange)
 
-    const rows = await getFacebookCampaignsWithInsights(
-      accountId, // ex: act_1283096579202144
-      uuid,      // uuid do usuário
-      preset     // agora é dinâmico
-    )
+    let rows: FacebookCampaign[] = []
+
+    if (accountId === "all") {
+      if (adAccounts && adAccounts.length > 0) {
+        for (const acc of adAccounts) {
+          const accRows = await getFacebookCampaignsWithInsights(
+            acc.id,
+            uuid,
+            preset,
+          )
+          rows = rows.concat(accRows as any[])
+        }
+      }
+    } else {
+      rows = await getFacebookCampaignsWithInsights(
+        accountId,
+        uuid,
+        preset,
+      )
+    }
 
     setCampaigns(rows as any[])
     toast({
@@ -782,6 +816,7 @@ const handleSelectAccount = useCallback((accId: string) => {
     setLoadingCampaigns(false)
   }
 }
+
 
 
   const getCurrentUuid = async (): Promise<string | undefined> => {
@@ -865,11 +900,17 @@ const fetchAds = async (accountId: string) => {
 
 
 useEffect(() => {
-  if (activeTab === "facebook" && activeSubTab === "anuncios" && selectedAccountId) {
+  if (
+    activeTab === "facebook" &&
+    activeSubTab === "anuncios" &&
+    selectedAccountId &&
+    selectedAccountId !== "all"
+  ) {
     fetchAds(selectedAccountId)
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [activeTab, activeSubTab, selectedAccountId, searchAds, statusFilter, , dateRange, adsPage, adsPageSize])
+
 
 
   // 1) Carrega contas ao entrar na aba Facebook
@@ -895,7 +936,8 @@ useEffect(() => {
   if (
     activeTab === "facebook" &&
     activeSubTab === "conjuntos" &&
-    selectedAccountId
+    selectedAccountId &&
+    selectedAccountId !== "all"
   ) {
     fetchAdSets(selectedAccountId)
   }
@@ -3793,16 +3835,30 @@ useEffect(() => {
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="start" className="min-w-[220px]">
-              {adAccounts?.length ? (
-                adAccounts.map((acc) => (
-                  <DropdownMenuItem key={acc.id} onClick={() => handleSelectAccount(acc.id)}>
-                    {acc.name}
-                  </DropdownMenuItem>
-                ))
-              ) : (
-                <DropdownMenuItem disabled>Nenhuma conta encontrada</DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
+  {adAccounts?.length ? (
+    <>
+      {adAccounts.map((acc) => (
+        <DropdownMenuItem
+          key={acc.id}
+          onClick={() => handleSelectAccount(acc.id)}
+        >
+          {acc.name}
+        </DropdownMenuItem>
+      ))}
+
+      <DropdownMenuSeparator />
+
+      <DropdownMenuItem onClick={() => handleSelectAccount("all")}>
+        Todas as BMs
+      </DropdownMenuItem>
+    </>
+  ) : (
+    <DropdownMenuItem disabled>
+      Nenhuma conta encontrada
+    </DropdownMenuItem>
+  )}
+</DropdownMenuContent>
+
           </DropdownMenu>
 
           <Button

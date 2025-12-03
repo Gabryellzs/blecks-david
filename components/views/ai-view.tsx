@@ -1,18 +1,18 @@
 export default function AIView() {
   return (
-    <div className="container mx-auto p-6">
+    <div className="w-full min-h-screen px-4 py-6">
       <h1 className="text-4xl font-bold mb-8 text-center">IA's por Categoria</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 justify-items-center">
+      <div className="mx-auto max-w-[1800px] grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 justify-items-center">
         {/* PESQUISA */}
-        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-[280px] shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-full max-w-xs shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
           <h2 className="bg-primary rounded-[10px] p-[5px_10px] text-[18px] mt-0 mb-4 text-center text-primary-foreground font-bold shadow-md">
             PESQUISA
           </h2>
           <a
             href="https://deepseek.com"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             DeepSeek R1
@@ -20,7 +20,7 @@ export default function AIView() {
           <a
             href="https://www.perplexity.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Perplexity
@@ -28,7 +28,7 @@ export default function AIView() {
           <a
             href="https://chat.openai.com"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             ChatGPT
@@ -36,7 +36,7 @@ export default function AIView() {
           <a
             href="https://claude.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Claude
@@ -44,7 +44,7 @@ export default function AIView() {
           <a
             href="https://deepmind.google/technologies/gemini/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Gemini
@@ -52,14 +52,14 @@ export default function AIView() {
         </div>
 
         {/* MARKETING */}
-        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-[280px] shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-full max-w-xs shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
           <h2 className="bg-primary rounded-[10px] p-[5px_10px] text-[18px] mt-0 mb-4 text-center text-primary-foreground font-bold shadow-md">
             MARKETING
           </h2>
           <a
             href="https://www.pencil.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Pencil
@@ -67,7 +67,7 @@ export default function AIView() {
           <a
             href="https://adcopy.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             AdCopy
@@ -75,7 +75,7 @@ export default function AIView() {
           <a
             href="https://simplified.com"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Simplified
@@ -83,14 +83,14 @@ export default function AIView() {
         </div>
 
         {/* PRODUTIVIDADE */}
-        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-[280px] shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-full max-w-xs shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
           <h2 className="bg-primary rounded-[10px] p-[5px_10px] text-[18px] mt-0 mb-4 text-center text-primary-foreground font-bold shadow-md">
             PRODUTIVIDADE
           </h2>
           <a
             href="https://www.decktopus.com"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Decktopus
@@ -98,7 +98,7 @@ export default function AIView() {
           <a
             href="https://grok.x.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Grok 3
@@ -106,7 +106,7 @@ export default function AIView() {
           <a
             href="https://betterpic.io"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             BetterPic
@@ -114,7 +114,7 @@ export default function AIView() {
           <a
             href="https://chat.openai.com"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             ChatGPT
@@ -122,7 +122,7 @@ export default function AIView() {
           <a
             href="https://www.taskade.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Taskade
@@ -130,7 +130,7 @@ export default function AIView() {
           <a
             href="https://tana.inc/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Tana
@@ -138,7 +138,7 @@ export default function AIView() {
           <a
             href="https://www.usemotion.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Motion
@@ -146,7 +146,7 @@ export default function AIView() {
           <a
             href="https://www.supernormal.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Supernormal
@@ -154,14 +154,14 @@ export default function AIView() {
         </div>
 
         {/* SITE */}
-        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-[280px] shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-full max-w-xs shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
           <h2 className="bg-primary rounded-[10px] p-[5px_10px] text-[18px] mt-0 mb-4 text-center text-primary-foreground font-bold shadow-md">
             SITE
           </h2>
           <a
             href="https://www.dora.run"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Dora
@@ -169,7 +169,7 @@ export default function AIView() {
           <a
             href="https://10web.io"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             10Web
@@ -177,7 +177,7 @@ export default function AIView() {
           <a
             href="https://durable.co"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Durable
@@ -185,7 +185,7 @@ export default function AIView() {
           <a
             href="https://landingsite.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Landingsite
@@ -193,7 +193,7 @@ export default function AIView() {
           <a
             href="https://www.viz.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Viz
@@ -201,14 +201,14 @@ export default function AIView() {
         </div>
 
         {/* DESIGN */}
-        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-[280px] shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-full max-w-xs shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
           <h2 className="bg-primary rounded-[10px] p-[5px_10px] text-[18px] mt-0 mb-4 text-center text-primary-foreground font-bold shadow-md">
             DESIGN
           </h2>
           <a
             href="https://leonardo.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Leonardo AI
@@ -216,7 +216,7 @@ export default function AIView() {
           <a
             href="https://www.kittl.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Kittl
@@ -224,7 +224,7 @@ export default function AIView() {
           <a
             href="https://looka.com"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Looka
@@ -232,7 +232,7 @@ export default function AIView() {
           <a
             href="https://www.canva.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Canva
@@ -240,7 +240,7 @@ export default function AIView() {
           <a
             href="https://designs.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Designs AI
@@ -248,14 +248,14 @@ export default function AIView() {
         </div>
 
         {/* CHATBOT */}
-        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-[280px] shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-full max-w-xs shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
           <h2 className="bg-primary rounded-[10px] p-[5px_10px] text-[18px] mt-0 mb-4 text-center text-primary-foreground font-bold shadow-md">
             CHATBOT
           </h2>
           <a
             href="https://trycortex.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Trycortex
@@ -263,7 +263,7 @@ export default function AIView() {
           <a
             href="https://chatfuel.com"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Chatfuel
@@ -271,7 +271,7 @@ export default function AIView() {
           <a
             href="https://dante-ai.com"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Dante AI
@@ -279,7 +279,7 @@ export default function AIView() {
           <a
             href="https://droxy.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Droxy
@@ -287,7 +287,7 @@ export default function AIView() {
           <a
             href="https://sitegpt.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             SiteGPT
@@ -295,14 +295,14 @@ export default function AIView() {
         </div>
 
         {/* REUNIÃO */}
-        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-[280px] shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-full max-w-xs shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
           <h2 className="bg-primary rounded-[10px] p-[5px_10px] text-[18px] mt-0 mb-4 text-center text-primary-foreground font-bold shadow-md">
             REUNIÃO
           </h2>
           <a
             href="https://www.kickresume.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Kickresume
@@ -310,7 +310,7 @@ export default function AIView() {
           <a
             href="https://resume.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Resume AI
@@ -318,7 +318,7 @@ export default function AIView() {
           <a
             href="https://www.tealhq.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Teal
@@ -326,7 +326,7 @@ export default function AIView() {
           <a
             href="https://www.careerflow.ai/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Careerflow
@@ -334,14 +334,14 @@ export default function AIView() {
         </div>
 
         {/* ÁUDIO */}
-        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-[280px] shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-full max-w-xs shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
           <h2 className="bg-primary rounded-[10px] p-[5px_10px] text-[18px] mt-0 mb-4 text-center text-primary-foreground font-bold shadow-md">
             ÁUDIO
           </h2>
           <a
             href="https://www.elevenlabs.io/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Eleven Labs
@@ -349,7 +349,7 @@ export default function AIView() {
           <a
             href="https://songburst.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Songburst AI
@@ -357,7 +357,7 @@ export default function AIView() {
           <a
             href="https://podcast.adobe.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Adobe Podcast
@@ -365,7 +365,7 @@ export default function AIView() {
           <a
             href="https://www.lovo.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Lovo AI
@@ -373,14 +373,14 @@ export default function AIView() {
         </div>
 
         {/* GERADORES DE IMAGENS */}
-        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-[280px] shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-full max-w-xs shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
           <h2 className="bg-primary rounded-[10px] p-[5px_10px] text-[18px] mt-0 mb-4 text-center text-primary-foreground font-bold shadow-md">
             GERADORES DE IMAGENS
           </h2>
           <a
             href="https://www.midjourney.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Midjourney
@@ -388,7 +388,7 @@ export default function AIView() {
           <a
             href="https://openai.com/dall-e"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             DALL·E 3
@@ -396,7 +396,7 @@ export default function AIView() {
           <a
             href="https://dreamstudio.ai/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Stable Diffusion
@@ -404,7 +404,7 @@ export default function AIView() {
           <a
             href="https://leonardo.ai"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Leonardo.Ai
@@ -412,7 +412,7 @@ export default function AIView() {
           <a
             href="https://firefly.adobe.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Adobe Firefly
@@ -420,7 +420,7 @@ export default function AIView() {
           <a
             href="https://www.craiyon.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Craiyon
@@ -428,7 +428,7 @@ export default function AIView() {
           <a
             href="https://creator.nightcafe.studio/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             NightCafe
@@ -436,7 +436,7 @@ export default function AIView() {
           <a
             href="https://runwayml.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Runway ML
@@ -444,7 +444,7 @@ export default function AIView() {
           <a
             href="https://www.artbreeder.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Artbreeder
@@ -452,7 +452,7 @@ export default function AIView() {
           <a
             href="https://dream.ai/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Dream by Wombo
@@ -460,14 +460,14 @@ export default function AIView() {
         </div>
 
         {/* VÍDEO */}
-        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-[280px] shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-full max-w-xs shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
           <h2 className="bg-primary rounded-[10px] p-[5px_10px] text-[18px] mt-0 mb-4 text-center text-primary-foreground font-bold shadow-md">
             VÍDEO
           </h2>
           <a
             href="https://klap.app"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Klap
@@ -475,7 +475,7 @@ export default function AIView() {
           <a
             href="https://invideo.io/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             InVideo
@@ -483,7 +483,7 @@ export default function AIView() {
           <a
             href="https://www.opus.pro"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Opus Clip
@@ -491,7 +491,7 @@ export default function AIView() {
           <a
             href="https://www.heygen.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             HeyGen
@@ -499,7 +499,7 @@ export default function AIView() {
           <a
             href="https://eightify.app"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Eightify
@@ -507,14 +507,14 @@ export default function AIView() {
         </div>
 
         {/* GERADOR DE LOGO */}
-        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-[280px] shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-full max-w-xs shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
           <h2 className="bg-primary rounded-[10px] p-[5px_10px] text-[18px] mt-0 mb-4 text-center text-primary-foreground font-bold shadow-md">
             GERADOR DE LOGO
           </h2>
           <a
             href="https://namelix.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Namelix
@@ -522,7 +522,7 @@ export default function AIView() {
           <a
             href="https://designs.ai/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Designs AI
@@ -530,7 +530,7 @@ export default function AIView() {
           <a
             href="https://brandmark.io/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Brandmark
@@ -538,7 +538,7 @@ export default function AIView() {
           <a
             href="https://stockimg.ai/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Stockimg AI
@@ -546,14 +546,14 @@ export default function AIView() {
         </div>
 
         {/* UI/UX */}
-        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-[280px] shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-full max-w-xs shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
           <h2 className="bg-primary rounded-[10px] p-[5px_10px] text-[18px] mt-0 mb-4 text-center text-primary-foreground font-bold shadow-md">
             UI/UX
           </h2>
           <a
             href="https://uizard.io/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Uizard
@@ -561,7 +561,7 @@ export default function AIView() {
           <a
             href="https://www.galileo-ai.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Galileo AI
@@ -569,7 +569,7 @@ export default function AIView() {
           <a
             href="https://www.visily.ai/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Visily
@@ -577,7 +577,7 @@ export default function AIView() {
           <a
             href="https://magician.design/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Magician
@@ -585,14 +585,14 @@ export default function AIView() {
         </div>
 
         {/* AUTOMAÇÃO */}
-        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-[280px] shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-background border-2 border-dashed border-primary/50 p-6 rounded-[15px] w-full max-w-xs shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
           <h2 className="bg-primary rounded-[10px] p-[5px_10px] text-[18px] mt-0 mb-4 text-center text-primary-foreground font-bold shadow-md">
             AUTOMAÇÃO
           </h2>
           <a
             href="https://zapier.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Zapier
@@ -600,7 +600,7 @@ export default function AIView() {
           <a
             href="https://ifttt.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             IFTTT
@@ -608,7 +608,7 @@ export default function AIView() {
           <a
             href="https://www.make.com/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Make
@@ -616,7 +616,7 @@ export default function AIView() {
           <a
             href="https://www.bardeen.ai/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Bardeen
@@ -624,7 +624,7 @@ export default function AIView() {
           <a
             href="https://axiom.ai/"
             target="_blank"
-            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\2022'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
+            className="block text-foreground no-underline my-[10px] pl-[15px] relative hover:text-primary before:content-['\'] before:absolute before:left-0 before:text-[10px] transition-colors duration-200"
             rel="noreferrer"
           >
             Axiom

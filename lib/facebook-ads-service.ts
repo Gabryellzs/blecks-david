@@ -53,6 +53,39 @@ export type CampaignRow = {
   cpc?: number | null
   ctr?: number | null
   budget?: number | null
+
+  // ====== NOVOS CAMPOS PARA AS COLUNAS PERSONALIZADAS ======
+  impressions?: number | null
+
+  total_sales?: number | null
+  pending_sales?: number | null
+  refund_sales?: number | null
+
+  gross_revenue?: number | null
+  pending_revenue?: number | null
+  refund_revenue?: number | null
+
+  profit?: number | null
+  margin?: number | null
+  roi?: number | null
+
+  cpl?: number | null
+  cpp?: number | null
+  cpt?: number | null
+
+  arpu?: number | null
+  connection_rate?: number | null
+  hook_hold_rate?: number | null
+  video_retention_75?: number | null
+  body_conversion?: number | null
+  body_retention_75?: number | null
+  cta_click_rate?: number | null
+  hook_play_rate?: number | null
+
+  rejected_sales?: number | null
+
+  ids?: string | null
+  lastUpdate?: string | null
 }
 
 export async function getFacebookCampaignsWithInsights(
@@ -89,6 +122,7 @@ export async function getFacebookCampaignsWithInsights(
     const findAction = (types: string[]) =>
       actions.find((a) => types.includes(a.action_type)) || null
 
+    // ação principal para definir "Resultados"
     const primary =
       findAction(["purchase", "omni_purchase", "offsite_conversion.purchase"]) ||
       findAction(["lead"]) ||
@@ -110,10 +144,12 @@ export async function getFacebookCampaignsWithInsights(
 
     const results = primary ? Number(primary.value || 0) : 0
 
+    // valor total de compras (para ROAS / faturamento)
     const valueRow =
       actionValues.find((a) =>
         ["purchase", "omni_purchase", "offsite_conversion.purchase"].includes(a.action_type),
       ) || null
+
     const roas = valueRow ? (spend > 0 ? Number(valueRow.value || 0) / spend : null) : null
 
     const cprRow = primary ? cpat.find((a) => a.action_type === primary.action_type) : null
@@ -127,6 +163,51 @@ export async function getFacebookCampaignsWithInsights(
       // Graph normalmente manda orçamento em "centavos" (minor units)
       budget = Number.isFinite(n) ? n / 100 : null
     }
+
+    // ========= NOVAS MÉTRICAS PARA AS COLUNAS =========
+
+    // Impressões
+    const impressions = insight ? Number(insight.impressions || 0) : 0
+
+    // compras totais (sempre a partir da action de purchase, se existir)
+    const purchaseAction =
+      actions.find((a) =>
+        ["purchase", "omni_purchase", "offsite_conversion.purchase"].includes(a.action_type),
+      ) || null
+    const total_sales = purchaseAction ? Number(purchaseAction.value || 0) : 0
+
+    // faturamento bruto (valor das compras)
+    const gross_revenue = valueRow ? Number(valueRow.value || 0) : 0
+
+    // o resto vem zerado/null por enquanto, até você integrar com gateway
+    const pending_sales = 0
+    const refund_sales = 0
+
+    const pending_revenue = 0
+    const refund_revenue = 0
+
+    const profit = null
+    const margin = null
+    const roi = null
+
+    const cpl = null
+    const cpp = null
+    const cpt = null
+
+    const arpu = null
+    const connection_rate = null
+    const hook_hold_rate = null
+    const video_retention_75 = null
+    const body_conversion = null
+    const body_retention_75 = null
+    const cta_click_rate = null
+    const hook_play_rate = null
+
+    const rejected_sales = 0
+
+    const ids = `${c.id ?? ""} | ${c.campaign_id ?? ""} | ${c.adset_id ?? ""} | ${c.account_id ?? ""}`
+
+    const lastUpdate = c.updated_time ?? null
 
     return {
       id: c.id,
@@ -142,6 +223,32 @@ export async function getFacebookCampaignsWithInsights(
       cpc: insight ? Number(insight.cpc || 0) : null,
       ctr: insight ? Number(insight.ctr || 0) : null,
       budget,
+
+      // novos campos
+      impressions,
+      total_sales,
+      pending_sales,
+      refund_sales,
+      gross_revenue,
+      pending_revenue,
+      refund_revenue,
+      profit,
+      margin,
+      roi,
+      cpl,
+      cpp,
+      cpt,
+      arpu,
+      connection_rate,
+      hook_hold_rate,
+      video_retention_75,
+      body_conversion,
+      body_retention_75,
+      cta_click_rate,
+      hook_play_rate,
+      rejected_sales,
+      ids,
+      lastUpdate,
     }
   })
 }
@@ -319,7 +426,6 @@ export async function updateFacebookCampaignBudget(
 
   return response.json()
 }
-
 
 export async function updateFacebookAdAccountStatus(
   adAccountId: string,

@@ -350,15 +350,15 @@ body {
   border-color: rgba(255, 255, 255, 0.28);
 }
 
-/* 🔹 Caixa com borda neon azul estilo Meta */
+/* 🔹 Caixa com borda neon CINZA para Meta Ads */
 .neon-meta-border {
   position: relative;
   border-radius: 18px;
   padding: 1px; /* espessura da borda */
-  background: linear-gradient(120deg, #1d4ed8, #38bdf8, #1d4ed8);
+  background: linear-gradient(120deg, #9ca3af, #6b7280, #9ca3af); /* cinzas */
   background-size: 200% 200%;
   animation: meta-glow 6s ease-in-out infinite;
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 18px rgba(156, 163, 175, 0.35); /* glow cinza */
 }
 
 /* Fundo interno da caixa (onde ficam os conteúdos) */
@@ -368,19 +368,19 @@ body {
   backdrop-filter: blur(4px);
 }
 
-/* Animação oscilando do azul claro pro azul escuro */
+/* Animação oscilando no cinza */
 @keyframes meta-glow {
   0% {
     background-position: 0% 50%;
-    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+    box-shadow: 0 0 12px rgba(156, 163, 175, 0.25);
   }
   50% {
     background-position: 100% 50%;
-    box-shadow: 0 0 22px rgba(56, 189, 248, 0.45);
+    box-shadow: 0 0 22px rgba(156, 163, 175, 0.45);
   }
   100% {
     background-position: 0% 50%;
-    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+    box-shadow: 0 0 12px rgba(156, 163, 175, 0.25);
   }
 }
 

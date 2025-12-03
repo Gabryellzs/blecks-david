@@ -228,7 +228,7 @@ export default function SupportPage() {
                 <div className="absolute bottom-0 right-10 h-80 w-80 rounded-full bg-sky-500/10 blur-3xl" />
               </div>
 
-              <div className="mx-auto flex h-full max-w-6xl flex-col gap-8 px-4 py-8 lg:px-6">
+  <div className="w-full min-h-screen px-2 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-8">
                 {/* Cabeçalho da página */}
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="space-y-2">

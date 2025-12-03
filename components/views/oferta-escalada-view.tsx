@@ -429,8 +429,9 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Grid responsiva */}
-        <div className="grid grid-cols-1 md:grid-cols-3 2xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+{/* Grid fixa com 5 colunas em qualquer tela */}
+<div className="grid grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+
           {visibleOffers.map((offer) => (
             <div
               key={offer.id}

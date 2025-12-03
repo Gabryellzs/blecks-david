@@ -522,12 +522,12 @@ export default function DiaryView() {
   console.log("Tarefas atuais:", tasks)
 
   return (
-    <div className="relative min-h-[calc(100vh-5rem)] overflow-hidden">
+<div className="relative min-h-screen w-full overflow-hidden">
       {/* Orbs de glow no fundo */}
       <div className="pointer-events-none absolute -top-40 -right-40 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.16),transparent_60%)] blur-3xl" />
       <div className="pointer-events-none absolute -bottom-40 -left-40 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,rgba(94,234,212,0.16),transparent_60%)] blur-3xl" />
+      <div className="relative w-full px-6 lg:px-10 py-8 space-y-6">
 
-      <div className="relative container mx-auto max-w-6xl px-4 py-8 space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 rounded-2xl bg-card/70 border border-white/5 backdrop-blur-xl px-4 py-4 md:px-6 md:py-5 shadow-[0_18px_60px_rgba(0,0,0,0.65)]">
           <div>

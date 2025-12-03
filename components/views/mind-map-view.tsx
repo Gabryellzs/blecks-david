@@ -596,12 +596,15 @@ export default function MindMapView() {
   // somente "dashboard" e "editor"
   const [activeView, setActiveView] = useState<"dashboard" | "editor">("dashboard")
 
-  // painel lateral do editor
+  // painel lateral do editor (começa fechado, tab Templates selecionada)
   const [activePanelTab, setActivePanelTab] = useState<"pages" | "templates" | "icons">("templates")
-  const [showPanel, setShowPanel] = useState<true | false>(true)
+  const [showPanel, setShowPanel] = useState<true | false>(false)
 
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
+
+  // abrir modal de IA a partir do header
+  const [openAIDialogFromHeader, setOpenAIDialogFromHeader] = useState(false)
 
   useLocalStorage<{ nodes: Node[]; edges: Edge[]; flowName: string } | null>("work-in-progress", null)
 
@@ -644,7 +647,7 @@ export default function MindMapView() {
   }
   const goEditor = () => {
     setActiveView("editor")
-    setShowPanel(true)
+    setShowPanel(false)
     setActivePanelTab("templates")
   }
 
@@ -664,8 +667,9 @@ export default function MindMapView() {
     <div className="flex h-[calc(100vh-0px)] bg-background text-foreground">
       {/* Conteúdo em largura total (sem sidebar do app) */}
       <div className="flex-1 flex flex-col min-h-0">
-        {/* BARRA SUPERIOR: chips Dashboard / Criação de Funil */}
+        {/* BARRA SUPERIOR: chips Dashboard / IA / Criação de Funil */}
         <div className="w-full flex items-center gap-2 px-6 py-4 border-b border-border bg-card/60 backdrop-blur">
+          {/* Painel */}
           <Button
             variant={activeView === "dashboard" ? "default" : "outline"}
             onClick={goDashboard}
@@ -676,6 +680,26 @@ export default function MindMapView() {
           >
             Painel
           </Button>
+
+          {/* Funil com IA – ENTRE Painel e Criação de Funil */}
+          <Button
+            variant="outline"
+            onClick={() => {
+              setActiveView("editor")
+              setActivePanelTab("templates")
+              setShowPanel(false) // painel fica fechado ao clicar em Funil com IA
+              setOpenAIDialogFromHeader(true)
+            }}
+            className={cn(
+              "h-8 px-3 rounded-full text-xs sm:text-sm flex items-center gap-1",
+              activeView === "editor" ? "bg-muted/60" : "bg-transparent",
+            )}
+          >
+            <Sparkles className="h-4 w-4" />
+            Funil com IA
+          </Button>
+
+          {/* Criação de Funil manual */}
           <Button
             variant={activeView === "editor" ? "default" : "outline"}
             onClick={goEditor}
@@ -858,6 +882,8 @@ export default function MindMapView() {
                   onSaveComplete={goDashboard}
                   selectedTemplateId={selectedTemplateId}
                   setSelectedTemplateId={setSelectedTemplateId}
+                  openAIDialogFromHeader={openAIDialogFromHeader}
+                  setOpenAIDialogFromHeader={setOpenAIDialogFromHeader}
                 />
               </ReactFlowProvider>
             </div>
@@ -1212,10 +1238,14 @@ function FlowBuilder({
   onSaveComplete,
   selectedTemplateId,
   setSelectedTemplateId,
+  openAIDialogFromHeader,
+  setOpenAIDialogFromHeader,
 }: {
   onSaveComplete: () => void
   selectedTemplateId: string | null
   setSelectedTemplateId: (id: string | null) => void
+  openAIDialogFromHeader: boolean
+  setOpenAIDialogFromHeader: (open: boolean) => void
 }) {
   const { toast } = useToast()
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
@@ -1237,6 +1267,14 @@ function FlowBuilder({
   const [savedFlows, setSavedFlows] = useLocalStorage<
     { name: string; nodes: Node[]; edges: Edge[]; preview?: string }[]
   >("marketing-flows", [])
+
+  // abrir modal quando vier o sinal do header
+  useEffect(() => {
+    if (openAIDialogFromHeader) {
+      setShowAIDialog(true)
+      setOpenAIDialogFromHeader(false)
+    }
+  }, [openAIDialogFromHeader, setOpenAIDialogFromHeader])
 
   useEffect(() => {
     const selectedFlowJson = safeLocalStorage.getItem("selected-flow")
@@ -1650,7 +1688,7 @@ function FlowBuilder({
           // --- RADIAL / CENTRO ---
           { id: "radial-center-normal", core: "radial", config: { centerX: 200, centerY: 0, radiusTopo: 320, radiusMeio: 520, radiusFundo: 720, spreadFactor: 1.2 } },
           { id: "radial-center-compact", core: "radial", config: { centerX: 200, centerY: 0, radiusTopo: 260, radiusMeio: 420, radiusFundo: 600, spreadFactor: 1.0 } },
-          { id: "radial-center-wide", core: "radial", config: { centerX: 200, centerY: 0, radiusTopo: 380, radiusMeio: 620, radiusFundo: 860, spreadFactor: 1.4 } },
+          { id: "radial-center-wide", core: "radial", config: { centerX: 200, centerY: 0, radiusTopo: 380, radiusMeio: 640, radiusFundo: 900, spreadFactor: 1.4 } },
 
           // --- RADIAL / DESLOCADO ESQUERDA / DIREITA ---
           { id: "radial-left", core: "radial", config: { centerX: -100, centerY: -40, radiusTopo: 320, radiusMeio: 520, radiusFundo: 720, spreadFactor: 1.2 } },
@@ -2183,17 +2221,6 @@ function FlowBuilder({
           </span>
         </div>
         <div className="flex items-center gap-1">
-          {/* Botão IA */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="bg-muted border-border hover:bg-muted/80 h-8 px-2 text-xs mr-1"
-            onClick={() => setShowAIDialog(true)}
-          >
-            <Sparkles className="mr-1 h-3.5 w-3.5" />
-            Funil com IA
-          </Button>
-
           <Button
             variant="outline"
             size="sm"
@@ -2203,15 +2230,8 @@ function FlowBuilder({
             <Save className="mr-1 h-3.5 w-3.5" />
             Salvar
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="bg-muted border-border hover:bg-muted/80 h-8 px-2 text-xs"
-            onClick={loadFlow}
-          >
-            <Download className="mr-1 h-3.5 w-3.5" />
-            Carregar
-          </Button>
+          {/* Botão Carregar removido */}
+
           <Button
             variant="outline"
             size="sm"

@@ -50,7 +50,7 @@ const AUTO_COLLAPSE_MAX = 1024
 const AUTO_EXPAND_MIN = 1440
 
 // Offset lateral da barra “flutuante”
-const SIDEBAR_OFFSET_LEFT = "1.75rem"
+const SIDEBAR_OFFSET_LEFT = "1.0rem"
 
 // 🔧 CURVATURA DOS CANTOS DO SIDEBAR
 const SIDEBAR_BORDER_RADIUS = "16px"
@@ -287,7 +287,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
         <div
           className={`
             fixed z-40
-            left-7 top-4 bottom-4
+            left-3 top-4 bottom-4
             flex flex-col
             overflow-hidden
             transition-[width] duration-300 ease-in-out
@@ -297,7 +297,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
                 ? `
                   bg-gradient-to-b from-[#000000] via-[#0d0d0d] to-[#141414]
                   border border-white/10
-                  shadow-[0_0_18px_rgba(255,255,255,0.05)]
+                  shadow-[0_0_18px_rgba(255,255,255,0.03)]
                 `
                 : `
                   bg-[rgba(255,255,255,0.45)]
@@ -486,7 +486,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           onClick={toggleSidebar}
           className={`
             fixed z-50
-            h-8 w-8 rounded-full p-0
+            h-7 w-7 rounded-full p-0
             flex items-center justify-center
             backdrop-blur-3xl
             transition-all
@@ -510,8 +510,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
           `}
           aria-label="Alternar largura do menu"
           style={{
-            top: "120px",
-            left: `calc(var(--sb-w) + ${SIDEBAR_OFFSET_LEFT} - 16px)`,
+            top: "90px",
+            left: `calc(var(--sb-w) + ${SIDEBAR_OFFSET_LEFT} - 19px)`,
           }}
         >
           <SidebarToggleIcon />

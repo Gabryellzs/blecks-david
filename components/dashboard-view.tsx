@@ -227,7 +227,7 @@ export function useGatewayKpis(filter: KpiFilter) {
   const { userId, from, to, search } = filter
 
   const [rows, setRows] = useState<GatewayTransaction[]>([])
-  the const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
@@ -302,7 +302,7 @@ export function useGatewayKpis(filter: KpiFilter) {
           if (!initialLoadedRef.current) return
           const row = payload.new as GatewayTransaction
 
-          // 🔒 IGNORA EVENTO DE OUTRO USUÁRIO
+          // 🔒 IGNORA EVENTOS DE OUTRO USUÁRIO
           if (userId && row.user_id !== userId) return
 
           const rowMs = Date.parse(row.created_at)
@@ -324,7 +324,7 @@ export function useGatewayKpis(filter: KpiFilter) {
         (payload) => {
           const row = payload.new as GatewayTransaction
 
-          // 🔒 IGNORA EVENTO DE OUTRO USUÁRIO
+          // 🔒 IGNORA EVENTOS DE OUTRO USUÁRIO
           if (userId && row.user_id !== userId) return
 
           const rowMs = Date.parse(row.created_at)
@@ -345,7 +345,7 @@ export function useGatewayKpis(filter: KpiFilter) {
       )
       .subscribe()
 
-    channelRef.current = channel
+  channelRef.current = channel
 
     return () => {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
@@ -782,7 +782,7 @@ export default function DashboardView({
     [preset, customStart, customEnd]
   )
 
-  // 🔒 PASSA userId PARA O HOOK
+  // 🔒 AGORA PASSANDO userId PARA O HOOK
   const data = useGatewayKpis({
     userId: kpiFilter?.userId,
     search: kpiFilter?.search,
@@ -1001,7 +1001,7 @@ export default function DashboardView({
 
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(totalNet)
             )}
@@ -1014,13 +1014,13 @@ export default function DashboardView({
       const value = ctx.kpis.vendas ?? 0
       const loading = ctx.loading || isRefreshing
       return (
-        <div key={`kpi-top2-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`kpi-top2-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Vendas
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               value.toLocaleString("pt-BR")
             )}
@@ -1033,13 +1033,13 @@ export default function DashboardView({
       const value = ctx.kpis.reembolsosTotal ?? 0
       const loading = ctx.loading || isRefreshing
       return (
-        <div key={`kpi-top3-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`kpi-top3-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Reembolsos
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(value)
             )}
@@ -1052,13 +1052,13 @@ export default function DashboardView({
       const value = ctx.kpis.chargebacksTotal ?? 0
       const loading = ctx.loading || isRefreshing
       return (
-        <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Chargebacks
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(value)
             )}
@@ -1070,7 +1070,7 @@ export default function DashboardView({
     r1: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r1-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`r1-${key}`} className="p-3 text-black dark:text-white">
           <div className="mb-1">
             <div className="text-xs text-black/70 dark:text-white/70">
               Gastos com anúncios
@@ -1081,7 +1081,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(currentAdsMetrics.adSpend)
             )}
@@ -1102,7 +1102,7 @@ export default function DashboardView({
           : "text-white"
 
       return (
-        <div key={`r2-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`r2-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">ROAS</div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
@@ -1111,7 +1111,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               <span className={roasColor}>{roas.toFixed(2)}</span>
             )}
@@ -1123,7 +1123,7 @@ export default function DashboardView({
     r3: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r3-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`r3-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">
               Vendas Pendentes
@@ -1134,7 +1134,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(currentAdsMetrics.pendingSales)
             )}
@@ -1155,7 +1155,7 @@ export default function DashboardView({
           : "text-white"
 
       return (
-        <div key={`r4-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`r4-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">Lucro</div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
@@ -1164,7 +1164,7 @@ export default function DashboardView({
           </div>
           <div className={`text-2xl font-semibold ${lucroColor}`}>
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(lucro)
             )}
@@ -1176,15 +1176,15 @@ export default function DashboardView({
     r5: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r5-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`r5-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">ROI</div>
-            <span className="text-[10px] text-black/50 dark:text:white/50">
+            <span className="text-[10px] text-black/50 dark:text-white/50">
               Todas plataformas
             </span>
           </div>
           {loading ? (
-            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
           ) : (
             greenPct(`${globalRoi.toFixed(1)}%`)
           )}
@@ -1195,7 +1195,7 @@ export default function DashboardView({
     r6: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r6-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`r6-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">
               Margem de Lucro
@@ -1205,7 +1205,7 @@ export default function DashboardView({
             </span>
           </div>
           {loading ? (
-            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
           ) : (
             greenPct(`${globalProfitMargin.toFixed(1)}%`)
           )}
@@ -1216,18 +1216,18 @@ export default function DashboardView({
     b1: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b1-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`b1-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">
               Custo por conversa
             </div>
-            <span className="text-[10px] text-black/50 dark:text:white/50">
+            <span className="text-[10px] text-black/50 dark:text-white/50">
               {selectedPlatformLabel}
             </span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(currentAdsMetrics.costPerConversation)
             )}
@@ -1239,18 +1239,18 @@ export default function DashboardView({
     b2: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b2-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`b2-${key}`} className="p-3 text-black dark:text-white">
           <div className="mb-1">
             <div className="text-xs text-black/70 dark:text-white/70">
               Conversa
             </div>
-            <div className="text-[10px] text-black/50 dark:text:white/50">
+            <div className="text-[10px] text-black/50 dark:text-white/50">
               {selectedPlatformLabel}
             </div>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               currentAdsMetrics.conversations.toLocaleString("pt-BR")
             )}
@@ -1262,18 +1262,18 @@ export default function DashboardView({
     b3: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b3-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`b3-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">
               Imposto
             </div>
-            <span className="text-[10px] text-black/50 dark:text:white/50">
+            <span className="text-[10px] text-black/50 dark:text-white/50">
               {selectedPlatformLabel}
             </span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(currentAdsMetrics.tax)
             )}
@@ -1285,7 +1285,7 @@ export default function DashboardView({
     b4: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b4-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`b4-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/meta-ads.png"
@@ -1296,7 +1296,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading || loadingMetaSpend ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.meta.adSpend)
             )}
@@ -1308,7 +1308,7 @@ export default function DashboardView({
     b5: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b5-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`b5-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/google-ads.png"
@@ -1319,7 +1319,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.google.profit)
             )}
@@ -1331,7 +1331,7 @@ export default function DashboardView({
     b6: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b6-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`b6-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/google-analytics.png"
@@ -1342,7 +1342,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.analytics.profit)
             )}
@@ -1354,7 +1354,7 @@ export default function DashboardView({
     b7: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b7-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`b7-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/tiktok-ads.png"
@@ -1365,7 +1365,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.tiktok.profit)
             )}
@@ -1377,7 +1377,7 @@ export default function DashboardView({
     b8: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b8-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`b8-${key}`} className="p-3 text-black dark:text-white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/kwai-ads.png"
@@ -1388,7 +1388,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.kwai.profit)
             )}

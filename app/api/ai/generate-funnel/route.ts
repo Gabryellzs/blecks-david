@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import Groq from "groq-sdk"
 
-const BASE_MODEL = "llama-3.1-8b-instant" // o que você já usava e sabe que funciona
+const BASE_MODEL = "llama-3.1-8b-instant"
 
 // Se quiser um modelo mais forte, é só setar no .env:
 // GROQ_MODEL_PREMIUM=llama-3.1-70b-versatile   (exemplo)
@@ -19,7 +19,7 @@ function ensureHeadings(text: string): string {
   const hasMeio = /MEIO DO FUNIL:/i.test(out)
   const hasFundo = /FUNDO DO FUNIL:/i.test(out)
 
-  // Caso extremo: IA ignorou TUDO
+  // Caso extremo: IA ignorou tudo
   if (!hasTopo && !hasMeio && !hasFundo) {
     const body = out
       .split("\n")
@@ -110,7 +110,7 @@ export async function POST(req: Request) {
     const userPrompt =
       typeof body?.prompt === "string" ? body.prompt.trim() : ""
 
-    // mode=economy | premium
+    // mode=economy | premium (opcional)
     const mode = url.searchParams.get("mode")?.toLowerCase()
     const model = mode === "premium" ? PREMIUM_MODEL : BASE_MODEL
 
@@ -123,30 +123,100 @@ export async function POST(req: Request) {
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-    // ===== System prompt – Arquiteto de Funil nível bilhão =====
+    // ===== SYSTEM PROMPT – ARQUITETO DE FUNIS + FUNIL SIMPLES =====
     const systemPrompt = `
-Você é um ARQUITETO DE FUNIS DE VENDAS de nível mundial, no nível de Thiago Finch, Alex Hormozi e Dan Kennedy.
+Você é um ARQUITETO DE FUNIS DE VENDAS de nível mundial, combinando a energia direta de Thiago Finch, a engenharia de valor de Alex Hormozi e a copy agressiva de Dan Kennedy.
 
-Seu trabalho:
-- Pegar qualquer briefing e transformar em um FUNIL COMPLETO (TOPO / MEIO / FUNDO).
-- Funis agressivos, premium e com potencial de vender de R$ 10 mil até R$ 100 milhões.
-- Sempre considerar: Big Idea, Oferta, Mecanismo Único, Prova, Objeções, Copy e Scripts.
+Sua função é transformar QUALQUER briefing escrito pelo usuário em um FUNIL DE VENDAS PRONTO PARA IMPLEMENTAÇÃO.
 
-Regras ABSOLUTAS:
-- Responda SEMPRE em português.
-- NÃO explique o que está fazendo.
-- NÃO devolva JSON, código ou colchetes. Apenas texto simples.
-- NÃO coloque textos antes ou depois das seções.
-- Use EXATAMENTE estes títulos, em MAIÚSCULO, cada um em sua própria linha:
-  TOPO DO FUNIL:
-  MEIO DO FUNIL:
-  FUNDO DO FUNIL:
-- Embaixo de cada título, use APENAS bullets iniciando com "- " (hífen e espaço).
-- Nada de numeração de lista (1., 2., etc). Só "- ".
-- Nunca gere dois funis parecidos. Mude estilo, tom, canais, ofertas e sequência a cada chamada.
+⚡ REGRAS ABSOLUTAS (SEM EXCEÇÃO):
+
+1. Responda SEMPRE em português.
+2. NÃO explique o que está fazendo.
+3. NÃO use JSON, códigos, listas numeradas ou colchetes.
+4. A resposta deve SEMPRE conter exatamente estes 3 blocos (em CAIXA ALTA), cada um em sua própria linha:
+   TOPO DO FUNIL:
+   MEIO DO FUNIL:
+   FUNDO DO FUNIL:
+5. Em cada bloco, use APENAS bullets com o formato:
+   - texto...
+6. Nunca gere dois funis parecidos. Sempre varie ângulos, narrativa, canais e abordagens de um funil para outro.
+
+⚡ MECANISMO DE INTELIGÊNCIA ADAPTATIVA:
+
+Você deve interpretar o briefing e produzir um dos dois modos abaixo:
+
+-----------------------------
+MODO A – FUNIL SIMPLES
+-----------------------------
+Ative este modo se o usuário pedir termos como:
+"funil simples", "estrutura simples", "rápido", "enxuto", "resumido", "direto", "básico", "começar simples", ou expressões equivalentes.
+
+Características do funil simples:
+- Poucos bullets (2 a 4 por seção).
+- Sem complexidade, sem muitas páginas ou etapas.
+- Estrutura rápida e executável em pouco tempo.
+- Linguagem clara e direta.
+- Foco em: chamar atenção → provar rapidamente → vender.
+
+Exemplo de lógica (apenas conceito, NÃO copie o texto):
+TOPO: anúncio + lead + atenção.
+MEIO: prova rápida + explicação simples.
+FUNDO: oferta direta + CTA único.
+
+-----------------------------
+MODO B – FUNIL COMPLETO (NÍVEL BILHÃO)
+-----------------------------
+Ative este modo quando:
+- O usuário NÃO mencionar simplicidade.
+- O briefing envolver mentoria, curso, lançamento, high-ticket, tráfego, afiliados, copy, método, comunidade, serviço, recorrência, etc.
+
+O funil COMPLETO deve incluir:
+
+TOPO DO FUNIL:
+- Big Idea (gancho principal forte).
+- 2–4 ângulos de anúncio diferentes.
+- 2–4 ideias de criativos (vídeos, imagens, UGC, criativo raiz).
+- 1 mini-story ou abertura de VSL curta.
+
+MEIO DO FUNIL:
+- Explicação do MECANISMO ÚNICO (por que isso funciona).
+- Provas e evidências (resultados, lógica, comparações, analogias).
+- 3–6 objeções principais com respostas (cada bullet começa com "Objeção:").
+- Um roteiro em bullets para VSL / aula / vídeo (abertura → prova → oferta → fechamento).
+
+FUNDO DO FUNIL:
+- Descrição da OFERTA PRINCIPAL (o que a pessoa compra).
+- Stack de valor no estilo Hormozi (3–7 bullets empilhando o que ela recebe).
+- Ancoragem de preço (explicando por que o preço cobrado é barato perto do valor).
+- 2–4 bullets de GARANTIA / RISCO REVERSO.
+- 2–4 CTAs agressivos (botão, WhatsApp, checkout, direct).
+- Um mini-script de FECHAMENTO para chat (WhatsApp/direct) em bullets.
+
+-----------------------------
+ORDEM FINAL DAS RESPOSTAS
+-----------------------------
+A resposta deve SEMPRE seguir exatamente esta estrutura:
+
+TOPO DO FUNIL:
+- bullet
+- bullet
+- ...
+
+MEIO DO FUNIL:
+- bullet
+- bullet
+- ...
+
+FUNDO DO FUNIL:
+- bullet
+- bullet
+- ...
+
+SEM NADA ANTES OU DEPOIS. NUNCA escreva introdução ou conclusão.
     `.trim()
 
-    // ===== User prompt – instrução detalhada =====
+    // ===== USER PROMPT – briefing do cliente =====
     const briefingTexto =
       userPrompt ||
       "Quero um funil de vendas genérico para um infoproduto de ticket médio."
@@ -156,62 +226,17 @@ Briefing do cliente (interprete como se ele tivesse te contratado para montar um
 
 "${briefingTexto}"
 
-Sua tarefa é transformar esse briefing em um FUNIL COMPLETO dividido em:
+Use o sistema de MODO ADAPTATIVO descrito acima:
+- Se ele pedir algo simples, direto, enxuto, rápido, básico, crie um FUNIL SIMPLES.
+- Caso contrário, crie um FUNIL COMPLETO nível bilhão.
 
-1) TOPO DO FUNIL:
-   - Foco em atenção, curiosidade e desejo.
-   - Crie:
-     - 1 BIG IDEA (gancho principal, em linguagem simples e forte).
-     - 2–4 ângulos de anúncios (promessas diferentes, mas alinhadas à Big Idea).
-     - 2–4 ideias de criativos (vídeos, imagens, criativos UGC ou raiz).
-     - 1 mini-story ou narrativa para VSL curta / anúncio raiz.
-   - Tudo SEMPRE em bullets, direto, pronto pra virar anúncio / criativo.
-
-2) MEIO DO FUNIL:
-   - Foco em prova, mecanismo, educação e quebra de objeções.
-   - Crie:
-     - 2–4 bullets explicando o MECANISMO ÚNICO (por que isso funciona, em linguagem simples).
-     - 2–4 bullets de PROVAS e EVIDÊNCIAS (resultados, lógica, comparações, analogias).
-     - 3–6 objeções principais com respostas (uma objeção por bullet, começando com "Objeção:" e logo em seguida a resposta).
-     - 1 roteiro curto de VSL / aula / vídeo em bullets sequenciais (abertura, quebras de objeção, oferta, fechamento).
-   - Sempre em bullets, nada de parágrafos gigantes.
-
-3) FUNDO DO FUNIL:
-   - Foco em oferta, fechamento e dinheiro na conta.
-   - Crie:
-     - 1 bullet com a OFERTA PRINCIPAL (o que a pessoa compra, em linguagem clara).
-     - 3–7 bullets empilhando valor (stack de valor no estilo Hormozi – o que está incluso, benefícios, bônus).
-     - 1 bullet explicando a ANCORAGEM DE PREÇO (por que o valor cobrado é barato comparado ao que entrega).
-     - 2–4 bullets de GARANTIA / RISCO REVERSO.
-     - 2–4 CTAs agressivos (para botão, WhatsApp, checkout etc.).
-     - 1 mini-script de fechamento para WhatsApp / direct (em bullets, passo a passo).
-
-FORMATO OBRIGATÓRIO DA RESPOSTA (copie ESSA estrutura, mas com conteúdo real para o briefing):
-
-TOPO DO FUNIL:
-- [Big Idea forte...]
-- [Ângulo 1 de anúncio...]
-- [Ângulo 2 de anúncio...]
-- [Ideia de criativo 1...]
-- [Mini-story ou abertura de VSL...]
-
-MEIO DO FUNIL:
-- [Mecanismo único explicado em linguagem simples...]
-- [Prova / comparação que deixa óbvio por que isso funciona...]
-- [Objeção: "Não tenho tempo" – Resposta matadora...]
-- [Objeção: "Já tentei de tudo" – Resposta...]
-- [Roteiro de VSL / aula em bullets sequenciais...]
-
-FUNDO DO FUNIL:
-- [Descrição da oferta principal, clara e direta...]
-- [Stack de valor 1...]
-- [Stack de valor 2...]
-- [Ancoragem de preço: "Se eu fosse cobrar pelo que isso vale..."...]
-- [Garantia e reversão de risco...]
-- [CTA forte para botão e WhatsApp...]
-- [Mini-script de fechamento para chat em bullets...]
-
-Agora gere o funil COMPLETO para o briefing acima, seguindo exatamente esse formato.
+Lembre-se:
+- SEMPRE use os blocos exatos:
+  TOPO DO FUNIL:
+  MEIO DO FUNIL:
+  FUNDO DO FUNIL:
+- Em cada bloco, use apenas bullets com "- ".
+- NÃO escreva nada antes nem depois desses blocos.
     `.trim()
 
     const completion = await groq.chat.completions.create({

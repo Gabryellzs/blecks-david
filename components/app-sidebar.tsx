@@ -33,16 +33,16 @@ type MenuItem = {
   href: string
   icon?: LucideIcon
   iconPath?: string
-  size?: number // tamanho base do ícone (que você já ajustou)
-  offsetX?: number // ajuste lateral (esquerda / direita)
-  offsetY?: number // ajuste vertical (cima / baixo)
+  size?: number
+  offsetX?: number
+  offsetY?: number
 }
 
 // ---------------- Helpers ----------------
 const STORAGE_KEY = "blecks:sidebar:isExpanded"
 
 // Larguras responsivas
-const COLLAPSED_WIDTH = "clamp(56px, 5vw, 88px)"
+const COLLAPSED_WIDTH = "clamp(68px, 5vw, 88px)"
 const EXPANDED_WIDTH = "clamp(210px, 15vw, 260px)"
 
 // Breakpoints
@@ -51,6 +51,9 @@ const AUTO_EXPAND_MIN = 1440
 
 // Offset lateral da barra “flutuante”
 const SIDEBAR_OFFSET_LEFT = "1.75rem"
+
+// 🔧 AQUI VOCÊ CONTROLA A CURVATURA DOS CANTOS DO SIDEBAR
+const SIDEBAR_BORDER_RADIUS = "16px"
 
 function getInitialExpanded(): boolean {
   if (typeof window === "undefined") return false
@@ -74,10 +77,8 @@ function debounce<T extends (...args: any[]) => void>(fn: T, wait = 150) {
 // ---------------- Component ----------------
 export function AppSidebar({ children }: AppSidebarProps) {
   const { theme } = useTheme()
-  const isDark = theme === "dark"
   const [isExpanded, setIsExpanded] = useState<boolean>(false)
 
-  // Altura da tela para escalar os ícones
   const [viewportHeight, setViewportHeight] = useState<number>(() => {
     if (typeof window === "undefined") return 900
     return window.innerHeight || 900
@@ -113,7 +114,6 @@ export function AppSidebar({ children }: AppSidebarProps) {
         setIsExpanded(inferred)
       }
 
-      // Atualiza altura da tela para escalar ícones
       setViewportHeight(window.innerHeight || 900)
     }, 180)
     window.addEventListener("resize", onResize)
@@ -270,12 +270,10 @@ export function AppSidebar({ children }: AppSidebarProps) {
     </svg>
   )
 
-  // ---------- ESCALA GLOBAL DOS ÍCONES (proporcional à altura da tela) ----------
-  const BASE_HEIGHT = 900 // altura de referência
+  // ---------- ESCALA GLOBAL DOS ÍCONES ----------
+  const BASE_HEIGHT = 900
   const vh = viewportHeight || BASE_HEIGHT
   let scaleFactor = vh / BASE_HEIGHT
-
-  // trava pra não ficar exagerado em telas muito grandes/pequenas
   if (scaleFactor < 0.8) scaleFactor = 0.8
   if (scaleFactor > 1.2) scaleFactor = 1.2
 
@@ -286,46 +284,42 @@ export function AppSidebar({ children }: AppSidebarProps) {
         style={{ ["--sb-w" as any]: sidebarWidth }}
       >
         {/* Sidebar FLUTUANTE */}
-<div
-  className={`
-    fixed z-40
-    left-7 top-1/2 -translate-y-1/2
-    flex flex-col
-    rounded-[32px]
-    transition-[width,transform] duration-300 ease-in-out
-    backdrop-blur-3xl
-    ${
-      theme === "dark"
-        ? `
-          bg-gradient-to-b from-[#000000] via-[#0d0d0d] to-[#141414]
-          border border-white/10
-          shadow-[0_0_18px_rgba(255,255,255,0.05)]
-          before:content-[''] before:absolute before:inset-0
-          before:bg-[radial-gradient(circle_at_center,rgba(0, 0, 0, 0),rgba(15, 15, 15, 0))]
-          before:pointer-events-none
-        `
-        : `
-          bg-[rgba(255,255,255,0.45)]
-          border border-black/10
-          shadow-[0_20px_45px_rgba(0,0,0,0.15)]
-          before:content-[''] before:absolute before:inset-0
-          before:bg-[linear-gradient(145deg,rgba(255, 255, 255, 0),rgba(255, 255, 255, 0))]
-          before:pointer-events-none
-        `
-    }
-  `}
-
+        <div
+          className={`
+            fixed z-40
+            left-7 top-4 bottom-4
+            flex flex-col
+            overflow-hidden
+            transition-[width] duration-300 ease-in-out
+            backdrop-blur-3xl
+            ${
+              theme === "dark"
+                ? `
+                  bg-gradient-to-b from-[#000000] via-[#0d0d0d] to-[#141414]
+                  border border-white/10
+                  shadow-[0_0_18px_rgba(255,255,255,0.05)]
+                `
+                : `
+                  bg-[rgba(255,255,255,0.45)]
+                  border border-black/10
+                  shadow-[0_20px_45px_rgba(0,0,0,0.15)]
+                `
+            }
+          `}
           style={{
             width: "var(--sb-w)",
-            height: "92vh",
-            maxHeight: "1000px",
-            minHeight: "600px",
+            borderRadius: SIDEBAR_BORDER_RADIUS,
           }}
         >
-          {/* Header */}
-          <div className="px-4 pt-4 pb-3">
-            <div className="relative h-[72px]">
-              <div className="absolute left-[-6px] top-1/2 -translate-y-1/2 w-[70px] h-[70px]">
+          {/* Header - LOGO CENTRALIZADA QUANDO FECHADO */}
+          <div className="px-3 pt-4 pb-3">
+            <div
+              className={`
+                flex items-center
+                ${isExpanded ? "justify-start" : "justify-center"}
+              `}
+            >
+              <div className={isExpanded ? "relative w-[54px] h-[64px]" : "relative w-[42px] h-[52px]"}>
                 <Image
                   src={
                     theme === "dark"
@@ -339,24 +333,19 @@ export function AppSidebar({ children }: AppSidebarProps) {
                 />
               </div>
 
-              <span
-                className={`
-                  absolute top-1/2 -translate-y-2 left-[58px]
-                  text-lg font-bold text-foreground tracking-wide whitespace-nowrap
-                  transition-all duration-300 ease-out
-                  ${isExpanded ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2"}
-                  overflow-hidden pointer-events-none
-                `}
-                style={{
-                  maxWidth: isExpanded ? "calc(var(--sb-w) - 80px)" : 0,
-                }}
-              >
-                BLECK's
-              </span>
+              {isExpanded && (
+                <span
+                  className="
+                    ml-3 text-lg font-bold text-foreground tracking-wide whitespace-nowrap
+                  "
+                >
+                  BLECK's
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Menu ajustável à altura da tela (sem scroll) */}
+          {/* Menu */}
           <div className="flex-1 px-1 pb-4 overflow-visible">
             <div className="mt-2 h-full flex flex-col justify-between pr-1">
               {menuItems.map((item) => {
@@ -380,7 +369,11 @@ export function AppSidebar({ children }: AppSidebarProps) {
                         w-full
                         min-h-[32px] max-h-[44px]
                         text-xs flex items-center py-0
-                        ${isExpanded ? "justify-start pl-4 pr-3" : "justify-start pl-4 pr-0"}
+                        ${
+                          isExpanded
+                            ? "justify-start pl-4 pr-3"
+                            : "justify-center px-0"
+                        }
                         rounded-xl
                         transition-colors
                         ${
@@ -394,14 +387,13 @@ export function AppSidebar({ children }: AppSidebarProps) {
                         }
                       `}
                     >
-                      {/* Ícone PNG */}
                       {item.iconPath ? (
                         <span
                           className="relative inline-flex items-center justify-center shrink-0 transition-transform duration-300"
                           style={{
                             width: size,
                             height: size,
-                            transform: `translate(${x}px, ${y}px)`,
+                            transform: isExpanded ? `translate(${x}px, ${y}px)` : "none",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -425,18 +417,15 @@ export function AppSidebar({ children }: AppSidebarProps) {
                         </span>
                       ) : item.icon ? (
                         <item.icon
-                          className={`shrink-0 ${
-                            theme === "dark" ? "text-white" : "text-black"
-                          }`}
+                          className={theme === "dark" ? "shrink-0 text-white" : "shrink-0 text-black"}
                           style={{
                             width: size,
                             height: size,
-                            transform: `translate(${x}px, ${y}px)`,
+                            transform: isExpanded ? `translate(${x}px, ${y}px)` : "none",
                           }}
                         />
                       ) : null}
 
-                      {/* Label normal quando expandido */}
                       {isExpanded && (
                         <span
                           className="ml-3 overflow-hidden transition-all duration-200"
@@ -446,7 +435,6 @@ export function AppSidebar({ children }: AppSidebarProps) {
                         </span>
                       )}
 
-                      {/* Tooltip quando colapsado */}
                       {!isExpanded && (
                         <div
                           className="
@@ -485,7 +473,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           {children}
         </div>
 
-        {/* Toggle em cima da LINHA entre sidebar e conteúdo */}
+        {/* Toggle */}
         <Button
           variant="ghost"
           size="sm"

@@ -376,20 +376,73 @@ type AdSetColumnId =
   | "budget"
 
 export const ALL_ADSET_COLUMNS = [
-  { id: "name", label: "Nome do Conjunto" },
-  { id: "status", label: "Status" },
-  { id: "budget", label: "Orçamento" },
-  { id: "impressions", label: "Impressões" },
-  { id: "clicks", label: "Cliques" },
-  { id: "ctr", label: "CTR" },
-  { id: "cpc", label: "CPC" },
-  { id: "results", label: "Resultados" },
-  { id: "cpa", label: "CPA" },
-  { id: "spend", label: "Gasto" },
-  { id: "roas", label: "ROAS" },
-  { id: "campaign", label: "Campanha" },
-  { id: "id", label: "ID do Conjunto" },
+  {
+    id: "name",
+    label: "Nome do Conjunto",
+    description: "Nome interno do conjunto de anúncios.",
+  },
+  {
+    id: "status",
+    label: "Status",
+    description: "Se o conjunto está ativo, pausado ou em revisão.",
+  },
+  {
+    id: "budget",
+    label: "Orçamento",
+    description: "Orçamento diário ou vitalício configurado para o conjunto.",
+  },
+  {
+    id: "spend",
+    label: "Gasto",
+    description: "Quanto o conjunto gastou no período selecionado.",
+  },
+  {
+    id: "results",
+    label: "Resultados",
+    description: "Quantidade de resultados de acordo com o objetivo da campanha.",
+  },
+  {
+    id: "cpa",
+    label: "CPA",
+    description: "Custo médio por resultado (gasto dividido pelos resultados).",
+  },
+  {
+    id: "roas",
+    label: "ROAS",
+    description: "Retorno sobre o gasto de anúncios, quando disponível.",
+  },
+  {
+    id: "clicks",
+    label: "Cliques",
+    description: "Quantidade de cliques gerados pelos anúncios do conjunto.",
+  },
+  {
+    id: "cpc",
+    label: "CPC",
+    description: "Custo médio por clique (gasto dividido pelos cliques).",
+  },
+  {
+    id: "ctr",
+    label: "CTR",
+    description: "Taxa de cliques em relação às impressões.",
+  },
+  {
+    id: "impressions",
+    label: "Impressões",
+    description: "Quantidade de vezes que os anúncios foram exibidos.",
+  },
+  {
+    id: "campaign",
+    label: "Campanha",
+    description: "Nome da campanha à qual o conjunto pertence.",
+  },
+  {
+    id: "id",
+    label: "ID do Conjunto",
+    description: "Identificador único do conjunto de anúncios.",
+  },
 ]
+
 
 const DEFAULT_ADSET_COLUMNS: AdSetColumnId[] = ALL_ADSET_COLUMNS.map((c) => c.id)
 

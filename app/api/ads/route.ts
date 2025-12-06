@@ -6,8 +6,8 @@ export const revalidate = 0
 
 const GRAPH = "https://graph.facebook.com/v20.0"
 
-// 🔥 BUSCAS FOCADAS EM INFOPRODUTO / PF / RENDA EXTRA / DESENVOLVIMENTO
-const KEYWORD_QUERIES: string[] = [
+// 🔥 BUSCAS EM PORTUGUÊS (BR/PT)
+const KEYWORD_QUERIES_PT: string[] = [
   // SAÚDE / EMAGRECIMENTO
   "curso emagrecimento online",
   "curso de emagrecimento",
@@ -106,8 +106,56 @@ const KEYWORD_QUERIES: string[] = [
   "evento online de vendas",
 ]
 
+// 🔥 BUSCAS EM ESPANHOL (LATAM)
+const KEYWORD_QUERIES_ES: string[] = [
+  // SAÚDE / EMAGRECIMENTO
+  "curso para bajar de peso",
+  "curso bajar de peso rapido",
+  "curso dieta online",
+  "curso perdida de peso",
+
+  // RENDA EXTRA / GANHAR DINHEIRO
+  "curso ganar dinero por internet",
+  "curso ingresos extra",
+  "curso ingresos pasivos",
+  "curso dinero extra",
+  "curso marketing de afiliados",
+  "curso ganar dinero con marketing digital",
+
+  // MARKETING / TRÁFEGO / VENDAS
+  "curso marketing digital",
+  "curso marketing digital desde cero",
+  "curso trafico pago",
+  "curso trafico pago para principiantes",
+  "mentoria trafico pago",
+  "curso embudo de ventas",
+  "curso ventas online",
+  "curso lanzamientos digitales",
+  "mentoria marketing digital",
+
+  // DROPSHIPPING / ECOMMERCE
+  "curso dropshipping",
+  "curso tienda online",
+  "curso ecommerce",
+  "curso tienda en linea",
+  "curso tienda virtual",
+  "curso infoproductos",
+  "curso vender infoproductos",
+
+  // APOSTAS / TRADER
+  "curso apuestas deportivas",
+  "curso trader deportivo",
+  "curso trading deportivo",
+]
+
+// JUNTA TUDO
+const KEYWORD_QUERIES: string[] = [
+  ...KEYWORD_QUERIES_PT,
+  ...KEYWORD_QUERIES_ES,
+]
+
 // mínimo padrão de anúncios ativos por grupo (page_id + palavra-chave)
-const DEFAULT_MIN_ACTIVE_PER_GROUP = 1
+const DEFAULT_MIN_ACTIVE_PER_GROUP = 4
 
 // ----------------- helpers -----------------
 function getToken(): string {
@@ -137,7 +185,9 @@ const HARD_BLOCK_KEYWORDS = [
   "novela coreana",
   "serie",
   "série",
+  "series",
   "filme",
+  "pelicula",
   "cinema",
   "episodio",
   "episódio",
@@ -145,14 +195,16 @@ const HARD_BLOCK_KEYWORDS = [
 
   "eleicao",
   "eleição",
-  "eleicoes",
-  "eleições",
+  "elecciones",
   "campanha politica",
   "campanha política",
+  "campana politica",
   "presidente",
   "governo",
+  "gobierno",
   "vereador",
   "prefeito",
+  "alcalde",
   "deputado",
   "senador",
   "prefeitura",
@@ -163,13 +215,15 @@ const HARD_BLOCK_KEYWORDS = [
   "notícia",
   "noticias",
   "notícias",
+  "noticias de hoy",
   "podcast",
   "podcaster",
   "entrevista exclusiva",
 ]
 
-// ✅ COISAS TÍPICAS DE INFOPRODUTO
+// ✅ COISAS TÍPICAS DE INFOPRODUTO (PT + ES)
 const INFO_KEYWORDS = [
+  // PT
   "curso",
   "mentoria",
   "treinamento",
@@ -188,25 +242,6 @@ const INFO_KEYWORDS = [
   "turma",
   "vagas",
   "lista de espera",
-
-  "emagrecimento",
-  "emagrecer",
-  "perda de peso",
-  "treino",
-  "saude",
-  "saúde",
-  "fitness",
-
-  "dropshipping",
-  "drop",
-  "loja virtual",
-  "loja online",
-  "ecommerce",
-  "e commerce",
-  "plr",
-  "infoproduto",
-  "infoprodutos",
-
   "renda extra",
   "marketing digital",
   "trafego pago",
@@ -218,11 +253,42 @@ const INFO_KEYWORDS = [
   "lançamento digital",
   "perpetuo",
   "perpétuo",
-
+  "infoproduto",
+  "infoprodutos",
+  "emagrecimento",
+  "emagrecer",
+  "perda de peso",
+  "treino",
+  "saude",
+  "saúde",
+  "fitness",
   "desenvolvimento pessoal",
   "produtividade",
   "mentalidade",
   "mindset",
+
+  // ES
+  "curso online",
+  "curso digital",
+  "mentoria",
+  "programa",
+  "comunidad",
+  "grupo vip",
+  "ingresos extra",
+  "ingreso extra",
+  "ingresos pasivos",
+  "ganar dinero",
+  "ganar dinero por internet",
+  "marketing digital",
+  "trafico pago",
+  "embudo de ventas",
+  "infoproducto",
+  "infoproductos",
+  "curso ecommerce",
+  "curso tienda online",
+  "curso tienda en linea",
+  "curso apuestas deportivas",
+  "curso trader deportivo",
 ]
 
 function buildAdText(ad: any): string {
@@ -262,10 +328,18 @@ export async function GET(req: Request) {
     const token = getToken()
     const { searchParams } = new URL(req.url)
 
-    // limite por busca
+    // limite por busca (por página de resultado)
     const limitPerQuery = Math.max(
       20,
-      Math.min(100, Number(searchParams.get("limit") ?? 80))
+      Math.min(100, Number(searchParams.get("limit") ?? 80)
+      )
+    )
+
+    // quantas páginas no máximo vamos buscar POR keyword
+    const maxPagesPerQuery = Math.max(
+      1,
+      Math.min(5, Number(searchParams.get("max_pages_per_query") ?? 3)
+      )
     )
 
     // mínimo de anúncios ativos por grupo (pode vir da query)
@@ -273,7 +347,7 @@ export async function GET(req: Request) {
       Number(searchParams.get("min_active") ?? DEFAULT_MIN_ACTIVE_PER_GROUP) ||
       DEFAULT_MIN_ACTIVE_PER_GROUP
 
-    // países vindos do front (?countries=["BR","US"]) – default BR
+    // países vindos do front (?countries=["BR","PT","MX"]) – default BR
     let countries = ["BR"]
     const rawCountries = searchParams.get("countries")
     if (rawCountries) {
@@ -290,45 +364,64 @@ export async function GET(req: Request) {
       }
     }
 
-    const fields = "id,page_id,page_name,ad_delivery_start_time,ad_snapshot_url"
+    const fields =
+      "id,page_id,page_name,ad_delivery_start_time,ad_snapshot_url"
     const allAds: any[] = []
 
-    // 1) BUSCA SÓ PELAS PALAVRAS-CHAVE DE INFOPRODUTO
+    // 1) BUSCA SÓ PELAS PALAVRAS-CHAVE (PT+ES), COM PAGINAÇÃO
     for (const q of KEYWORD_QUERIES) {
-      const url = new URL(`${GRAPH}/ads_archive`)
-      url.searchParams.set("access_token", token)
-      url.searchParams.set("ad_reached_countries", JSON.stringify(countries))
-      url.searchParams.set("search_terms", q)
-      url.searchParams.set("ad_type", "ALL")
-      url.searchParams.set("ad_active_status", "ACTIVE")
-      url.searchParams.set("limit", String(limitPerQuery))
-      url.searchParams.set("fields", fields)
+      let page = 0
+      let afterCursor: string | null = null
 
-      const res = await fetch(url.toString(), { cache: "no-store" })
-      const json = await res.json()
+      do {
+        const url = new URL(`${GRAPH}/ads_archive`)
+        url.searchParams.set("access_token", token)
+        url.searchParams.set(
+          "ad_reached_countries",
+          JSON.stringify(countries)
+        )
+        url.searchParams.set("search_terms", q)
+        url.searchParams.set("ad_type", "ALL")
+        url.searchParams.set("ad_active_status", "ACTIVE")
+        url.searchParams.set("limit", String(limitPerQuery))
+        url.searchParams.set("fields", fields)
 
-      if (!res.ok) {
-        console.error("Erro Graph:", json?.error || json)
-        continue
-      }
+        if (afterCursor) {
+          url.searchParams.set("after", afterCursor)
+        }
 
-      if (Array.isArray(json.data)) {
-        for (const ad of json.data) {
+        const res = await fetch(url.toString(), { cache: "no-store" })
+        const json = await res.json()
+
+        if (!res.ok) {
+          console.error("Erro Graph:", json?.error || json)
+          break
+        }
+
+        const data = Array.isArray(json.data) ? json.data : []
+
+        for (const ad of data) {
           const enriched = {
             ...ad,
             __source_q: q,
             ad_snapshot_url_public: ad.ad_snapshot_url,
           }
+          // evita duplicado
           if (!allAds.find((a) => a.id === enriched.id)) {
             allAds.push(enriched)
           }
         }
-      }
+
+        const paging = json.paging
+        afterCursor = paging?.cursors?.after ?? null
+        page += 1
+      } while (afterCursor && page < maxPagesPerQuery)
     }
 
     if (allAds.length === 0) {
       return NextResponse.json({
         source: "KEYWORD_INFOPRODUCT",
+        generated_at: new Date().toISOString(),
         total_raw: 0,
         total_filtered: 0,
         total_scaled: 0,
@@ -348,6 +441,7 @@ export async function GET(req: Request) {
     if (filtered.length === 0) {
       return NextResponse.json({
         source: "KEYWORD_INFOPRODUCT",
+        generated_at: new Date().toISOString(),
         total_raw: allAds.length,
         total_filtered: 0,
         total_scaled: 0,
@@ -374,6 +468,7 @@ export async function GET(req: Request) {
     if (scaled.length === 0) {
       return NextResponse.json({
         source: "KEYWORD_INFOPRODUCT",
+        generated_at: new Date().toISOString(),
         total_raw: allAds.length,
         total_filtered: filtered.length,
         total_scaled: 0,
@@ -413,6 +508,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       source: "KEYWORD_INFOPRODUCT",
+      generated_at: new Date().toISOString(),
       total_raw: allAds.length,
       total_filtered: filtered.length,
       total_scaled: finalData.length,

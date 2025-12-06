@@ -1091,23 +1091,23 @@ export default function DashboardView({
     },
 
     "top-4": (_slotId, ctx, key) => {
-      const value = ctx.kpis.chargebacksTotal ?? 0
-      const loading = ctx.loading || isRefreshing
-      return (
-        <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text:white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-            Chargebacks
-          </div>
-          <div className="text-2xl font-semibold">
-            {loading ? (
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-            ) : (
-              brl(value)
-            )}
-          </div>
-        </div>
-      )
-    },
+  const value = ctx.kpis.chargebacksTotal ?? 0
+  const loading = ctx.loading || isRefreshing
+  return (
+    <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text-white">
+      <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+        Chargebacks
+      </div>
+      <div className="text-2xl font-semibold">
+        {loading ? (
+          <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+        ) : (
+          brl(value)
+        )}
+      </div>
+    </div>
+  )
+},
 
     r1: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend

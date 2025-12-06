@@ -21,7 +21,6 @@ import { useToast } from "@/components/ui/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-// Tipo para mensagens de chat
 type ChatMessage = {
   id: string
   role: "user" | "assistant" | "system"
@@ -29,7 +28,6 @@ type ChatMessage = {
   timestamp: Date
 }
 
-// Tipo para conversas salvas
 type SavedConversation = {
   id: string
   title: string
@@ -38,7 +36,6 @@ type SavedConversation = {
   updatedAt: Date
 }
 
-// Sugestões de prompts para o chat
 const promptSuggestions = [
   "Crie um anúncio persuasivo para meu produto",
   "Como melhorar meu email marketing?",
@@ -49,7 +46,6 @@ const promptSuggestions = [
 ]
 
 export default function ChatView() {
-  // Estados para o chat
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [inputMessage, setInputMessage] = useState<string>("")
   const [isSendingMessage, setIsSendingMessage] = useState<boolean>(false)
@@ -57,11 +53,9 @@ export default function ChatView() {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const [conversationTitle, setConversationTitle] = useState<string>("")
 
-  // Estados para edição de mensagens
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editedMessageContent, setEditedMessageContent] = useState<string>("")
 
-  // Estados para reconhecimento de voz
   const [isRecording, setIsRecording] = useState<boolean>(false)
   const [isSpeechSupported, setIsSpeechSupported] = useState<boolean>(false)
   const recognitionRef = useRef<any | null>(null)
@@ -70,7 +64,7 @@ export default function ChatView() {
   const chatEndRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
 
-  // Configurar reconhecimento de voz
+  // ====== Reconhecimento de voz ======
   useEffect(() => {
     if (typeof window === "undefined") return
 
@@ -91,12 +85,10 @@ export default function ChatView() {
 
     recognition.onresult = (event: any) => {
       try {
-        // Pega apenas o ÚLTIMO resultado para não repetir tudo
         const result = event.results[event.resultIndex]
         if (!result || !result[0]) return
 
         const transcript = result[0].transcript
-
         setInputMessage((prev) => (prev ? `${prev} ${transcript}` : transcript))
       } catch (err) {
         console.error("Erro ao processar resultado de voz:", err)
@@ -115,7 +107,6 @@ export default function ChatView() {
     }
 
     recognition.onend = () => {
-      // Só reinicia se ainda deveria estar gravando
       if (isRecordingRef.current) {
         try {
           recognition.start()
@@ -144,7 +135,6 @@ export default function ChatView() {
       return
     }
 
-    // Parar
     if (isRecordingRef.current) {
       isRecordingRef.current = false
       setIsRecording(false)
@@ -156,7 +146,6 @@ export default function ChatView() {
       return
     }
 
-    // Iniciar
     try {
       isRecordingRef.current = true
       setIsRecording(true)
@@ -168,23 +157,30 @@ export default function ChatView() {
     }
   }
 
-  // Carregar conversas do localStorage ao iniciar
+  // ====== LocalStorage ======
   useEffect(() => {
     const saved = localStorage.getItem("copywritingConversations")
     if (saved) {
       try {
-        setSavedConversations(JSON.parse(saved))
+        const parsed: SavedConversation[] = JSON.parse(saved)
+        const withDates = parsed.map((c) => ({
+          ...c,
+          createdAt: new Date(c.createdAt),
+          updatedAt: new Date(c.updatedAt),
+          messages: c.messages.map((m) => ({
+            ...m,
+            timestamp: new Date(m.timestamp),
+          })),
+        }))
+        setSavedConversations(withDates)
       } catch (e) {
         console.error("Erro ao carregar conversas:", e)
       }
     }
   }, [])
 
-  // Salvar conversas no localStorage quando mudar
   useEffect(() => {
-    if (savedConversations.length > 0) {
-      localStorage.setItem("copywritingConversations", JSON.stringify(savedConversations))
-    }
+    localStorage.setItem("copywritingConversations", JSON.stringify(savedConversations))
   }, [savedConversations])
 
   // Scroll automático
@@ -194,7 +190,7 @@ export default function ChatView() {
     }
   }, [chatMessages])
 
-  // Enviar mensagem
+  // ====== Enviar mensagem normal ======
   const sendMessage = useCallback(async () => {
     if (!inputMessage.trim()) return
 
@@ -227,11 +223,11 @@ export default function ChatView() {
         body: JSON.stringify({ messages: recentMessages }),
       })
 
-      if (!response.ok) {
-        throw new Error(`Erro ${response.status}: ${response.statusText}`)
-      }
+      const data = await response.json().catch(() => ({} as any))
 
-      const data = await response.json()
+      if (!response.ok || !data || typeof data.message !== "string") {
+        throw new Error(data?.error || "Resposta inválida da IA")
+      }
 
       assistantMessage = {
         id: (Date.now() + 1).toString(),
@@ -243,28 +239,42 @@ export default function ChatView() {
       const finalMessages = [...updatedMessages, assistantMessage]
       setChatMessages(finalMessages)
 
+      const baseTitle =
+        conversationTitle ||
+        `Conversa sobre ${userMessage.content.substring(0, 30)}${
+          userMessage.content.length > 30 ? "..." : ""
+        }`
       if (!conversationTitle) {
-        setConversationTitle(
-          `Conversa sobre ${userMessage.content.substring(0, 20)}${
-            userMessage.content.length > 20 ? "..." : ""
-          }`,
-        )
+        setConversationTitle(baseTitle)
       }
 
+      const now = new Date()
+
       if (currentConversationId) {
-        const now = new Date()
         setSavedConversations((prev) =>
           prev.map((conv) =>
             conv.id === currentConversationId
               ? {
                   ...conv,
                   messages: finalMessages,
-                  title: conversationTitle || conv.title,
+                  title: baseTitle || conv.title,
                   updatedAt: now,
                 }
               : conv,
           ),
         )
+      } else {
+        const newId = now.getTime().toString()
+        const newConversation: SavedConversation = {
+          id: newId,
+          title: baseTitle,
+          messages: finalMessages,
+          createdAt: now,
+          updatedAt: now,
+        }
+
+        setCurrentConversationId(newId)
+        setSavedConversations((prev) => [newConversation, ...prev])
       }
     } catch (error: any) {
       console.error("Erro ao enviar mensagem:", error)
@@ -277,7 +287,8 @@ export default function ChatView() {
       const errorMessage: ChatMessage = {
         id: (Date.now() + 2).toString(),
         role: "assistant",
-        content: "Desculpe, não consegui processar sua mensagem. Por favor, tente novamente mais tarde.",
+        content:
+          "Desculpe, não consegui processar sua mensagem agora. Tente novamente em alguns segundos.",
         timestamp: new Date(),
       }
 
@@ -304,34 +315,25 @@ export default function ChatView() {
     }
   }, [chatMessages, inputMessage, currentConversationId, conversationTitle, toast])
 
+  // ====== Novo chat (cria novo card só aqui) ======
   const startNewConversation = () => {
-    if (chatMessages.length > 0) {
+    if (chatMessages.length > 0 && currentConversationId) {
       const now = new Date()
-
-      if (currentConversationId) {
-        setSavedConversations((prev) =>
-          prev.map((conv) =>
-            conv.id === currentConversationId
-              ? {
-                  ...conv,
-                  messages: chatMessages,
-                  title: conversationTitle || conv.title,
-                  updatedAt: now,
-                }
-              : conv,
-          ),
-        )
-      } else {
-        const newId = now.getTime().toString()
-        const newConversation: SavedConversation = {
-          id: newId,
-          title: conversationTitle || `Conversa ${savedConversations.length + 1}`,
-          messages: chatMessages,
-          createdAt: now,
-          updatedAt: now,
-        }
-        setSavedConversations((prev) => [newConversation, ...prev])
-      }
+      setSavedConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === currentConversationId
+            ? {
+                ...conv,
+                messages: chatMessages,
+                title:
+                  conversationTitle ||
+                  conv.title ||
+                  `Conversa ${savedConversations.length + 1}`,
+                updatedAt: now,
+              }
+            : conv,
+        ),
+      )
     }
 
     setChatMessages([])
@@ -376,39 +378,108 @@ export default function ChatView() {
     setEditedMessageContent(message.content)
   }, [])
 
-  const saveEditedMessage = useCallback(() => {
-    if (!editingMessageId) return
+  // ====== Editar mensagem do usuário e regenerar resposta ======
+  const saveEditedMessage = useCallback(
+    async () => {
+      if (!editingMessageId) return
 
-    const updatedMessages = chatMessages.map((msg) =>
-      msg.id === editingMessageId ? { ...msg, content: editedMessageContent } : msg,
-    )
+      // 1) Encontra a mensagem que está sendo editada
+      const msgIndex = chatMessages.findIndex((m) => m.id === editingMessageId)
+      if (msgIndex === -1) return
 
-    setChatMessages(updatedMessages)
-
-    if (currentConversationId) {
-      const now = new Date()
-      setSavedConversations((prev) =>
-        prev.map((conv) =>
-          conv.id === currentConversationId
-            ? {
-                ...conv,
-                messages: updatedMessages,
-                title: conversationTitle || conv.title,
-                updatedAt: now,
-              }
-            : conv,
-        ),
+      // 2) Atualiza o conteúdo da mensagem do usuário
+      let messagesAfterEdit = chatMessages.map((msg, index) =>
+        index === msgIndex ? { ...msg, content: editedMessageContent } : msg,
       )
-    }
 
-    setEditingMessageId(null)
-    setEditedMessageContent("")
+      // 3) Remove a resposta antiga da IA logo depois, se existir
+      if (messagesAfterEdit[msgIndex + 1]?.role === "assistant") {
+        messagesAfterEdit = [
+          ...messagesAfterEdit.slice(0, msgIndex + 1),
+          ...messagesAfterEdit.slice(msgIndex + 2),
+        ]
+      }
 
-    toast({
-      title: "Mensagem atualizada",
-      description: "Sua mensagem foi editada com sucesso",
-    })
-  }, [chatMessages, editingMessageId, editedMessageContent, currentConversationId, conversationTitle, toast])
+      // Atualiza visualmente
+      setChatMessages(messagesAfterEdit)
+      setEditingMessageId(null)
+      setEditedMessageContent("")
+      setIsSendingMessage(true)
+
+      try {
+        // 4) Reenvia o contexto para a IA com a mensagem editada
+        const recentMessages = messagesAfterEdit.slice(-10).map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        }))
+
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+          },
+          body: JSON.stringify({ messages: recentMessages }),
+        })
+
+        const data = await response.json().catch(() => ({} as any))
+
+        if (!response.ok || !data || typeof data.message !== "string") {
+          throw new Error(data?.error || "Resposta inválida da IA")
+        }
+
+        // 5) Cria nova resposta da IA
+        const newAssistantMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: data.message,
+          timestamp: new Date(),
+        }
+
+        const finalMessages = [...messagesAfterEdit, newAssistantMessage]
+        setChatMessages(finalMessages)
+
+        // 6) Atualiza histórico
+        if (currentConversationId) {
+          const now = new Date()
+          setSavedConversations((prev) =>
+            prev.map((conv) =>
+              conv.id === currentConversationId
+                ? {
+                    ...conv,
+                    messages: finalMessages,
+                    title: conversationTitle || conv.title,
+                    updatedAt: now,
+                  }
+                : conv,
+            ),
+          )
+        }
+
+        toast({
+          title: "Copy atualizada",
+          description: "Mensagem editada e nova resposta gerada pela IA.",
+        })
+      } catch (error: any) {
+        console.error("Erro ao regenerar resposta:", error)
+        toast({
+          title: "Erro",
+          description: "Não foi possível gerar uma nova resposta. Tente novamente.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsSendingMessage(false)
+      }
+    },
+    [
+      chatMessages,
+      editingMessageId,
+      editedMessageContent,
+      currentConversationId,
+      conversationTitle,
+      toast,
+    ],
+  )
 
   const cancelEditing = () => {
     setEditingMessageId(null)
@@ -423,16 +494,7 @@ export default function ChatView() {
     })
   }
 
-  const useTextFromChat = useCallback(
-    (text: string) => {
-      toast({
-        title: "Texto transferido",
-        description: "O texto foi transferido para o editor",
-      })
-    },
-    [toast],
-  )
-
+  // ====== JSX ======
   return (
     <div
       className="
@@ -455,10 +517,10 @@ export default function ChatView() {
           </div>
         </CardHeader>
         <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col overflow-hidden">
-          <div className="mb-3">
+          <div className="mb-2">
             <Button
               variant="outline"
-              className="w-full justify-center text-xs rounded-full border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+              className="w-full justify-center text-xs rounded-full border-white/10 bg-white/5 hover:bg-white/10 transition-colors h-8"
               onClick={startNewConversation}
             >
               <PlusCircle className="mr-1 h-4 w-4" />
@@ -467,7 +529,7 @@ export default function ChatView() {
           </div>
 
           <ScrollArea className="flex-1 pr-1">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {savedConversations.length > 0 ? (
                 savedConversations.map((conv) => {
                   const isActive = currentConversationId === conv.id
@@ -477,8 +539,8 @@ export default function ChatView() {
                       type="button"
                       onClick={() => loadConversation(conv.id)}
                       className={`
-                        w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-left
-                        transition-all border
+                        w-full flex items-center justify-between gap-2 px-2.5 py-1.5
+                        rounded-lg text-left transition-all border
                         ${
                           isActive
                             ? "bg-white/10 border-primary/40 shadow-inner"
@@ -487,17 +549,21 @@ export default function ChatView() {
                       `}
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-xs truncate">{conv.title}</p>
-                        <p className="text-[11px] text-zinc-500">
-                          {new Date(conv.updatedAt).toLocaleDateString().split("/")[0]}/
-                          {new Date(conv.updatedAt).toLocaleDateString().split("/")[1]}
+                        <p className="font-medium text-[11px] leading-tight truncate">
+                          {conv.title}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-zinc-500">
+                          {conv.updatedAt.toLocaleDateString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                          })}
                         </p>
                       </div>
 
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 flex-shrink-0 text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
+                        className="h-6 w-6 flex-shrink-0 text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
                         onClick={(e) => {
                           e.stopPropagation()
                           deleteConversation(conv.id)
@@ -538,7 +604,6 @@ export default function ChatView() {
         </CardHeader>
 
         <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
-          {/* Área de mensagens */}
           <ScrollArea className="flex-1 px-5 py-4">
             {chatMessages.length > 0 ? (
               <div className="space-y-4">
@@ -574,14 +639,24 @@ export default function ChatView() {
                               className="min-h-[100px] w-full text-sm bg-zinc-900/80 border border-white/10 rounded-xl"
                             />
                             <div className="flex gap-2">
-                              <Button size="sm" className="text-xs h-8 px-3" onClick={saveEditedMessage}>
-                                Salvar
+                              <Button
+                                size="sm"
+                                className="text-xs h-8 px-3"
+                                onClick={saveEditedMessage}
+                                disabled={isSendingMessage || !editedMessageContent.trim()}
+                              >
+                                {isSendingMessage ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  "Enviar"
+                                )}
                               </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
                                 className="text-xs h-8 px-3"
                                 onClick={cancelEditing}
+                                disabled={isSendingMessage}
                               >
                                 Cancelar
                               </Button>
@@ -615,7 +690,7 @@ export default function ChatView() {
                           </p>
 
                           <div className="flex flex-wrap gap-1">
-                            {message.role === "assistant" && (
+                            {message.role === "assistant" && !editingMessageId && (
                               <>
                                 <Button
                                   variant="ghost"
@@ -629,17 +704,18 @@ export default function ChatView() {
                                 <UseTextButton text={message.content} />
                               </>
                             )}
-                            {message.role === "user" && !editingMessageId && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-[11px] text-zinc-400 hover:text-zinc-100"
-                                onClick={() => startEditingMessage(message)}
-                              >
-                                <PenLine className="h-3 w-3 mr-1" />
-                                Editar
-                              </Button>
-                            )}
+                            {message.role === "user" &&
+                              editingMessageId !== message.id && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-[11px] text-zinc-400 hover:text-zinc-100"
+                                  onClick={() => startEditingMessage(message)}
+                                >
+                                  <PenLine className="h-3 w-3 mr-1" />
+                                  Editar
+                                </Button>
+                              )}
                           </div>
                         </div>
                       </div>
@@ -675,7 +751,7 @@ export default function ChatView() {
             )}
           </ScrollArea>
 
-          {/* Área de input */}
+          {/* Área de input padrão */}
           <div className="px-5 pb-3 pt-3 border-t border-white/5 bg-zinc-950/80">
             <form
               onSubmit={(e) => {
@@ -684,7 +760,6 @@ export default function ChatView() {
               }}
               className="flex items-center gap-3"
             >
-              {/* Card apenas do texto */}
               <div className="flex-1 rounded-2xl bg-zinc-900/80 border border-white/10 px-3 py-2">
                 <Textarea
                   value={inputMessage}
@@ -700,9 +775,7 @@ export default function ChatView() {
                 />
               </div>
 
-              {/* Botões fora do card de texto, centralizados */}
               <div className="flex items-center gap-2">
-                {/* Botão microfone */}
                 <Button
                   type="button"
                   variant="ghost"
@@ -720,7 +793,6 @@ export default function ChatView() {
                   <Mic className={`h-4 w-4 ${isRecording ? "text-emerald-400" : ""}`} />
                 </Button>
 
-                {/* Botão enviar */}
                 <Button
                   type="submit"
                   disabled={isSendingMessage || !inputMessage.trim()}
@@ -740,11 +812,12 @@ export default function ChatView() {
 function UseTextButton({ text }: { text: string }) {
   const { toast } = useToast()
   const useTextFromChat = useCallback(
-    (text: string) => {
+    (t: string) => {
       toast({
         title: "Texto transferido",
         description: "O texto foi transferido para o editor",
       })
+      // aqui depois você conecta com o editor de copy
     },
     [toast],
   )

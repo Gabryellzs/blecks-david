@@ -16,7 +16,6 @@ import {
   getFacebookCampaignsWithInsights,
 } from "@/lib/facebook-ads-service"
 
-
 // =============================
 // TIPOS / MODELOS DE DADOS
 // =============================
@@ -246,6 +245,11 @@ export function useGatewayKpis(filter: KpiFilter) {
       )
       .order("created_at", { ascending: false })
 
+    // 🔒 FILTRO POR USUÁRIO (se informado)
+    if (userId) {
+      q.eq("user_id", userId)
+    }
+
     if (from) q.gte("created_at", from)
     if (to) q.lt("created_at", to)
     if (search && search.trim()) {
@@ -281,9 +285,10 @@ export function useGatewayKpis(filter: KpiFilter) {
       channelRef.current = null
     }
 
-    const chanName = `gateway_transactions_dashboard_${from || "min"}_${
-      to || "max"
-    }_${Math.random().toString(36).slice(2)}`
+    const chanName = `gateway_transactions_dashboard_${userId || "all"}_${
+      from || "min"
+    }_${to || "max"}_${Math.random().toString(36).slice(2)}`
+
     const channel = supabase.channel(chanName)
 
     const fromMs = from ? Date.parse(from) : null
@@ -296,6 +301,10 @@ export function useGatewayKpis(filter: KpiFilter) {
         (payload) => {
           if (!initialLoadedRef.current) return
           const row = payload.new as GatewayTransaction
+
+          // 🔒 IGNORA EVENTOS DE OUTRO USUÁRIO
+          if (userId && row.user_id !== userId) return
+
           const rowMs = Date.parse(row.created_at)
           if (fromMs !== null && rowMs < fromMs) return
           if (toMs !== null && rowMs >= toMs) return
@@ -314,6 +323,10 @@ export function useGatewayKpis(filter: KpiFilter) {
         { event: "UPDATE", schema: "public", table: "gateway_transactions" },
         (payload) => {
           const row = payload.new as GatewayTransaction
+
+          // 🔒 IGNORA EVENTOS DE OUTRO USUÁRIO
+          if (userId && row.user_id !== userId) return
+
           const rowMs = Date.parse(row.created_at)
 
           setRows((prev) => {
@@ -338,7 +351,7 @@ export function useGatewayKpis(filter: KpiFilter) {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
-  }, [from, to])
+  }, [from, to, userId])
 
   const kpis: GatewayKpisLight = useMemo(
     () => calcGatewaySummaryForPeriod(rows),
@@ -397,23 +410,21 @@ function DonutChart({
   const BOX = OUTER_R * 2 + STROKE * 2
   const CENTER = OUTER_R + STROKE
 
-  // CORES REAIS POR PLATAFORMA / GATEWAY
   function colorForGateway(name: string) {
     const key = (name || "").toLowerCase().trim()
 
-    if (key.includes("pepper")) return "#FF6B00" // Pepper
-    if (key.includes("cakto")) return "#6D28D9" // Cakto
-    if (key.includes("kirvano")) return "#0EA5E9" // Kirvano
-    if (key.includes("kiwify")) return "#00C853" // Kiwify
-    if (key.includes("hotmart")) return "#FF4C4C" // Hotmart
-    if (key.includes("monetizze")) return "#0069FF" // Monetizze
-    if (key.includes("eduzz")) return "#F9A826" // Eduzz
-    if (key.includes("braip")) return "#4F46E5" // Braip
+    if (key.includes("pepper")) return "#FF6B00"
+    if (key.includes("cakto")) return "#6D28D9"
+    if (key.includes("kirvano")) return "#0EA5E9"
+    if (key.includes("kiwify")) return "#00C853"
+    if (key.includes("hotmart")) return "#FF4C4C"
+    if (key.includes("monetizze")) return "#0069FF"
+    if (key.includes("eduzz")) return "#F9A826"
+    if (key.includes("braip")) return "#4F46E5"
 
     if (key.includes("pix")) return "#00C853"
     if (key.includes("card") || key.includes("credito")) return "#3B82F6"
 
-    // fallback
     const palette = [
       "#8b5cf6",
       "#22c55e",
@@ -471,7 +482,6 @@ function DonutChart({
     const pct100 = pct * 100
     const sliceLen = pct * C
 
-    // FATIA
     slices.push(
       <circle
         key={name}
@@ -490,7 +500,6 @@ function DonutChart({
       />
     )
 
-    // LABEL %
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
@@ -626,7 +635,6 @@ const CARDS: AutoCard[] = [
 
 export const CARDS_IDS = CARDS.map((c) => c.id)
 
-// neon card base
 function neonClass(effect?: AutoCard["effect"]) {
   switch (effect) {
     case "neon":
@@ -640,7 +648,6 @@ function neonClass(effect?: AutoCard["effect"]) {
   }
 }
 
-// container de cada card
 function Block({
   className = "",
   style,
@@ -674,6 +681,7 @@ function Placeholder({ slotId }: { slotId: string }) {
 // RANGE BUILDER (Período)
 // =============================
 type RangePreset = "maximo" | "hoje" | "ontem" | "7d" | "30d" | "90d" | "custom"
+
 function presetToFbDatePreset(preset: RangePreset): string {
   switch (preset) {
     case "hoje":
@@ -690,12 +698,9 @@ function presetToFbDatePreset(preset: RangePreset): string {
       return "maximum"
     case "custom":
     default:
-      // Facebook não aceita range livre via date_preset,
-      // então usamos "maximum" como fallback.
       return "maximum"
   }
 }
-
 
 function makeRange(
   preset: RangePreset,
@@ -724,21 +729,17 @@ function makeRange(
   }
 
   if (preset === "7d" || preset === "30d" || preset === "90d") {
-  const days = preset === "7d" ? 7 : preset === "30d" ? 30 : 90
+    const days = preset === "7d" ? 7 : preset === "30d" ? 30 : 90
 
-  // fim = hoje às 23:59:59 (inclusive)
-  const end = new Date(now)
-  end.setHours(23, 59, 59, 999)
+    const end = new Date(now)
+    end.setHours(23, 59, 59, 999)
 
-  // início = (days - 1) dias antes às 00:00
-  // Ex: 7d -> de 7 dias atrás até hoje (7 dias certinhos)
-  const start = new Date(end)
-  start.setDate(start.getDate() - (days - 1))
-  start.setHours(0, 0, 0, 0)
+    const start = new Date(end)
+    start.setDate(start.getDate() - (days - 1))
+    start.setHours(0, 0, 0, 0)
 
-  return { from: start.toISOString(), to: end.toISOString() }
-}
-
+    return { from: start.toISOString(), to: end.toISOString() }
+  }
 
   const startDate = customStart ? new Date(customStart + "T00:00:00") : undefined
   const endDateExclusive = customEnd
@@ -765,6 +766,27 @@ export default function DashboardView({
 }: DashboardProps) {
   const router = useRouter()
 
+  // 🔒 Usuário logado via Supabase Auth
+  const [authUserId, setAuthUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth
+      .getUser()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Erro ao buscar usuário autenticado:", error)
+          return
+        }
+        const u = data?.user
+        if (u?.id) {
+          setAuthUserId(u.id)
+        }
+      })
+      .catch((err) => {
+        console.error("Erro inesperado ao buscar usuário autenticado:", err)
+      })
+  }, [])
+
   const [preset, setPreset] = useState<RangePreset>("hoje")
   const [customStart, setCustomStart] = useState<string>("")
   const [customEnd, setCustomEnd] = useState<string>("")
@@ -773,7 +795,6 @@ export default function DashboardView({
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [selectedPlatform, setSelectedPlatform] = useState<AdsPlatform>("all")
-    // Gasto total com Meta ADS (todas as contas)
   const [metaAdSpend, setMetaAdSpend] = useState(0)
   const [loadingMetaSpend, setLoadingMetaSpend] = useState(false)
 
@@ -782,15 +803,18 @@ export default function DashboardView({
     [preset, customStart, customEnd]
   )
 
+  // userId efetivo: se vier no kpiFilter usa ele, senão usa o do Supabase
+  const effectiveUserId = kpiFilter?.userId ?? authUserId ?? undefined
+
   const data = useGatewayKpis({
+    userId: effectiveUserId,
     search: kpiFilter?.search,
     from,
     to,
   })
 
-    const { rows } = data
+  const { rows } = data
 
-  // Receita Total baseada no card "Receita Total" (net_amount)
   const totalNetRevenue = useMemo(() => {
     const byTxn = new Map<string, GatewayTransaction>()
 
@@ -812,20 +836,15 @@ export default function DashboardView({
     return sum
   }, [rows])
 
-
-    // Busca o gasto total em Meta ADS (todas as contas do usuário)
   useEffect(() => {
     async function fetchMetaSpend() {
       try {
         setLoadingMetaSpend(true)
-
         const fbPreset = presetToFbDatePreset(preset)
 
-        // 1) Buscar contas conectadas
         const accounts = await getFacebookAdAccounts()
         let total = 0
 
-        // 2) Para cada conta, buscar campanhas + insights e somar o spend
         for (const acc of accounts) {
           const campaigns = await getFacebookCampaignsWithInsights(
             acc.id,
@@ -841,7 +860,6 @@ export default function DashboardView({
         setMetaAdSpend(total)
       } catch (err) {
         console.error("Erro ao carregar gastos Meta ADS:", err)
-        // se quiser, dá pra mostrar toast aqui depois
       } finally {
         setLoadingMetaSpend(false)
       }
@@ -850,31 +868,21 @@ export default function DashboardView({
     fetchMetaSpend()
   }, [preset, refreshKey])
 
-
   function brl(n: number) {
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-}
+    return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+  }
 
-// Percentuais com cor condicional
-// > 0  → verde
-// < 0  → vermelho
-// = 0  → neutro (branco)
-const greenPct = (p: string) => {
-  const numeric = parseFloat(p.replace("%", "").replace(",", ".")) || 0
+  const greenPct = (p: string) => {
+    const numeric = parseFloat(p.replace("%", "").replace(",", ".")) || 0
 
-  let colorClass = "text-white"
-  if (numeric > 0) colorClass = "text-green-500 dark:text-green-400"
-  else if (numeric < 0) colorClass = "text-red-500 dark:text-red-400"
+    let colorClass = "text-white"
+    if (numeric > 0) colorClass = "text-green-500 dark:text-green-400"
+    else if (numeric < 0) colorClass = "text-red-500 dark:text-red-400"
 
-  return (
-    <span className={`${colorClass} text-2xl font-semibold`}>
-      {p}
-    </span>
-  )
-}
+    return <span className={`${colorClass} text-2xl font-semibold`}>{p}</span>
+  }
 
-
-    const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
+  const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
     const zero: AdsMetrics = {
       adSpend: 0,
       pendingSales: 0,
@@ -895,7 +903,7 @@ const greenPct = (p: string) => {
     const get = (key: AdsPlatform) =>
       key === "all" ? 0 : (salesByPlatform?.[key] ?? 0)
 
-    const totalAdSpendAllPlatforms = metaAdSpend // por enquanto só Meta
+    const totalAdSpendAllPlatforms = metaAdSpend
 
     return {
       all: {
@@ -933,28 +941,21 @@ const greenPct = (p: string) => {
 
   const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
 
-    // Gasto total com anúncios (todas plataformas)
   const totalAdSpendAllPlatforms = adsMetricsByPlatform.all?.adSpend ?? 0
-
-  // Lucro baseado em: Receita Total (card de cima) - Gastos com anúncios (todas plataformas)
   const globalProfit = totalNetRevenue - totalAdSpendAllPlatforms
 
-  // ROAS = Receita / Gasto
   const globalRoas =
     totalAdSpendAllPlatforms > 0
       ? totalNetRevenue / totalAdSpendAllPlatforms
       : 0
 
-  // ROI (%) = Lucro / Gasto
   const globalRoi =
     totalAdSpendAllPlatforms > 0
       ? (globalProfit / totalAdSpendAllPlatforms) * 100
       : 0
 
-  // Margem de Lucro (%) = Lucro / Receita
   const globalProfitMargin =
     totalNetRevenue > 0 ? (globalProfit / totalNetRevenue) * 100 : 0
-
 
   const selectedPlatformLabel = useMemo(() => {
     switch (selectedPlatform) {
@@ -1000,7 +1001,10 @@ const greenPct = (p: string) => {
       }, [ctx.rows])
 
       return (
-        <div key={`kpi-top1-${key}`} className="p-3 text-black dark:text-white relative">
+        <div
+          key={`kpi-top1-${key}`}
+          className="p-3 text-black dark:text-white relative"
+        >
           <div className="flex items-center gap-1 mb-2">
             <span className="text-xs text-black/70 dark:text-white/70">
               Receita Total
@@ -1108,7 +1112,7 @@ const greenPct = (p: string) => {
       )
     },
 
-        r2: (_slot, _ctx, key) => {
+    r2: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       const roas = globalRoas
 
@@ -1138,7 +1142,6 @@ const greenPct = (p: string) => {
       )
     },
 
-
     r3: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
@@ -1162,7 +1165,7 @@ const greenPct = (p: string) => {
       )
     },
 
-        r4: (_slot, _ctx, key) => {
+    r4: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       const lucro = globalProfit
 
@@ -1192,8 +1195,7 @@ const greenPct = (p: string) => {
       )
     },
 
-
-        r5: (_slot, _ctx, key) => {
+    r5: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`r5-${key}`} className="p-3 text-black dark:text-white">
@@ -1212,8 +1214,7 @@ const greenPct = (p: string) => {
       )
     },
 
-
-        r6: (_slot, _ctx, key) => {
+    r6: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`r6-${key}`} className="p-3 text-black dark:text-white">

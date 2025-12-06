@@ -201,7 +201,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
         title: "IA's",
         iconPath: `${ICON_BASE}/ias.png`,
         href: "/dashboard/ai",
-        size: 48,
+        size: 40,
         offsetX: 5,
         offsetY: 0,
       },
@@ -289,7 +289,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
             fixed z-40
             left-3 top-4 bottom-4
             flex flex-col
-            overflow-hidden
+            overflow-visible
             transition-[width] duration-300 ease-in-out
             backdrop-blur-3xl
             ${
@@ -404,7 +404,6 @@ export function AppSidebar({ children }: AppSidebarProps) {
                             justifyContent: "center",
                           }}
                         >
-                          {/* 🔥 AQUI AJUSTA A COR DO ÍCONE (MINDMAP INCLUÍDO) */}
                           <Image
                             src={item.iconPath}
                             alt={item.title}
@@ -435,6 +434,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
                         </span>
                       )}
 
+                      {/* Tooltip: só quando sidebar estiver FECHADO */}
                       {!isExpanded && (
                         <div
                           className="

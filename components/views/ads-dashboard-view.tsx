@@ -741,22 +741,139 @@ const pagedCampaigns = useMemo(() => {
 
 
 const filteredAdSets = useMemo(() => {
+  // texto da busca
   const byText = searchAdSets.trim().toLowerCase()
-  return (adSets || []).filter((s: any) => {
+
+  // 1) normaliza TODOS os conjuntos em cima do que veio da API
+  const normalizedList = (adSets || []).map((raw: any) => {
+    const insight = raw?.insights?.data?.[0] ?? {}
+
+    const spend = insight?.spend != null ? Number(insight.spend) : 0
+    const impressions =
+      insight?.impressions != null ? Number(insight.impressions) : 0
+    const clicks = insight?.clicks != null ? Number(insight.clicks) : 0
+    const ctr =
+      insight?.ctr != null ? Number(insight.ctr) : null
+    const cpc =
+      insight?.cpc != null ? Number(insight.cpc) : null
+
+    const actions: any[] = insight?.actions ?? []
+    const actionValues: any[] = insight?.action_values ?? []
+    const resultsArr: any[] = insight?.results ?? []
+
+    // ------- RESULTADOS -------
+    let results: number | null = null
+
+    const primaryIndicator: string | undefined =
+      resultsArr?.[0]?.indicator
+
+    if (primaryIndicator) {
+      const actionType = primaryIndicator.replace("actions:", "")
+      const actionObj = actions.find(
+        (a) => a.action_type === actionType,
+      )
+      if (actionObj?.value != null) {
+        results = Number(actionObj.value)
+      }
+    }
+
+    // se por algum motivo não achar pelo indicator, faz fallback
+    if (results == null) {
+      const purchaseAction = actions.find(
+        (a) =>
+          a.action_type === "offsite_conversion.fb_pixel_purchase" ||
+          a.action_type === "purchase",
+      )
+      if (purchaseAction?.value != null) {
+        results = Number(purchaseAction.value)
+      }
+    }
+
+    // ------- RECEITA / ROAS / CPA -------
+    const revenueAction =
+      actionValues.find(
+        (a: any) =>
+          a.action_type === "offsite_conversion.fb_pixel_purchase" ||
+          a.action_type === "purchase" ||
+          a.action_type === "onsite_web_purchase",
+      ) ?? null
+
+    const revenue =
+      revenueAction && revenueAction.value != null
+        ? Number(revenueAction.value)
+        : 0
+
+    const roas =
+      spend > 0 && revenue > 0 ? revenue / spend : null
+
+    const cpa =
+      spend > 0 && results && results > 0
+        ? spend / results
+        : null
+
+    // ------- ORÇAMENTO (centavos -> R$) -------
+    const budget =
+      raw.daily_budget != null
+        ? Number(raw.daily_budget) / 100
+        : raw.lifetime_budget != null
+        ? Number(raw.lifetime_budget) / 100
+        : raw.budget != null
+        ? Number(raw.budget) / 100
+        : null
+
+    // 🔎 DEBUG opcional (pode comentar depois)
+    if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+      // mostra só um exemplo pra não floodar
+      if ((window as any).__debugAdSetShown !== true) {
+        ;(window as any).__debugAdSetShown = true
+        console.log("[ADS][DEBUG] adset bruto:", raw)
+        console.log("[ADS][DEBUG] adset normalizado:", {
+          id: raw.id,
+          name: raw.name,
+          spend,
+          impressions,
+          clicks,
+          ctr,
+          cpc,
+          results,
+          cpa,
+          roas,
+          budget,
+        })
+      }
+    }
+
+    return {
+      ...raw,
+      budget,
+      spend,
+      impressions,
+      clicks,
+      ctr,
+      cpc,
+      results,
+      cpa,
+      roas,
+    }
+  })
+
+  // 2) aplica filtros (status + texto) EM CIMA da lista já normalizada
+  return normalizedList.filter((s: any) => {
     const passStatus =
       statusAdSetsFilter === "ALL" ? true : s.status === statusAdSetsFilter
     const passText =
       !byText || String(s.name || "").toLowerCase().includes(byText)
+
     return passStatus && passText
   })
 }, [adSets, searchAdSets, statusAdSetsFilter])
+
 
 const pagedAdSets = useMemo(() => {
   const start = (adSetsPage - 1) * adSetsPageSize
   return filteredAdSets.slice(start, start + adSetsPageSize)
 }, [filteredAdSets, adSetsPage, adSetsPageSize])
 
-// 🔹 RESUMO GERAL DOS CONJUNTOS (AdSets) – para a linha de totais
 const adSetsSummary = useMemo(() => {
   if (!filteredAdSets.length) {
     return {
@@ -786,10 +903,10 @@ const adSetsSummary = useMemo(() => {
     countCpc = 0
 
   filteredAdSets.forEach((s: any) => {
-    if (s.spend != null) totalSpend += s.spend
-    if (s.results != null) totalResults += s.results
-    if (s.impressions != null) totalImpressions += s.impressions
-    if (s.clicks != null) totalClicks += s.clicks
+    if (s.spend != null) totalSpend += Number(s.spend)
+    if (s.results != null) totalResults += Number(s.results)
+    if (s.impressions != null) totalImpressions += Number(s.impressions)
+    if (s.clicks != null) totalClicks += Number(s.clicks)
 
     if (s.cpa != null) {
       sumCpa += Number(s.cpa)
@@ -956,27 +1073,105 @@ const handleSelectAccount = useCallback(
     const { data: userData, error: userErr } = await supabase.auth.getUser()
     const uuid = userData?.user?.id || undefined
     if (userErr) {
-      console.warn("Não foi possível obter o usuário via Supabase auth:", userErr)
+      console.warn(
+        "Não foi possível obter o usuário via Supabase auth:",
+        userErr,
+      )
     }
 
-    const fetched = await getFacebookAdSets(accountId, uuid) // <-- passa o uuid
-    setAdSets(fetched || [])
+    // usa o MESMO mapeamento de período das campanhas
+    const preset = mapDateRangeToMetaPreset(dateRange)
+    // exemplo: "today", "yesterday", "last_7d", "last_30d", ...
 
-    toast({
-      title: "Conjuntos Carregados",
-      description: `Foram encontrados ${fetched?.length ?? 0} conjuntos para a conta ${accountId}.`,
+    const fetched = await getFacebookAdSets(accountId, uuid, preset)
+
+    // Garante um array de adsets crus (pode vir { data: [...] } ou só [...])
+    const rawList: any[] = Array.isArray(fetched)
+      ? fetched
+      : (fetched as any)?.data && Array.isArray((fetched as any).data)
+      ? (fetched as any).data
+      : []
+
+    // 🔽 Aqui achatamos os insights em campos simples que a tabela usa
+    const normalized = rawList.map((raw: any) => {
+      const insight = raw.insights?.data?.[0] ?? {}
+      const actions = insight.actions || []
+      const actionValues = insight.action_values || []
+
+      const spend = insight.spend != null ? Number(insight.spend) : 0
+      const impressions =
+        insight.impressions != null ? Number(insight.impressions) : 0
+      const clicks = insight.clicks != null ? Number(insight.clicks) : 0
+
+      const ctr =
+        insight.ctr != null
+          ? Number(insight.ctr)
+          : impressions > 0 && clicks > 0
+          ? (clicks * 100) / impressions
+          : null
+
+      const cpc =
+        insight.cpc != null
+          ? Number(insight.cpc)
+          : clicks > 0
+          ? spend / clicks
+          : null
+
+      // Resultado principal (conversas ou compras)
+      const resultsAction = actions.find(
+        (a: any) =>
+          a.action_type ===
+            "onsite_conversion.messaging_conversation_started_7d" ||
+          a.action_type === "offsite_conversion.fb_pixel_purchase",
+      )
+
+      const results = resultsAction ? Number(resultsAction.value ?? 0) : 0
+
+      // Receita (pra ROAS)
+      const revenueAction = actionValues.find(
+        (a: any) =>
+          a.action_type === "offsite_conversion.fb_pixel_purchase" ||
+          a.action_type === "purchase" ||
+          a.action_type === "onsite_web_purchase",
+      )
+
+      const revenue = revenueAction ? Number(revenueAction.value ?? 0) : 0
+
+      const roas = spend > 0 && revenue > 0 ? revenue / spend : null
+      const cpa = spend > 0 && results > 0 ? spend / results : null
+
+      // Orçamento em R$ (se veio em centavos)
+      const budget =
+        raw.daily_budget != null
+          ? Number(raw.daily_budget) / 100
+          : raw.lifetime_budget != null
+          ? Number(raw.lifetime_budget) / 100
+          : null
+
+      return {
+        ...raw,
+        budget,
+        spend,
+        impressions,
+        clicks,
+        ctr,
+        cpc,
+        results,
+        cpa,
+        roas,
+      }
     })
+
+    setAdSets(normalized)
   } catch (error) {
-    console.error(`Erro ao buscar conjuntos para a conta ${accountId}:`, error)
-    toast({
-      title: "Erro",
-      description: `Não foi possível carregar os conjuntos para a conta ${accountId}.`,
-      variant: "destructive",
-    })
+    console.error("Erro ao carregar conjuntos de anúncios:", error)
   } finally {
     setLoadingAdSets(false)
   }
 }
+
+
+
 
 const fetchAds = async (accountId: string) => {
   setLoadingAds(true)
@@ -5750,7 +5945,7 @@ const handleAdSetStatusChange = async (adSetId: string, currentStatus: string) =
         </TableCell>
       )}
 
-      {/* Orçamento */}
+            {/* Orçamento */}
       {isAdSetColumnVisible("budget") && (
         <TableCell className="sticky left-[350px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[160px] border-r border-white/10 border-b border-white/20">
           <span className="font-medium">
@@ -5759,31 +5954,10 @@ const handleAdSetStatusChange = async (adSetId: string, currentStatus: string) =
         </TableCell>
       )}
 
-      {/* Impressões */}
-      {isAdSetColumnVisible("impressions") && (
+      {/* Valor usado (Gasto) */}
+      {isAdSetColumnVisible("spend") && (
         <TableCell className="border-r border-white/10">
-          {adSet.impressions ?? "—"}
-        </TableCell>
-      )}
-
-      {/* Cliques */}
-      {isAdSetColumnVisible("clicks") && (
-        <TableCell className="border-r border-white/10">
-          {adSet.clicks ?? 0}
-        </TableCell>
-      )}
-
-      {/* CTR */}
-      {isAdSetColumnVisible("ctr") && (
-        <TableCell className="border-r border-white/10">
-          {adSet.ctr != null ? `${Number(adSet.ctr).toFixed(2)}%` : "—"}
-        </TableCell>
-      )}
-
-      {/* CPC */}
-      {isAdSetColumnVisible("cpc") && (
-        <TableCell className="border-r border-white/10">
-          {adSet.cpc != null ? moneyBRL(adSet.cpc) : "—"}
+          {adSet.spend != null ? moneyBRL(adSet.spend) : "—"}
         </TableCell>
       )}
 
@@ -5794,6 +5968,13 @@ const handleAdSetStatusChange = async (adSetId: string, currentStatus: string) =
         </TableCell>
       )}
 
+      {/* ROAS */}
+      {isAdSetColumnVisible("roas") && (
+        <TableCell className="border-r border-white/10">
+          {adSet.roas != null ? adSet.roas.toFixed(2) : "—"}
+        </TableCell>
+      )}
+
       {/* CPA */}
       {isAdSetColumnVisible("cpa") && (
         <TableCell className="border-r border-white/10">
@@ -5801,17 +5982,41 @@ const handleAdSetStatusChange = async (adSetId: string, currentStatus: string) =
         </TableCell>
       )}
 
-      {/* Gasto */}
-      {isAdSetColumnVisible("spend") && (
+      {/* (Opcional) CPM – hoje não aparece porque não existe em ALL_ADSET_COLUMNS,
+          mas já deixo preparado caso você adicione depois */}
+      {isAdSetColumnVisible("cpm") && (
         <TableCell className="border-r border-white/10">
-          {adSet.spend != null ? moneyBRL(adSet.spend) : "—"}
+          {adSet.spend != null && adSet.impressions
+            ? moneyBRL((adSet.spend / adSet.impressions) * 1000)
+            : "—"}
         </TableCell>
       )}
 
-      {/* ROAS */}
-      {isAdSetColumnVisible("roas") && (
+      {/* Cliques */}
+      {isAdSetColumnVisible("clicks") && (
         <TableCell className="border-r border-white/10">
-          {adSet.roas != null ? adSet.roas.toFixed(2) : "—"}
+          {adSet.clicks ?? 0}
+        </TableCell>
+      )}
+
+      {/* CPC */}
+      {isAdSetColumnVisible("cpc") && (
+        <TableCell className="border-r border-white/10">
+          {adSet.cpc != null ? moneyBRL(adSet.cpc) : "—"}
+        </TableCell>
+      )}
+
+      {/* CTR */}
+      {isAdSetColumnVisible("ctr") && (
+        <TableCell className="border-r border-white/10">
+          {adSet.ctr != null ? `${Number(adSet.ctr).toFixed(2)}%` : "—"}
+        </TableCell>
+      )}
+
+      {/* Impressões */}
+      {isAdSetColumnVisible("impressions") && (
+        <TableCell className="border-r border-white/10">
+          {adSet.impressions ?? "—"}
         </TableCell>
       )}
 

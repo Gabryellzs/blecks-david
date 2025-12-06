@@ -18,7 +18,9 @@ export async function getFacebookAdAccounts(): Promise<FacebookAdAccount[]> {
   })
   if (!response.ok) {
     const errorData = await tryJson(response)
-    throw new Error(errorData?.error || "Falha ao buscar contas de anúncio do Facebook.")
+    throw new Error(
+      errorData?.error || "Falha ao buscar contas de anúncio do Facebook.",
+    )
   }
   return response.json()
 }
@@ -28,12 +30,16 @@ export async function getFacebookCampaigns(
   adAccountId: string,
 ): Promise<FacebookCampaign[]> {
   const response = await fetch(
-    `/api/facebook-ads/campaigns?ad_account_id=${encodeURIComponent(withAct(adAccountId))}`,
+    `/api/facebook-ads/campaigns?ad_account_id=${encodeURIComponent(
+      withAct(adAccountId),
+    )}`,
     { credentials: "include" },
   )
   if (!response.ok) {
     const errorData = await tryJson(response)
-    throw new Error(errorData?.error || "Falha ao buscar campanhas do Facebook.")
+    throw new Error(
+      errorData?.error || "Falha ao buscar campanhas do Facebook.",
+    )
   }
   return response.json()
 }
@@ -104,7 +110,9 @@ export async function getFacebookCampaignsWithInsights(
   if (!res.ok) {
     const details = await tryJson(res)
     throw new Error(
-      `Erro ao buscar campanhas com insights: ${res.status} ${details ? JSON.stringify(details) : ""}`,
+      `Erro ao buscar campanhas com insights: ${res.status} ${
+        details ? JSON.stringify(details) : ""
+      }`,
     )
   }
 
@@ -112,7 +120,9 @@ export async function getFacebookCampaignsWithInsights(
   const arr = Array.isArray(payload?.data) ? payload.data : []
 
   return arr.map((c: any): CampaignRow => {
-    const insight = Array.isArray(c.insights?.data) ? c.insights.data[0] : c.insights || null
+    const insight = Array.isArray(c.insights?.data)
+      ? c.insights.data[0]
+      : c.insights || null
     const spend = insight ? Number(insight.spend || 0) : 0
 
     const actions: any[] = insight?.actions || []
@@ -147,12 +157,20 @@ export async function getFacebookCampaignsWithInsights(
     // valor total de compras (para ROAS / faturamento)
     const valueRow =
       actionValues.find((a) =>
-        ["purchase", "omni_purchase", "offsite_conversion.purchase"].includes(a.action_type),
+        ["purchase", "omni_purchase", "offsite_conversion.purchase"].includes(
+          a.action_type,
+        ),
       ) || null
 
-    const roas = valueRow ? (spend > 0 ? Number(valueRow.value || 0) / spend : null) : null
+    const roas = valueRow
+      ? spend > 0
+        ? Number(valueRow.value || 0) / spend
+        : null
+      : null
 
-    const cprRow = primary ? cpat.find((a) => a.action_type === primary.action_type) : null
+    const cprRow = primary
+      ? cpat.find((a) => a.action_type === primary.action_type)
+      : null
     const cost_per_result = cprRow ? Number(cprRow.value || 0) : null
 
     // Orçamento da campanha (daily_budget ou lifetime_budget em centavos)
@@ -172,7 +190,9 @@ export async function getFacebookCampaignsWithInsights(
     // compras totais (sempre a partir da action de purchase, se existir)
     const purchaseAction =
       actions.find((a) =>
-        ["purchase", "omni_purchase", "offsite_conversion.purchase"].includes(a.action_type),
+        ["purchase", "omni_purchase", "offsite_conversion.purchase"].includes(
+          a.action_type,
+        ),
       ) || null
     const total_sales = purchaseAction ? Number(purchaseAction.value || 0) : 0
 
@@ -205,7 +225,9 @@ export async function getFacebookCampaignsWithInsights(
 
     const rejected_sales = 0
 
-    const ids = `${c.id ?? ""} | ${c.campaign_id ?? ""} | ${c.adset_id ?? ""} | ${c.account_id ?? ""}`
+    const ids = `${c.id ?? ""} | ${c.campaign_id ?? ""} | ${
+      c.adset_id ?? ""
+    } | ${c.account_id ?? ""}`
 
     const lastUpdate = c.updated_time ?? null
 
@@ -219,7 +241,9 @@ export async function getFacebookCampaignsWithInsights(
       roas,
       cost_per_result,
       cpm: insight ? Number(insight.cpm || 0) : null,
-      inline_link_clicks: insight ? Number(insight.inline_link_clicks || 0) : null,
+      inline_link_clicks: insight
+        ? Number(insight.inline_link_clicks || 0)
+        : null,
       cpc: insight ? Number(insight.cpc || 0) : null,
       ctr: insight ? Number(insight.ctr || 0) : null,
       budget,
@@ -261,31 +285,54 @@ export type FacebookAdSet = {
   effective_status?: string
   campaign_id?: string | null
   daily_budget?: number | string | null
+  lifetime_budget?: number | string | null
   optimization_goal?: string | null
   billing_event?: string | null
   start_time?: string | null
   end_time?: string | null
+  // mantém os insights crus do Graph
+  insights?: {
+    data?: any[]
+    paging?: any
+  } | null
 }
 
 export async function getFacebookAdSets(
   accountId: string,
   uuid?: string,
+  datePreset?: string,
 ): Promise<FacebookAdSet[]> {
+  // a API aceita `accountId` (numérico) ou `ad_account_id` com act_
   const qs = new URLSearchParams({ accountId: stripAct(accountId) })
-  if (uuid) qs.set("uuid", uuid)
+
+  if (uuid) {
+    qs.set("uuid", uuid)
+  }
+
+  // só envia se veio algo (ex: "today", "last_7d", "last_30d"...)
+  if (datePreset) {
+    qs.set("date_preset", datePreset)
+  }
 
   const res = await fetch(`/api/facebook-ads/adsets?${qs.toString()}`, {
     credentials: "include",
   })
+
   if (!res.ok) {
     const details = await tryJson(res)
     throw new Error(
-      `Erro ao carregar conjuntos de anúncios: ${res.status} ${details ? JSON.stringify(details) : ""}`,
+      `Erro ao carregar conjuntos de anúncios: ${res.status} ${
+        details ? JSON.stringify(details) : ""
+      }`,
     )
   }
 
   const data = await res.json()
-  const items = Array.isArray(data?.data) ? data.data : []
+  const items = Array.isArray((data as any)?.data) ? (data as any).data : []
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[DEBUG][ADSETS] payload bruto da API:", data)
+  }
 
   return items.map(
     (item: any): FacebookAdSet => ({
@@ -295,13 +342,16 @@ export async function getFacebookAdSets(
       effective_status: item.effective_status,
       campaign_id: item.campaign_id ?? null,
       daily_budget: item.daily_budget ?? null,
+      lifetime_budget: item.lifetime_budget ?? null,
       optimization_goal: item.optimization_goal ?? null,
       billing_event: item.billing_event ?? null,
       start_time: item.start_time ?? null,
       end_time: item.end_time ?? null,
+      insights: item.insights ?? null,
     }),
   )
 }
+
 
 /* ========= ANÚNCIOS (ADS) ========= */
 export type FacebookAd = {
@@ -342,7 +392,9 @@ export async function getFacebookAds(
   if (!res.ok) {
     const details = await tryJson(res)
     throw new Error(
-      `Erro ao carregar anúncios: ${res.status} ${details ? JSON.stringify(details) : ""}`,
+      `Erro ao carregar anúncios: ${res.status} ${
+        details ? JSON.stringify(details) : ""
+      }`,
     )
   }
 
@@ -374,15 +426,21 @@ export async function updateFacebookCampaignStatus(
   campaignId: string,
   status: "ACTIVE" | "PAUSED",
 ): Promise<{ success: boolean; newStatus: string }> {
-  const response = await fetch(`/api/facebook-ads/campaigns/${campaignId}/status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ status }),
-  })
+  const response = await fetch(
+    `/api/facebook-ads/campaigns/${campaignId}/status`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ status }),
+    },
+  )
   if (!response.ok) {
     const errorData = await tryJson(response)
-    throw new Error(errorData?.error || "Falha ao atualizar status da campanha do Facebook.")
+    throw new Error(
+      errorData?.error ||
+        "Falha ao atualizar status da campanha do Facebook.",
+    )
   }
   return response.json()
 }
@@ -392,16 +450,21 @@ export async function updateFacebookCampaignName(
   campaignId: string,
   name: string,
 ): Promise<{ success: boolean; newName: string }> {
-  const response = await fetch(`/api/facebook-ads/campaigns/${campaignId}/rename`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ name }),
-  })
+  const response = await fetch(
+    `/api/facebook-ads/campaigns/${campaignId}/rename`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ name }),
+    },
+  )
 
   if (!response.ok) {
     const errorData = await tryJson(response)
-    throw new Error(errorData?.error || "Falha ao renomear campanha do Facebook.")
+    throw new Error(
+      errorData?.error || "Falha ao renomear campanha do Facebook.",
+    )
   }
 
   return response.json()
@@ -412,16 +475,22 @@ export async function updateFacebookCampaignBudget(
   campaignId: string,
   dailyBudgetInCents: number,
 ): Promise<{ success: boolean; newBudget: number }> {
-  const response = await fetch(`/api/facebook-ads/campaigns/${campaignId}/budget`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ dailyBudget: dailyBudgetInCents }),
-  })
+  const response = await fetch(
+    `/api/facebook-ads/campaigns/${campaignId}/budget`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ dailyBudget: dailyBudgetInCents }),
+    },
+  )
 
   if (!response.ok) {
     const errorData = await tryJson(response)
-    throw new Error(errorData?.error || "Falha ao atualizar orçamento da campanha do Facebook.")
+    throw new Error(
+      errorData?.error ||
+        "Falha ao atualizar orçamento da campanha do Facebook.",
+    )
   }
 
   return response.json()
@@ -431,15 +500,47 @@ export async function updateFacebookAdAccountStatus(
   adAccountId: string,
   status: "ACTIVE" | "PAUSED",
 ): Promise<{ success: boolean; newStatus: string }> {
-  const response = await fetch(`/api/facebook-ads/ad-accounts/${adAccountId}/status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ status }),
-  })
+  const response = await fetch(
+    `/api/facebook-ads/ad-accounts/${adAccountId}/status`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ status }),
+    },
+  )
   if (!response.ok) {
     const errorData = await tryJson(response)
-    throw new Error(errorData?.error || "Falha ao atualizar status da conta de anúncio do Facebook.")
+    throw new Error(
+      errorData?.error ||
+        "Falha ao atualizar status da conta de anúncio do Facebook.",
+    )
   }
+  return response.json()
+}
+
+/* ========= ATUALIZAR STATUS DO CONJUNTO (AD SET) ========= */
+export async function updateFacebookAdSetStatus(
+  adSetId: string,
+  status: "ACTIVE" | "PAUSED",
+): Promise<{ success: boolean; newStatus: string }> {
+  const response = await fetch(
+    `/api/facebook-ads/adsets/${adSetId}/status`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ status }),
+    },
+  )
+
+  if (!response.ok) {
+    const errorData = await tryJson(response)
+    throw new Error(
+      errorData?.error ||
+        "Falha ao atualizar status do conjunto de anúncios do Facebook.",
+    )
+  }
+
   return response.json()
 }

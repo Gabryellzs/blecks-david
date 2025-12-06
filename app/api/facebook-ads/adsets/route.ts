@@ -10,40 +10,52 @@ export const runtime = "nodejs"
 const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || "v20.0"
 
 // ENVs
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+const SUPABASE_URL =
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const SUPABASE_SERVICE_ROLE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY
 
-// SSR client (pega usuário logado pelos cookies; se não houver, podemos usar ?uuid=)
+// ---------- CLIENTE SSR (pega usuário logado pelos cookies) ----------
 function getSSRClient() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null
+
   const cookieStore = cookies()
+
   return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {
       get: (name: string) => cookieStore.get(name)?.value,
-      set: (name: string, value: string, options?: Parameters<typeof cookieStore.set>[1]) =>
-        cookieStore.set(name, value, options),
+      set: (
+        name: string,
+        value: string,
+        options?: Parameters<typeof cookieStore.set>[1],
+      ) => cookieStore.set(name, value, options),
       remove: (name: string, options?: Parameters<typeof cookieStore.set>[1]) =>
         cookieStore.set(name, "", { ...options, maxAge: 0 }),
     },
   })
 }
 
+// ---------- CLIENTE ADMIN (SERVICE ROLE) ----------
 function getAdminClient() {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return null
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
+
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
+  })
 }
 
+// ---------- PEGA user_id DOS COOKIES ----------
 async function getLoggedUserIdFromCookies(): Promise<string | null> {
   const ssr = getSSRClient()
   if (!ssr) return null
+
   const { data } = await ssr.auth.getUser()
   return data?.user?.id ?? null
 }
 
-// Busca token em platform_tokens usando as colunas reais:
-// user_id + platform='meta' -> access_token
+// ---------- BUSCA TOKEN META EM platform_tokens ----------
 async function findMetaAccessToken({
   userId,
 }: {
@@ -52,21 +64,21 @@ async function findMetaAccessToken({
   const admin = getAdminClient()
   if (!admin) return null
 
-  // 1) tentar por user_id (usuário logado)
+  // 1) tenta pelo user_id logado
   if (userId) {
     const { data } = await admin
       .from("platform_tokens")
       .select("access_token")
       .eq("platform", "meta")
       .eq("user_id", userId)
-      .order("created_at", { ascending: false }) // se não existir created_at, o Supabase ignora
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()
 
     if (data?.access_token) return data.access_token as string
   }
 
-  // 2) fallback: último token meta (qualquer usuário) — opcional, mas útil em dev
+  // 2) fallback: último token meta de qualquer usuário (útil em dev)
   const { data: latest } = await admin
     .from("platform_tokens")
     .select("access_token")
@@ -80,18 +92,26 @@ async function findMetaAccessToken({
   return null
 }
 
+// ---------- ROTA GET ----------
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    const rawAccount = searchParams.get("accountId") ?? searchParams.get("ad_account_id")
+
+    const rawAccount =
+      searchParams.get("accountId") ?? searchParams.get("ad_account_id")
     const debug = searchParams.get("debug") === "1"
-    // fallback manual do uuid via query (caso a sessão esteja só no client)
     const uuidFromQuery = searchParams.get("uuid")
+
+    // mesmo esquema do dashboard: se não mandar nada, usa last_7d
+    const datePreset = searchParams.get("date_preset") || "last_7d"
 
     if (!rawAccount) {
       return NextResponse.json(
-        { error: "Parâmetro obrigatório ausente: use 'accountId' ou 'ad_account_id'." },
-        { status: 400 }
+        {
+          error:
+            "Parâmetro obrigatório ausente: use 'accountId' ou 'ad_account_id'.",
+        },
+        { status: 400 },
       )
     }
 
@@ -105,13 +125,19 @@ export async function GET(req: Request) {
     const ACCESS_TOKEN = await findMetaAccessToken({ userId })
     if (!ACCESS_TOKEN) {
       return NextResponse.json(
-        { error: "Nenhum access_token 'meta' encontrado em platform_tokens para os filtros informados." },
-        { status: 404 }
+        {
+          error:
+            "Nenhum access_token 'meta' encontrado em platform_tokens para os filtros informados.",
+        },
+        { status: 404 },
       )
     }
 
-    // chamada ao Graph com fallback de campos
     const baseUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/act_${accountNumericId}/adsets`
+
+    // 🔹 Campo de insights igual ao JSON que você me mandou
+    const insightsField = `insights.date_preset(${datePreset}){spend,impressions,clicks,ctr,cpc,actions,action_values,results}`
+
     const fullFields = [
       "id",
       "name",
@@ -119,11 +145,15 @@ export async function GET(req: Request) {
       "effective_status",
       "campaign_id",
       "daily_budget",
+      "lifetime_budget",
       "optimization_goal",
       "billing_event",
       "start_time",
       "end_time",
+      insightsField,
     ].join(",")
+
+    // 🔹 fallback mínimo
     const minimalFields = ["id", "name", "status"].join(",")
 
     async function callGraph(fields: string) {
@@ -131,22 +161,43 @@ export async function GET(req: Request) {
       url.searchParams.set("fields", fields)
       url.searchParams.set("limit", "100")
       url.searchParams.set("access_token", ACCESS_TOKEN)
-      const response = await fetch(url.toString(), { method: "GET", cache: "no-store" })
+
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        cache: "no-store",
+      })
+
       let json: any = {}
-      try { json = await response.json() } catch {}
-      return { ok: response.ok, status: response.status, url: url.toString(), json }
+      try {
+        json = await response.json()
+      } catch {
+        // ignore JSON error
+      }
+
+      return {
+        ok: response.ok,
+        status: response.status,
+        url: url.toString(),
+        json,
+      }
     }
 
+    // 1ª tentativa: campos completos (com insights)
     const r1 = await callGraph(fullFields)
-    if (r1.ok) return NextResponse.json(r1.json)
+    if (r1.ok) {
+      return NextResponse.json(r1.json)
+    }
 
+    // 2ª tentativa: campos mínimos
     const r2 = await callGraph(minimalFields)
     if (r2.ok) {
       return NextResponse.json({
         ...r2.json,
         _meta: {
           fallback: true,
-          reason: r1.json?.error?.message || "Campos completos rejeitados pelo Graph",
+          reason:
+            r1.json?.error?.message ||
+            "Campos completos rejeitados pelo Graph",
           graph_status_full: r1.status,
           graph_url_full: r1.url,
           debug_info: debug ? r1.json : undefined,
@@ -154,9 +205,13 @@ export async function GET(req: Request) {
       })
     }
 
+    // Se deu erro nas duas chamadas
     return NextResponse.json(
       {
-        error: r1.json?.error?.message || r2.json?.error?.message || "Erro ao buscar ad sets",
+        error:
+          r1.json?.error?.message ||
+          r2.json?.error?.message ||
+          "Erro ao buscar ad sets",
         details_primary: r1.json,
         details_fallback: r2.json,
         graph_status_primary: r1.status,
@@ -165,13 +220,13 @@ export async function GET(req: Request) {
         graph_url_fallback: r2.url,
         used_user_id: userId ?? null,
       },
-      { status: r2.status || r1.status || 502 }
+      { status: r2.status || r1.status || 502 },
     )
   } catch (error: any) {
     console.error("[/api/facebook-ads/adsets] erro:", error)
     return NextResponse.json(
       { error: error?.message || "Erro interno no servidor" },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

@@ -52,7 +52,7 @@ const AUTO_EXPAND_MIN = 1440
 // Offset lateral da barra “flutuante”
 const SIDEBAR_OFFSET_LEFT = "1.75rem"
 
-// 🔧 AQUI VOCÊ CONTROLA A CURVATURA DOS CANTOS DO SIDEBAR
+// 🔧 CURVATURA DOS CANTOS DO SIDEBAR
 const SIDEBAR_BORDER_RADIUS = "16px"
 
 function getInitialExpanded(): boolean {
@@ -311,7 +311,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
             borderRadius: SIDEBAR_BORDER_RADIUS,
           }}
         >
-          {/* Header - LOGO CENTRALIZADA QUANDO FECHADO */}
+          {/* Header - LOGO CENTRALIZADA / MAIOR QUANDO FECHADO */}
           <div className="px-3 pt-4 pb-3">
             <div
               className={`
@@ -319,7 +319,13 @@ export function AppSidebar({ children }: AppSidebarProps) {
                 ${isExpanded ? "justify-start" : "justify-center"}
               `}
             >
-              <div className={isExpanded ? "relative w-[54px] h-[64px]" : "relative w-[42px] h-[52px]"}>
+              <div
+                className={
+                  isExpanded
+                    ? "relative w-[54px] h-[64px]"
+                    : "relative w-[54px] h-[64px]"
+                }
+              >
                 <Image
                   src={
                     theme === "dark"
@@ -328,7 +334,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
                   }
                   alt="BLECK's Logo"
                   fill
-                  style={{ objectFit: "contain" }}
+                  className={isExpanded ? "object-contain" : "object-contain scale-150"}
                   priority
                 />
               </div>

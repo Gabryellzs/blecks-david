@@ -71,9 +71,7 @@ function resolveNicheFromTerm(term: string): string {
     t.includes("saude") ||
     t.includes("saúde") ||
     t.includes("fitness") ||
-    t.includes("treino") ||
-    t.includes("bajar de peso") ||
-    t.includes("perdida de peso")
+    t.includes("treino")
   ) {
     return "Saúde / Emagrecimento"
   }
@@ -89,11 +87,7 @@ function resolveNicheFromTerm(term: string): string {
     t.includes("shopee") ||
     t.includes("plr") ||
     t.includes("infoproduto") ||
-    t.includes("infoprodutos") ||
-    t.includes("infoproducto") ||
-    t.includes("infoproductos") ||
-    t.includes("tienda online") ||
-    t.includes("tienda en linea")
+    t.includes("infoprodutos")
   ) {
     return "Dropshipping / Ecommerce"
   }
@@ -107,10 +101,7 @@ function resolveNicheFromTerm(term: string): string {
     t.includes("bet") ||
     t.includes("cassino") ||
     t.includes("trader esportivo") ||
-    t.includes("igame") ||
-    t.includes("ingresos extra") ||
-    t.includes("ingresos pasivos") ||
-    t.includes("ganar dinero")
+    t.includes("igame")
   ) {
     return "Renda Extra / Bet / Igame"
   }
@@ -128,9 +119,8 @@ function resolveNicheFromTerm(term: string): string {
     t.includes("lançamento") ||
     t.includes("perpetuo") ||
     t.includes("perpétuo") ||
-    t.includes("ventas online") ||
-    t.includes("embudo de ventas") ||
-    t.includes("trafico pago")
+    t.includes("vendas") ||
+    t.includes("social media")
   ) {
     return "Marketing / Vendas"
   }
@@ -199,34 +189,19 @@ export default function HomePage() {
 
       const params = new URLSearchParams()
       params.set("limit", "80")
-
-      // 🌎 Países que vamos buscar de verdade (BR + PT + LATAM + PALOP)
-      params.set(
-        "countries",
-        JSON.stringify(["BR", "PT", "MX", "CO", "CL", "PE", "AR", "AO", "MZ", "CV"])
-      )
-
       if (cursor) params.set("after", cursor)
+
+      // Removido o bloco que adicionava o parâmetro "countries"
 
       const response = await fetch(`/api/ads?${params.toString()}`)
       if (!response.ok)
         throw new Error(`Erro na API: ${response.status} ${response.statusText}`)
 
       const json = await response.json()
-
-      // Se backend devolver { data: [...] }
       const rows = Array.isArray(json) ? json : json?.data ?? []
-      const nextAfter: string | null = null // ainda não estamos usando paginação de front
+      const nextAfter: string | null = null
 
       if (!Array.isArray(rows)) throw new Error("Formato de dados inválido")
-
-      console.log("DEBUG /api/ads -> meta:", {
-        total_raw: json.total_raw,
-        total_filtered: json.total_filtered,
-        total_scaled: json.total_scaled,
-        countries: json.countries,
-        generated_at: json.generated_at,
-      })
 
       console.log("DEBUG /api/ads -> exemplo de item:", rows[0])
 
@@ -250,7 +225,7 @@ export default function HomePage() {
           adCount: adCountFromBackend,
           level: "low",
           niche: resolvedNiche,
-          country: "Todos", // Se quiser, depois podemos mapear por país
+          country: "Todos", // Hardcoded pois o filtro foi removido
           link: ad.ad_snapshot_url_public,
         }
       })
@@ -363,6 +338,8 @@ export default function HomePage() {
 
           {/* Filtros */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            {/* O Filtro de País foi removido daqui */}
+
             {/* Nicho */}
             <div className="flex items-center gap-3">
               <label
@@ -452,8 +429,9 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Grid fixa com 5 colunas em qualquer tela */}
-        <div className="grid grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+{/* Grid fixa com 5 colunas em qualquer tela */}
+<div className="grid grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+
           {visibleOffers.map((offer) => (
             <div
               key={offer.id}

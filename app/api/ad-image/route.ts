@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import puppeteer from "puppeteer-core"
+import puppeteerFull from "puppeteer" // usado só em dev
 import chromium from "@sparticuz/chromium"
 import path from "node:path"
 import fs from "node:fs/promises"
@@ -30,17 +31,12 @@ function localFilePath(id: string) {
   return path.join(getLocalCacheDir(), `${id}.png`)
 }
 
-// ----------------- CONFIG CHROMIUM (IMPORTANTE PRA SERVERLESS) -----------------
-chromium.setHeadlessMode = true
-chromium.setGraphicsMode = false
-
 // ----------------- BROWSER (DEV + PRODUÇÃO) -----------------
 async function getBrowser() {
   const isProd = process.env.NODE_ENV === "production" || !!process.env.VERCEL
 
   if (isProd) {
-    console.log("[ad-image] Usando chromium + puppeteer-core (produção)")
-
+    console.log("[ad-image] Usando chromium (produção)")
     const executablePath = await chromium.executablePath()
     if (!executablePath) {
       console.error("[ad-image] chromium.executablePath() retornou vazio")
@@ -49,17 +45,14 @@ async function getBrowser() {
 
     return puppeteer.launch({
       args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
       executablePath,
       headless: chromium.headless,
       ignoreHTTPSErrors: true,
+      defaultViewport: { width: 1360, height: 1000 },
     })
   }
 
   console.log("[ad-image] Usando puppeteer-full (local)")
-  // import dinâmico pra NÃO ir o chrome full pro bundle da Vercel
-  const puppeteerFull = (await import("puppeteer")).default
-
   return puppeteerFull.launch({
     headless: true,
     defaultViewport: { width: 1360, height: 1000 },
@@ -76,7 +69,7 @@ async function renderCreativePng(adId: string): Promise<Buffer | null> {
     ? `${base}&access_token=${encodeURIComponent(token)}`
     : base
 
-  let browser: import("puppeteer-core").Browser | null = null
+  let browser: puppeteer.Browser | null = null
 
   try {
     browser = await getBrowser()
@@ -162,8 +155,8 @@ async function renderCreativePng(adId: string): Promise<Buffer | null> {
 
     type Scored = {
       area: number
-      box: import("puppeteer-core").BoundingBox
-      h: import("puppeteer-core").ElementHandle<Element>
+      box: puppeteer.BoundingBox
+      h: puppeteer.ElementHandle<Element>
     }
     const scored: Scored[] = []
 
@@ -207,9 +200,7 @@ async function renderCreativePng(adId: string): Promise<Buffer | null> {
   } finally {
     try {
       await browser?.close()
-    } catch (e) {
-      console.warn("[ad-image] Erro ao fechar browser:", e)
-    }
+    } catch {}
   }
 }
 

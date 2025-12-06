@@ -16,7 +16,6 @@ import {
   getFacebookCampaignsWithInsights,
 } from "@/lib/facebook-ads-service"
 
-
 // =============================
 // TIPOS / MODELOS DE DADOS
 // =============================
@@ -228,7 +227,7 @@ export function useGatewayKpis(filter: KpiFilter) {
   const { userId, from, to, search } = filter
 
   const [rows, setRows] = useState<GatewayTransaction[]>([])
-  const [loading, setLoading] = useState(true)
+  the const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
@@ -245,6 +244,11 @@ export function useGatewayKpis(filter: KpiFilter) {
         "id,user_id,transaction_id,gateway_id,amount,currency,customer_name,customer_email,customer_phone,product_name,payment_method,fee,net_amount,event_type,status,raw_payload,created_at,updated_by,fees,updated_at,product_price"
       )
       .order("created_at", { ascending: false })
+
+    // 🔒 FILTRO POR USUÁRIO
+    if (userId) {
+      q.eq("user_id", userId)
+    }
 
     if (from) q.gte("created_at", from)
     if (to) q.lt("created_at", to)
@@ -281,9 +285,10 @@ export function useGatewayKpis(filter: KpiFilter) {
       channelRef.current = null
     }
 
-    const chanName = `gateway_transactions_dashboard_${from || "min"}_${
-      to || "max"
-    }_${Math.random().toString(36).slice(2)}`
+    const chanName = `gateway_transactions_dashboard_${userId || "all"}_${
+      from || "min"
+    }_${to || "max"}_${Math.random().toString(36).slice(2)}`
+
     const channel = supabase.channel(chanName)
 
     const fromMs = from ? Date.parse(from) : null
@@ -296,6 +301,10 @@ export function useGatewayKpis(filter: KpiFilter) {
         (payload) => {
           if (!initialLoadedRef.current) return
           const row = payload.new as GatewayTransaction
+
+          // 🔒 IGNORA EVENTO DE OUTRO USUÁRIO
+          if (userId && row.user_id !== userId) return
+
           const rowMs = Date.parse(row.created_at)
           if (fromMs !== null && rowMs < fromMs) return
           if (toMs !== null && rowMs >= toMs) return
@@ -314,6 +323,10 @@ export function useGatewayKpis(filter: KpiFilter) {
         { event: "UPDATE", schema: "public", table: "gateway_transactions" },
         (payload) => {
           const row = payload.new as GatewayTransaction
+
+          // 🔒 IGNORA EVENTO DE OUTRO USUÁRIO
+          if (userId && row.user_id !== userId) return
+
           const rowMs = Date.parse(row.created_at)
 
           setRows((prev) => {
@@ -338,7 +351,7 @@ export function useGatewayKpis(filter: KpiFilter) {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
-  }, [from, to])
+  }, [from, to, userId])
 
   const kpis: GatewayKpisLight = useMemo(
     () => calcGatewaySummaryForPeriod(rows),
@@ -397,23 +410,21 @@ function DonutChart({
   const BOX = OUTER_R * 2 + STROKE * 2
   const CENTER = OUTER_R + STROKE
 
-  // CORES REAIS POR PLATAFORMA / GATEWAY
   function colorForGateway(name: string) {
     const key = (name || "").toLowerCase().trim()
 
-    if (key.includes("pepper")) return "#FF6B00" // Pepper
-    if (key.includes("cakto")) return "#6D28D9" // Cakto
-    if (key.includes("kirvano")) return "#0EA5E9" // Kirvano
-    if (key.includes("kiwify")) return "#00C853" // Kiwify
-    if (key.includes("hotmart")) return "#FF4C4C" // Hotmart
-    if (key.includes("monetizze")) return "#0069FF" // Monetizze
-    if (key.includes("eduzz")) return "#F9A826" // Eduzz
-    if (key.includes("braip")) return "#4F46E5" // Braip
+    if (key.includes("pepper")) return "#FF6B00"
+    if (key.includes("cakto")) return "#6D28D9"
+    if (key.includes("kirvano")) return "#0EA5E9"
+    if (key.includes("kiwify")) return "#00C853"
+    if (key.includes("hotmart")) return "#FF4C4C"
+    if (key.includes("monetizze")) return "#0069FF"
+    if (key.includes("eduzz")) return "#F9A826"
+    if (key.includes("braip")) return "#4F46E5"
 
     if (key.includes("pix")) return "#00C853"
     if (key.includes("card") || key.includes("credito")) return "#3B82F6"
 
-    // fallback
     const palette = [
       "#8b5cf6",
       "#22c55e",
@@ -471,7 +482,6 @@ function DonutChart({
     const pct100 = pct * 100
     const sliceLen = pct * C
 
-    // FATIA
     slices.push(
       <circle
         key={name}
@@ -490,7 +500,6 @@ function DonutChart({
       />
     )
 
-    // LABEL %
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
@@ -552,7 +561,8 @@ function DonutChart({
           style={{ left: tip.x + 8, top: tip.y + 8 }}
         >
           {tip.name || "Outro"} —{" "}
-          {tip.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+          {tip.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+          %
         </div>
       )}
     </div>
@@ -626,7 +636,6 @@ const CARDS: AutoCard[] = [
 
 export const CARDS_IDS = CARDS.map((c) => c.id)
 
-// neon card base
 function neonClass(effect?: AutoCard["effect"]) {
   switch (effect) {
     case "neon":
@@ -640,7 +649,6 @@ function neonClass(effect?: AutoCard["effect"]) {
   }
 }
 
-// container de cada card
 function Block({
   className = "",
   style,
@@ -690,12 +698,9 @@ function presetToFbDatePreset(preset: RangePreset): string {
       return "maximum"
     case "custom":
     default:
-      // Facebook não aceita range livre via date_preset,
-      // então usamos "maximum" como fallback.
       return "maximum"
   }
 }
-
 
 function makeRange(
   preset: RangePreset,
@@ -724,21 +729,17 @@ function makeRange(
   }
 
   if (preset === "7d" || preset === "30d" || preset === "90d") {
-  const days = preset === "7d" ? 7 : preset === "30d" ? 30 : 90
+    const days = preset === "7d" ? 7 : preset === "30d" ? 30 : 90
 
-  // fim = hoje às 23:59:59 (inclusive)
-  const end = new Date(now)
-  end.setHours(23, 59, 59, 999)
+    const end = new Date(now)
+    end.setHours(23, 59, 59, 999)
 
-  // início = (days - 1) dias antes às 00:00
-  // Ex: 7d -> de 7 dias atrás até hoje (7 dias certinhos)
-  const start = new Date(end)
-  start.setDate(start.getDate() - (days - 1))
-  start.setHours(0, 0, 0, 0)
+    const start = new Date(end)
+    start.setDate(start.getDate() - (days - 1))
+    start.setHours(0, 0, 0, 0)
 
-  return { from: start.toISOString(), to: end.toISOString() }
-}
-
+    return { from: start.toISOString(), to: end.toISOString() }
+  }
 
   const startDate = customStart ? new Date(customStart + "T00:00:00") : undefined
   const endDateExclusive = customEnd
@@ -773,7 +774,6 @@ export default function DashboardView({
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [selectedPlatform, setSelectedPlatform] = useState<AdsPlatform>("all")
-    // Gasto total com Meta ADS (todas as contas)
   const [metaAdSpend, setMetaAdSpend] = useState(0)
   const [loadingMetaSpend, setLoadingMetaSpend] = useState(false)
 
@@ -782,15 +782,16 @@ export default function DashboardView({
     [preset, customStart, customEnd]
   )
 
+  // 🔒 PASSA userId PARA O HOOK
   const data = useGatewayKpis({
+    userId: kpiFilter?.userId,
     search: kpiFilter?.search,
     from,
     to,
   })
 
-    const { rows } = data
+  const { rows } = data
 
-  // Receita Total baseada no card "Receita Total" (net_amount)
   const totalNetRevenue = useMemo(() => {
     const byTxn = new Map<string, GatewayTransaction>()
 
@@ -812,20 +813,15 @@ export default function DashboardView({
     return sum
   }, [rows])
 
-
-    // Busca o gasto total em Meta ADS (todas as contas do usuário)
   useEffect(() => {
     async function fetchMetaSpend() {
       try {
         setLoadingMetaSpend(true)
-
         const fbPreset = presetToFbDatePreset(preset)
 
-        // 1) Buscar contas conectadas
         const accounts = await getFacebookAdAccounts()
         let total = 0
 
-        // 2) Para cada conta, buscar campanhas + insights e somar o spend
         for (const acc of accounts) {
           const campaigns = await getFacebookCampaignsWithInsights(
             acc.id,
@@ -841,7 +837,6 @@ export default function DashboardView({
         setMetaAdSpend(total)
       } catch (err) {
         console.error("Erro ao carregar gastos Meta ADS:", err)
-        // se quiser, dá pra mostrar toast aqui depois
       } finally {
         setLoadingMetaSpend(false)
       }
@@ -850,31 +845,25 @@ export default function DashboardView({
     fetchMetaSpend()
   }, [preset, refreshKey])
 
-
   function brl(n: number) {
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-}
+    return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+  }
 
-// Percentuais com cor condicional
-// > 0  → verde
-// < 0  → vermelho
-// = 0  → neutro (branco)
-const greenPct = (p: string) => {
-  const numeric = parseFloat(p.replace("%", "").replace(",", ".")) || 0
+  const greenPct = (p: string) => {
+    const numeric = parseFloat(p.replace("%", "").replace(",", ".")) || 0
 
-  let colorClass = "text-white"
-  if (numeric > 0) colorClass = "text-green-500 dark:text-green-400"
-  else if (numeric < 0) colorClass = "text-red-500 dark:text-red-400"
+    let colorClass = "text-white"
+    if (numeric > 0) colorClass = "text-green-500 dark:text-green-400"
+    else if (numeric < 0) colorClass = "text-red-500 dark:text-red-400"
 
-  return (
-    <span className={`${colorClass} text-2xl font-semibold`}>
-      {p}
-    </span>
-  )
-}
+    return (
+      <span className={`${colorClass} text-2xl font-semibold`}>
+        {p}
+      </span>
+    )
+  }
 
-
-    const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
+  const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
     const zero: AdsMetrics = {
       adSpend: 0,
       pendingSales: 0,
@@ -895,7 +884,7 @@ const greenPct = (p: string) => {
     const get = (key: AdsPlatform) =>
       key === "all" ? 0 : (salesByPlatform?.[key] ?? 0)
 
-    const totalAdSpendAllPlatforms = metaAdSpend // por enquanto só Meta
+    const totalAdSpendAllPlatforms = metaAdSpend
 
     return {
       all: {
@@ -933,28 +922,21 @@ const greenPct = (p: string) => {
 
   const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
 
-    // Gasto total com anúncios (todas plataformas)
   const totalAdSpendAllPlatforms = adsMetricsByPlatform.all?.adSpend ?? 0
-
-  // Lucro baseado em: Receita Total (card de cima) - Gastos com anúncios (todas plataformas)
   const globalProfit = totalNetRevenue - totalAdSpendAllPlatforms
 
-  // ROAS = Receita / Gasto
   const globalRoas =
     totalAdSpendAllPlatforms > 0
       ? totalNetRevenue / totalAdSpendAllPlatforms
       : 0
 
-  // ROI (%) = Lucro / Gasto
   const globalRoi =
     totalAdSpendAllPlatforms > 0
       ? (globalProfit / totalAdSpendAllPlatforms) * 100
       : 0
 
-  // Margem de Lucro (%) = Lucro / Receita
   const globalProfitMargin =
     totalNetRevenue > 0 ? (globalProfit / totalNetRevenue) * 100 : 0
-
 
   const selectedPlatformLabel = useMemo(() => {
     switch (selectedPlatform) {
@@ -1019,7 +1001,7 @@ const greenPct = (p: string) => {
 
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(totalNet)
             )}
@@ -1032,13 +1014,13 @@ const greenPct = (p: string) => {
       const value = ctx.kpis.vendas ?? 0
       const loading = ctx.loading || isRefreshing
       return (
-        <div key={`kpi-top2-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`kpi-top2-${key}`} className="p-3 text-black dark:text:white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Vendas
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               value.toLocaleString("pt-BR")
             )}
@@ -1051,13 +1033,13 @@ const greenPct = (p: string) => {
       const value = ctx.kpis.reembolsosTotal ?? 0
       const loading = ctx.loading || isRefreshing
       return (
-        <div key={`kpi-top3-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`kpi-top3-${key}`} className="p-3 text-black dark:text:white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Reembolsos
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(value)
             )}
@@ -1070,13 +1052,13 @@ const greenPct = (p: string) => {
       const value = ctx.kpis.chargebacksTotal ?? 0
       const loading = ctx.loading || isRefreshing
       return (
-        <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text:white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Chargebacks
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(value)
             )}
@@ -1088,7 +1070,7 @@ const greenPct = (p: string) => {
     r1: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r1-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`r1-${key}`} className="p-3 text-black dark:text:white">
           <div className="mb-1">
             <div className="text-xs text-black/70 dark:text-white/70">
               Gastos com anúncios
@@ -1099,7 +1081,7 @@ const greenPct = (p: string) => {
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(currentAdsMetrics.adSpend)
             )}
@@ -1108,7 +1090,7 @@ const greenPct = (p: string) => {
       )
     },
 
-        r2: (_slot, _ctx, key) => {
+    r2: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       const roas = globalRoas
 
@@ -1120,7 +1102,7 @@ const greenPct = (p: string) => {
           : "text-white"
 
       return (
-        <div key={`r2-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`r2-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">ROAS</div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
@@ -1129,7 +1111,7 @@ const greenPct = (p: string) => {
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               <span className={roasColor}>{roas.toFixed(2)}</span>
             )}
@@ -1138,11 +1120,10 @@ const greenPct = (p: string) => {
       )
     },
 
-
     r3: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r3-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`r3-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">
               Vendas Pendentes
@@ -1153,7 +1134,7 @@ const greenPct = (p: string) => {
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(currentAdsMetrics.pendingSales)
             )}
@@ -1162,7 +1143,7 @@ const greenPct = (p: string) => {
       )
     },
 
-        r4: (_slot, _ctx, key) => {
+    r4: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       const lucro = globalProfit
 
@@ -1174,7 +1155,7 @@ const greenPct = (p: string) => {
           : "text-white"
 
       return (
-        <div key={`r4-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`r4-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">Lucro</div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
@@ -1183,7 +1164,7 @@ const greenPct = (p: string) => {
           </div>
           <div className={`text-2xl font-semibold ${lucroColor}`}>
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(lucro)
             )}
@@ -1192,19 +1173,18 @@ const greenPct = (p: string) => {
       )
     },
 
-
-        r5: (_slot, _ctx, key) => {
+    r5: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r5-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`r5-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">ROI</div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
+            <span className="text-[10px] text-black/50 dark:text:white/50">
               Todas plataformas
             </span>
           </div>
           {loading ? (
-            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
           ) : (
             greenPct(`${globalRoi.toFixed(1)}%`)
           )}
@@ -1212,11 +1192,10 @@ const greenPct = (p: string) => {
       )
     },
 
-
-        r6: (_slot, _ctx, key) => {
+    r6: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r6-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`r6-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">
               Margem de Lucro
@@ -1226,7 +1205,7 @@ const greenPct = (p: string) => {
             </span>
           </div>
           {loading ? (
-            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
           ) : (
             greenPct(`${globalProfitMargin.toFixed(1)}%`)
           )}
@@ -1237,18 +1216,18 @@ const greenPct = (p: string) => {
     b1: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b1-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`b1-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">
               Custo por conversa
             </div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
+            <span className="text-[10px] text-black/50 dark:text:white/50">
               {selectedPlatformLabel}
             </span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(currentAdsMetrics.costPerConversation)
             )}
@@ -1260,18 +1239,18 @@ const greenPct = (p: string) => {
     b2: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b2-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`b2-${key}`} className="p-3 text-black dark:text:white">
           <div className="mb-1">
             <div className="text-xs text-black/70 dark:text-white/70">
               Conversa
             </div>
-            <div className="text-[10px] text-black/50 dark:text-white/50">
+            <div className="text-[10px] text-black/50 dark:text:white/50">
               {selectedPlatformLabel}
             </div>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               currentAdsMetrics.conversations.toLocaleString("pt-BR")
             )}
@@ -1283,18 +1262,18 @@ const greenPct = (p: string) => {
     b3: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b3-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`b3-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">
               Imposto
             </div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
+            <span className="text-[10px] text-black/50 dark:text:white/50">
               {selectedPlatformLabel}
             </span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(currentAdsMetrics.tax)
             )}
@@ -1306,7 +1285,7 @@ const greenPct = (p: string) => {
     b4: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b4-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`b4-${key}`} className="p-3 text-black dark:text:white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/meta-ads.png"
@@ -1317,7 +1296,7 @@ const greenPct = (p: string) => {
           </div>
           <div className="text-2xl font-semibold">
             {loading || loadingMetaSpend ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.meta.adSpend)
             )}
@@ -1329,7 +1308,7 @@ const greenPct = (p: string) => {
     b5: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b5-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`b5-${key}`} className="p-3 text-black dark:text:white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/google-ads.png"
@@ -1340,7 +1319,7 @@ const greenPct = (p: string) => {
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.google.profit)
             )}
@@ -1352,7 +1331,7 @@ const greenPct = (p: string) => {
     b6: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b6-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`b6-${key}`} className="p-3 text-black dark:text:white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/google-analytics.png"
@@ -1363,7 +1342,7 @@ const greenPct = (p: string) => {
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.analytics.profit)
             )}
@@ -1375,7 +1354,7 @@ const greenPct = (p: string) => {
     b7: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b7-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`b7-${key}`} className="p-3 text-black dark:text:white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/tiktok-ads.png"
@@ -1386,7 +1365,7 @@ const greenPct = (p: string) => {
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.tiktok.profit)
             )}
@@ -1398,7 +1377,7 @@ const greenPct = (p: string) => {
     b8: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b8-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`b8-${key}`} className="p-3 text-black dark:text:white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/kwai-ads.png"
@@ -1409,7 +1388,7 @@ const greenPct = (p: string) => {
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.kwai.profit)
             )}

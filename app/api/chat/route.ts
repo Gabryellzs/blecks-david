@@ -1,90 +1,135 @@
 import { NextResponse } from "next/server"
+import Groq from "groq-sdk"
 
 export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+})
 
 export async function POST(req: Request) {
   try {
-    // Verificar se a chave da API está configurada
+    // 1) Checa chave da Groq
     if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json({ error: "API key do Groq não configurada no servidor" }, { status: 500 })
-    }
-
-    const { messages } = await req.json()
-
-    // Validar os dados de entrada
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json({ error: "Mensagens inválidas" }, { status: 400 })
-    }
-
-    // Adicionar instruções de sistema para copywriting
-    const systemMessage = {
-      role: "system",
-      content: `Você é um especialista em copywriting e marketing digital com mais de 10 anos de experiência.
-      Sua missão é ajudar o usuário a criar textos persuasivos, envolventes e de alta conversão para diversas finalidades de marketing.
-      
-      Siga estas diretrizes para garantir a máxima qualidade:
-      1. **Foco na Persuasão:** Sempre busque persuadir e motivar o público-alvo.
-      2. **Clareza e Concisão:** Escreva de forma direta, eliminando redundâncias e jargões desnecessários.
-      3. **Benefícios, não Características:** Destaque os benefícios e a transformação que o produto/serviço oferece.
-      4. **Gatilhos Mentais:** Utilize estrategicamente gatilhos como escassez, urgência, prova social, autoridade e reciprocidade.
-      5. **Chamada para Ação (CTA) Clara:** Sempre finalize com uma CTA forte, específica e irresistível.
-      6. **Tom de Voz Adequado:** Adapte o tom de voz ao contexto e ao público-alvo (ex: formal, informal, inspirador, direto).
-      7. **Linguagem Emocional:** Conecte-se emocionalmente com o leitor, usando linguagem que ressoe com seus desejos e dores.
-      8. **Estrutura Lógica:** Organize o conteúdo de forma fluida e lógica, utilizando estruturas como AIDA (Atenção, Interesse, Desejo, Ação) ou PAS (Problema, Agitação, Solução).
-      9. **Originalidade:** Evite clichês e frases genéricas. Busque sempre a originalidade e a criatividade.
-      10. **Português do Brasil:** Responda sempre em português do Brasil, com gramática impecável e ortografia correta.
-      
-      Forneça sugestões específicas, exemplos práticos e melhorias detalhadas para os textos do usuário. Seja criativo, estratégico e focado em resultados.`,
-    }
-
-    const allMessages = [systemMessage, ...messages]
-
-    // Fazer a chamada direta para a API do Groq
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-        // Adicionar cabeçalhos para evitar cache
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-      body: JSON.stringify({
-        model: "llama3-8b-8192", // Modelo mais leve
-        messages: allMessages,
-        temperature: 0.7,
-        max_tokens: 800,
-      }),
-    })
-
-    // Verificar se a resposta é um erro HTTP
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error("Erro na API do Groq:", errorText)
       return NextResponse.json(
-        { error: `Erro na API do Groq: ${response.status} ${response.statusText}` },
-        { status: 500 },
+        {
+          message:
+            "Erro interno: GROQ_API_KEY não configurada no servidor. Fale com o suporte da plataforma.",
+        },
+        { status: 200 },
       )
     }
 
-    // Parsear a resposta
-    const data = await response.json()
+    // 2) Lê body e valida mensagens
+    const body = await req.json().catch(() => ({} as any))
+    const messages = Array.isArray(body?.messages) ? body.messages : []
 
-    // Extrair o texto gerado
-    const assistantMessage = data.choices?.[0]?.message?.content || "Não foi possível gerar uma resposta."
+    if (!messages.length) {
+      return NextResponse.json(
+        {
+          message:
+            "Não recebi nenhuma mensagem válida. Digite sua ideia ou texto que quer transformar em copy.",
+        },
+        { status: 200 },
+      )
+    }
 
-    // Retornar o resultado com cabeçalhos para evitar cache
-    return new NextResponse(JSON.stringify({ message: assistantMessage }), {
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
+    // 3) SYSTEM MESSAGE – Copywriter de elite
+    const systemMessage = {
+      role: "system" as const,
+      content: `
+Você agora é um Copywriter de elite, do mesmo nível de Thiago Finch, Alex Hormozi, Dan Kennedy, Gary Halbert e David Ogilvy.
+Sua missão é transformar QUALQUER ideia do usuário em uma mensagem extremamente persuasiva, clara, direta e impossível de ignorar — sempre orientada para conversão e resultados reais.
+
+Siga SEMPRE estas diretrizes:
+
+1. Clareza Absoluta
+- Explique como se estivesse falando com alguém ocupado.
+- Sem enrolação, sem frases vazias, sem jargão desnecessário.
+
+2. Persuasão no Máximo Nível
+- Use oferta irresistível, Big Idea clara, prova social, autoridade, storytelling curto, quebra de padrão e gatilhos mentais estratégicos (sem exagero).
+
+3. Benefícios e Emoção
+- Mostre sempre:
+  - O que a pessoa ganha.
+  - O que ela evita.
+  - Por que precisa agir AGORA.
+  - Como o produto transforma a vida dela.
+
+4. Estrutura de Venda (AIDA ou PAS)
+- AIDA: Atenção → Interesse → Desejo → Ação.
+- PAS: Problema → Agitação → Solução.
+- Use a que fizer mais sentido para o contexto.
+
+5. Idioma
+- Responda SEMPRE em português do Brasil, com naturalidade, fluidez e gramática correta.
+
+6. Tom de Voz
+- Direto, persuasivo, inteligente, moderno, sem rodeios.
+- Nada de clichês genéricos ou texto com cara de IA básica.
+
+7. Finalização
+- Termine SEMPRE com uma chamada para ação (CTA) clara, objetiva e irresistível.
+
+8. Quando fizer sentido, entregue variações
+- Sugira alternativas de headlines, abordagens, ângulos de copy, scripts curtos ou versões mais agressivas / suaves.
+
+9. Se o pedido do usuário for vago
+- Não diga "não entendi".
+- Peça clareza assim:
+  "Me diga: qual é o público e qual é o benefício principal que você quer destacar? Assim ajusto a copy exatamente no nível que você espera."
+`,
+    }
+
+    // 4) Limita contexto pra ficar mais rápido
+    const limitedMessages = messages.slice(-8)
+
+    const groqMessages = [
+      systemMessage,
+      ...limitedMessages.map((m: any) => ({
+        role: (m.role ?? "user") as "user" | "assistant" | "system",
+        content: String(m.content ?? ""),
+      })),
+    ]
+
+    // 5) Chamada à Groq – modelo rápido
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant", // rápido e estável
+      messages: groqMessages,
+      temperature: 0.7,
+      max_tokens: 700,
     })
+
+    const assistantContent =
+      completion.choices?.[0]?.message?.content ||
+      "Não consegui gerar uma resposta agora. Tente reformular sua ideia ou mandar mais detalhes."
+
+    // 6) Retorno no formato que o front espera
+    return NextResponse.json(
+      { message: assistantContent },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      },
+    )
   } catch (error: any) {
-    console.error("Erro ao processar a requisição:", error)
-    return NextResponse.json({ error: `Erro ao processar a requisição: ${error.message}` }, { status: 500 })
+    console.error("ERRO /api/chat:", error)
+
+    // Mantém status 200 pra não cair no catch do front
+    return NextResponse.json(
+      {
+        message:
+          "Tivemos um erro técnico ao falar com a IA agora. Tenta novamente em alguns segundos ou reformula o pedido.",
+        _error: error?.message || String(error),
+      },
+      { status: 200 },
+    )
   }
 }

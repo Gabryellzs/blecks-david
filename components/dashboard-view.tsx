@@ -245,7 +245,7 @@ export function useGatewayKpis(filter: KpiFilter) {
       )
       .order("created_at", { ascending: false })
 
-    // 🔒 FILTRO POR USUÁRIO
+    // 🔒 FILTRO POR USUÁRIO (se informado)
     if (userId) {
       q.eq("user_id", userId)
     }
@@ -345,7 +345,7 @@ export function useGatewayKpis(filter: KpiFilter) {
       )
       .subscribe()
 
-  channelRef.current = channel
+    channelRef.current = channel
 
     return () => {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
@@ -561,8 +561,7 @@ function DonutChart({
           style={{ left: tip.x + 8, top: tip.y + 8 }}
         >
           {tip.name || "Outro"} —{" "}
-          {tip.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
-          %
+          {tip.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
         </div>
       )}
     </div>
@@ -682,6 +681,7 @@ function Placeholder({ slotId }: { slotId: string }) {
 // RANGE BUILDER (Período)
 // =============================
 type RangePreset = "maximo" | "hoje" | "ontem" | "7d" | "30d" | "90d" | "custom"
+
 function presetToFbDatePreset(preset: RangePreset): string {
   switch (preset) {
     case "hoje":
@@ -766,6 +766,27 @@ export default function DashboardView({
 }: DashboardProps) {
   const router = useRouter()
 
+  // 🔒 Usuário logado via Supabase Auth
+  const [authUserId, setAuthUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth
+      .getUser()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Erro ao buscar usuário autenticado:", error)
+          return
+        }
+        const u = data?.user
+        if (u?.id) {
+          setAuthUserId(u.id)
+        }
+      })
+      .catch((err) => {
+        console.error("Erro inesperado ao buscar usuário autenticado:", err)
+      })
+  }, [])
+
   const [preset, setPreset] = useState<RangePreset>("hoje")
   const [customStart, setCustomStart] = useState<string>("")
   const [customEnd, setCustomEnd] = useState<string>("")
@@ -782,9 +803,11 @@ export default function DashboardView({
     [preset, customStart, customEnd]
   )
 
-  // 🔒 AGORA PASSANDO userId PARA O HOOK
+  // userId efetivo: se vier no kpiFilter usa ele, senão usa o do Supabase
+  const effectiveUserId = kpiFilter?.userId ?? authUserId ?? undefined
+
   const data = useGatewayKpis({
-    userId: kpiFilter?.userId,
+    userId: effectiveUserId,
     search: kpiFilter?.search,
     from,
     to,
@@ -856,11 +879,7 @@ export default function DashboardView({
     if (numeric > 0) colorClass = "text-green-500 dark:text-green-400"
     else if (numeric < 0) colorClass = "text-red-500 dark:text-red-400"
 
-    return (
-      <span className={`${colorClass} text-2xl font-semibold`}>
-        {p}
-      </span>
-    )
+    return <span className={`${colorClass} text-2xl font-semibold`}>{p}</span>
   }
 
   const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
@@ -982,7 +1001,10 @@ export default function DashboardView({
       }, [ctx.rows])
 
       return (
-        <div key={`kpi-top1-${key}`} className="p-3 text-black dark:text-white relative">
+        <div
+          key={`kpi-top1-${key}`}
+          className="p-3 text-black dark:text-white relative"
+        >
           <div className="flex items-center gap-1 mb-2">
             <span className="text-xs text-black/70 dark:text-white/70">
               Receita Total

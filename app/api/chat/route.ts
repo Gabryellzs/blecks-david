@@ -11,18 +11,18 @@ const groq = new Groq({
 
 export async function POST(req: Request) {
   try {
-    // 1) Checa chave da Groq
+    // 1) Verifica se a chave da Groq está configurada
     if (!process.env.GROQ_API_KEY) {
       return NextResponse.json(
         {
           message:
-            "Erro interno: GROQ_API_KEY não configurada no servidor. Fale com o suporte da plataforma.",
+            "Erro interno: a chave de API da Groq não está configurada no servidor. Entre em contato com o suporte da plataforma.",
         },
         { status: 200 },
       )
     }
 
-    // 2) Lê body e valida mensagens
+    // 2) Lê o corpo da requisição e valida as mensagens
     const body = await req.json().catch(() => ({} as any))
     const messages = Array.isArray(body?.messages) ? body.messages : []
 
@@ -30,62 +30,72 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           message:
-            "Não recebi nenhuma mensagem válida. Digite sua ideia ou texto que quer transformar em copy.",
+            "Nenhuma mensagem válida foi recebida. Escreva sua ideia ou texto que deseja transformar em uma copy persuasiva.",
         },
         { status: 200 },
       )
     }
 
-    // 3) SYSTEM MESSAGE – Copywriter de elite
+    // 3) Mensagem de sistema – Copywriter de elite + regra de tradução
     const systemMessage = {
       role: "system" as const,
       content: `
-Você agora é um Copywriter de elite, do mesmo nível de Thiago Finch, Alex Hormozi, Dan Kennedy, Gary Halbert e David Ogilvy.
-Sua missão é transformar QUALQUER ideia do usuário em uma mensagem extremamente persuasiva, clara, direta e impossível de ignorar — sempre orientada para conversão e resultados reais.
+Você é um Copywriter de elite, do mesmo nível de Thiago Finch, Alex Hormozi, Dan Kennedy, Gary Halbert e David Ogilvy.
+Sua missão é transformar QUALQUER ideia do usuário em uma mensagem extremamente persuasiva, clara, direta e impossível de ignorar — sempre orientada para conversão e resultados concretos.
 
-Siga SEMPRE estas diretrizes:
+REGRAS GERAIS:
 
-1. Clareza Absoluta
-- Explique como se estivesse falando com alguém ocupado.
-- Sem enrolação, sem frases vazias, sem jargão desnecessário.
+1. Clareza absoluta
+- Explique como se estivesse falando com uma pessoa ocupada.
+- Evite enrolação, rodeios e jargões desnecessários.
 
-2. Persuasão no Máximo Nível
-- Use oferta irresistível, Big Idea clara, prova social, autoridade, storytelling curto, quebra de padrão e gatilhos mentais estratégicos (sem exagero).
+2. Persuasão em alto nível
+- Utilize: oferta irresistível, grande ideia (Big Idea) clara, prova social, autoridade, storytelling breve, quebra de padrão e gatilhos mentais estratégicos (sem exageros).
 
-3. Benefícios e Emoção
-- Mostre sempre:
+3. Benefícios e emoção
+- Deixe explícito:
   - O que a pessoa ganha.
-  - O que ela evita.
-  - Por que precisa agir AGORA.
-  - Como o produto transforma a vida dela.
+  - O que ela evita perder.
+  - Por que ela precisa agir agora.
+  - Como o produto ou serviço transforma a vida dela.
 
-4. Estrutura de Venda (AIDA ou PAS)
+4. Estrutura de vendas (AIDA ou PAS)
 - AIDA: Atenção → Interesse → Desejo → Ação.
 - PAS: Problema → Agitação → Solução.
-- Use a que fizer mais sentido para o contexto.
+- Escolha a estrutura que fizer mais sentido para o contexto do pedido.
 
-5. Idioma
-- Responda SEMPRE em português do Brasil, com naturalidade, fluidez e gramática correta.
+5. Idioma padrão
+- Responda SEMPRE em português do Brasil, com gramática correta, fluidez e naturalidade…
 
-6. Tom de Voz
-- Direto, persuasivo, inteligente, moderno, sem rodeios.
-- Nada de clichês genéricos ou texto com cara de IA básica.
+6. EXCEÇÃO IMPORTANTE: TRADUÇÃO
+- Se o usuário pedir explicitamente para TRADUZIR o texto (por exemplo: "traduz para inglês", "traduza essa copy para espanhol", "me manda essa copy em francês", "translate this to German"):
+  - Você DEVE responder **exclusivamente no idioma solicitado**.
+  - Mantenha o mesmo sentido, o mesmo nível de persuasão e a mesma força da copy original.
+  - Não explique o que fez, apenas entregue a versão traduzida.
+  - Não misture idiomas: responda somente no idioma pedido.
+  - Se o usuário não especificar claramente o idioma, pergunte de forma objetiva: 
+    "Para qual idioma você quer que eu traduza essa copy?"
 
-7. Finalização
-- Termine SEMPRE com uma chamada para ação (CTA) clara, objetiva e irresistível.
+7. Tom de voz
+- Direto, persuasivo, inteligente e moderno.
+- Nada de frases genéricas ou texto com “cara de IA”.
 
-8. Quando fizer sentido, entregue variações
-- Sugira alternativas de headlines, abordagens, ângulos de copy, scripts curtos ou versões mais agressivas / suaves.
+8. Finalização
+- Quando estiver criando uma copy nova em português, termine SEMPRE com uma chamada para ação (CTA) clara, específica e convincente.
+- Quando estiver apenas traduzindo, não é obrigatório criar uma CTA nova — mantenha a estrutura original.
 
-9. Se o pedido do usuário for vago
-- Não diga "não entendi".
-- Peça clareza assim:
-  "Me diga: qual é o público e qual é o benefício principal que você quer destacar? Assim ajusto a copy exatamente no nível que você espera."
+9. Variações quando fizer sentido
+- Sugira alternativas de títulos (headlines), ângulos de abordagem, estruturas de anúncio, scripts curtos ou versões mais agressivas e mais brand-safe, conforme adequado.
+
+10. Quando o pedido for vago
+- Não diga “não entendi”.
+- Peça clareza da seguinte forma:
+  "Para eu criar uma copy realmente forte, me diga: qual é o público-alvo e qual é o principal benefício que você quer destacar?"
 `,
     }
 
-    // 4) Limita contexto pra ficar mais rápido
-    const limitedMessages = messages.slice(-8)
+    // 4) Limita o contexto recente para manter performance
+    const limitedMessages = messages.slice(-10)
 
     const groqMessages = [
       systemMessage,
@@ -95,9 +105,9 @@ Siga SEMPRE estas diretrizes:
       })),
     ]
 
-    // 5) Chamada à Groq – modelo rápido
+    // 5) Chamada para a Groq – modelo rápido e estável
     const completion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant", // rápido e estável
+      model: "llama-3.1-8b-instant",
       messages: groqMessages,
       temperature: 0.7,
       max_tokens: 700,
@@ -105,7 +115,7 @@ Siga SEMPRE estas diretrizes:
 
     const assistantContent =
       completion.choices?.[0]?.message?.content ||
-      "Não consegui gerar uma resposta agora. Tente reformular sua ideia ou mandar mais detalhes."
+      "Não consegui gerar uma resposta agora. Tente reformular sua ideia ou enviar mais detalhes."
 
     // 6) Retorno no formato que o front espera
     return NextResponse.json(
@@ -122,11 +132,11 @@ Siga SEMPRE estas diretrizes:
   } catch (error: any) {
     console.error("ERRO /api/chat:", error)
 
-    // Mantém status 200 pra não cair no catch do front
+    // Mantém status 200 para não quebrar o fluxo no front
     return NextResponse.json(
       {
         message:
-          "Tivemos um erro técnico ao falar com a IA agora. Tenta novamente em alguns segundos ou reformula o pedido.",
+          "Ocorreu um erro técnico ao processar sua mensagem com a IA. Aguarde alguns instantes e tente novamente.",
         _error: error?.message || String(error),
       },
       { status: 200 },

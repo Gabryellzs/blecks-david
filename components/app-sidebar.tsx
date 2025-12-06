@@ -165,7 +165,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
         title: "Diário Semanal",
         iconPath: `${ICON_BASE}/Diario-Semanal.png`,
         href: "/dashboard/diary",
-        size: 35,
+        size: 40,
         offsetX: 6,
         offsetY: 0,
       },
@@ -192,7 +192,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
         title: "Funnel's",
         iconPath: `${ICON_BASE}/mindmap.png`,
         href: "/dashboard/mindmap",
-        size: 44,
+        size: 58,
         offsetX: 2,
         offsetY: 0,
       },
@@ -201,7 +201,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
         title: "IA's",
         iconPath: `${ICON_BASE}/ias.png`,
         href: "/dashboard/ai",
-        size: 40,
+        size: 48,
         offsetX: 5,
         offsetY: 0,
       },
@@ -210,7 +210,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
         title: "Copywriting",
         iconPath: `${ICON_BASE}/copywriting.png`,
         href: "/dashboard/copywriting",
-        size: 35,
+        size: 40,
         offsetX: 9,
         offsetY: 0,
       },
@@ -360,7 +360,6 @@ export function AppSidebar({ children }: AppSidebarProps) {
                 const size = Math.round(baseSize * scaleFactor)
                 const x = item.offsetX ?? 0
                 const y = item.offsetY ?? 0
-                const isMindmap = item.id === "mindmap"
 
                 return (
                   <div
@@ -405,18 +404,13 @@ export function AppSidebar({ children }: AppSidebarProps) {
                             justifyContent: "center",
                           }}
                         >
+                          {/* 🔥 AQUI AJUSTA A COR DO ÍCONE (MINDMAP INCLUÍDO) */}
                           <Image
                             src={item.iconPath}
                             alt={item.title}
                             fill
                             className={`object-contain ${
-                              theme === "dark"
-                                ? isMindmap
-                                  ? ""
-                                  : "invert"
-                                : isMindmap
-                                  ? "invert"
-                                  : ""
+                              theme === "dark" ? "invert" : ""
                             }`}
                             style={{ objectPosition: "center" }}
                           />

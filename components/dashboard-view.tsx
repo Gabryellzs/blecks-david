@@ -221,7 +221,7 @@ function dedupById<T extends { id: string }>(arr: T[]): T[] {
 }
 
 // =============================
-// HOOK SUPABASE (fetch + realtime)
+// HOOK SUPABASE (fetch + realtime) — LGPD SAFE
 // =============================
 export function useGatewayKpis(filter: KpiFilter) {
   const { userId, from, to, search } = filter
@@ -234,21 +234,27 @@ export function useGatewayKpis(filter: KpiFilter) {
   const seenIdsRef = useRef<Set<string>>(new Set())
   const initialLoadedRef = useRef(false)
 
+  // FETCH PRINCIPAL — só busca se userId existir
   async function fetchAll() {
     setLoading(true)
     setError(null)
+
+    // 🚫 Segurança / LGPD: sem userId -> não mostra nada
+    if (!userId) {
+      setRows([])
+      seenIdsRef.current = new Set()
+      initialLoadedRef.current = true
+      setLoading(false)
+      return
+    }
 
     const q = supabase
       .from("gateway_transactions")
       .select(
         "id,user_id,transaction_id,gateway_id,amount,currency,customer_name,customer_email,customer_phone,product_name,payment_method,fee,net_amount,event_type,status,raw_payload,created_at,updated_by,fees,updated_at,product_price"
       )
+      .eq("user_id", userId) // filtro absoluto por usuário
       .order("created_at", { ascending: false })
-
-    // 🔒 FILTRO POR USUÁRIO (se informado)
-    if (userId) {
-      q.eq("user_id", userId)
-    }
 
     if (from) q.gte("created_at", from)
     if (to) q.lt("created_at", to)
@@ -264,13 +270,14 @@ export function useGatewayKpis(filter: KpiFilter) {
       setRows([])
       seenIdsRef.current = new Set()
       initialLoadedRef.current = true
-    } else {
-      const clean = dedupById((data || []) as GatewayTransaction[])
-      setRows(clean)
-      seenIdsRef.current = new Set(clean.map((r) => r.id))
-      initialLoadedRef.current = true
+      setLoading(false)
+      return
     }
 
+    const clean = dedupById((data || []) as GatewayTransaction[])
+    setRows(clean)
+    seenIdsRef.current = new Set(clean.map((r) => r.id))
+    initialLoadedRef.current = true
     setLoading(false)
   }
 
@@ -279,13 +286,23 @@ export function useGatewayKpis(filter: KpiFilter) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, from, to, search])
 
+  // REALTIME — só assina se userId existir
   useEffect(() => {
+    // Sem userId: limpa canal e sai
+    if (!userId) {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
+      return
+    }
+
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
 
-    const chanName = `gateway_transactions_dashboard_${userId || "all"}_${
+    const chanName = `gateway_transactions_dashboard_${userId}_${
       from || "min"
     }_${to || "max"}_${Math.random().toString(36).slice(2)}`
 
@@ -294,64 +311,65 @@ export function useGatewayKpis(filter: KpiFilter) {
     const fromMs = from ? Date.parse(from) : null
     const toMs = to ? Date.parse(to) : null
 
-    channel
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "gateway_transactions" },
-        (payload) => {
-          if (!initialLoadedRef.current) return
-          const row = payload.new as GatewayTransaction
+    // INSERT
+    channel.on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "gateway_transactions" },
+      (payload) => {
+        if (!initialLoadedRef.current) return
+        const row = payload.new as GatewayTransaction
 
-          // 🔒 IGNORA EVENTOS DE OUTRO USUÁRIO
-          if (userId && row.user_id !== userId) return
+        // LGPD: ignora linhas de outro usuário
+        if (row.user_id !== userId) return
 
-          const rowMs = Date.parse(row.created_at)
-          if (fromMs !== null && rowMs < fromMs) return
-          if (toMs !== null && rowMs >= toMs) return
+        const rowMs = Date.parse(row.created_at)
+        if (fromMs !== null && rowMs < fromMs) return
+        if (toMs !== null && rowMs >= toMs) return
 
-          setRows((prev) => {
-            if (seenIdsRef.current.has(row.id)) {
-              return prev.map((r) => (r.id === row.id ? row : r))
-            }
+        setRows((prev) => {
+          if (seenIdsRef.current.has(row.id)) {
+            return prev.map((r) => (r.id === row.id ? row : r))
+          }
+          seenIdsRef.current.add(row.id)
+          return [row, ...prev]
+        })
+      }
+    )
+
+    // UPDATE
+    channel.on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "gateway_transactions" },
+      (payload) => {
+        const row = payload.new as GatewayTransaction
+
+        if (row.user_id !== userId) return // segurança
+
+        const rowMs = Date.parse(row.created_at)
+
+        setRows((prev) => {
+          if ((fromMs !== null && rowMs < fromMs) || (toMs !== null && rowMs >= toMs)) {
+            seenIdsRef.current.delete(row.id)
+            return prev.filter((r) => r.id !== row.id)
+          }
+
+          if (!seenIdsRef.current.has(row.id)) {
             seenIdsRef.current.add(row.id)
             return [row, ...prev]
-          })
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "gateway_transactions" },
-        (payload) => {
-          const row = payload.new as GatewayTransaction
+          }
+          return prev.map((r) => (r.id === row.id ? row : r))
+        })
+      }
+    )
 
-          // 🔒 IGNORA EVENTOS DE OUTRO USUÁRIO
-          if (userId && row.user_id !== userId) return
-
-          const rowMs = Date.parse(row.created_at)
-
-          setRows((prev) => {
-            if ((fromMs !== null && rowMs < fromMs) || (toMs !== null && rowMs >= toMs)) {
-              seenIdsRef.current.delete(row.id)
-              return prev.filter((r) => r.id !== row.id)
-            }
-
-            if (!seenIdsRef.current.has(row.id)) {
-              seenIdsRef.current.add(row.id)
-              return [row, ...prev]
-            }
-            return prev.map((r) => (r.id === row.id ? row : r))
-          })
-        }
-      )
-      .subscribe()
-
+    channel.subscribe()
     channelRef.current = channel
 
     return () => {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
-  }, [from, to, userId])
+  }, [userId, from, to])
 
   const kpis: GatewayKpisLight = useMemo(
     () => calcGatewaySummaryForPeriod(rows),
@@ -766,7 +784,7 @@ export default function DashboardView({
 }: DashboardProps) {
   const router = useRouter()
 
-  // 🔒 Usuário logado via Supabase Auth
+  // Usuário logado (Supabase Auth)
   const [authUserId, setAuthUserId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -803,7 +821,7 @@ export default function DashboardView({
     [preset, customStart, customEnd]
   )
 
-  // userId efetivo: se vier no kpiFilter usa ele, senão usa o do Supabase
+  // userId efetivo (padrão = usuário logado)
   const effectiveUserId = kpiFilter?.userId ?? authUserId ?? undefined
 
   const data = useGatewayKpis({
@@ -815,6 +833,7 @@ export default function DashboardView({
 
   const { rows } = data
 
+  // Receita total (net_amount, 1x por transação)
   const totalNetRevenue = useMemo(() => {
     const byTxn = new Map<string, GatewayTransaction>()
 
@@ -836,6 +855,7 @@ export default function DashboardView({
     return sum
   }, [rows])
 
+  // Gasto Meta ADS
   useEffect(() => {
     async function fetchMetaSpend() {
       try {
@@ -1015,8 +1035,8 @@ export default function DashboardView({
                 className="text-black/50 dark:text-white/50 cursor-pointer hover:text-black dark:hover:text-white transition"
               />
               <div className="absolute left-4 top-4 z-20 hidden w-56 rounded-md bg-black/80 text-white text-[11px] p-2 leading-tight group-hover:block shadow-lg">
-                Soma do <b>net_amount</b> das vendas aprovadas, 1x por transação,
-                sem reembolsos/chargebacks.
+                Soma do <b>net_amount</b> das vendas aprovadas, 1x por
+                transação, sem reembolsos/chargebacks.
               </div>
             </div>
           </div>
@@ -1061,7 +1081,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(value)
             )}
@@ -1074,7 +1094,7 @@ export default function DashboardView({
       const value = ctx.kpis.chargebacksTotal ?? 0
       const loading = ctx.loading || isRefreshing
       return (
-        <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text:white">
           <div className="text-xs text-black/70 dark:text-white/70 mb-2">
             Chargebacks
           </div>
@@ -1581,7 +1601,7 @@ export default function DashboardView({
           className={[
             "relative inline-flex items-center justify-center px-4 py-2 rounded-md border font-medium transition-all disabled:opacity-60 active:scale-[0.99]",
             "border-black/25 text-black/90 bg-black/5 hover:bg-black/10",
-            "dark:border-white/25 dark:text-white/90 dark:bg-black/40 dark:hover:bg-white/5",
+            "dark:border-white/25 dark:text-white/90 dark:bg-black/40 dark:hover:bg:white/5",
             "neon-card neon-top no-glow",
           ].join(" ")}
           style={{ ["--gw" as any]: "#505555ff" }}

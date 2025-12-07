@@ -672,7 +672,7 @@ function Block({
     <div
       className={[
         `rounded-[${CARD_RADIUS_PX}px]`,
-        ":border-white/20",
+        "border border-white/5",
         "bg-transparent",
         "outline-none focus:outline-none focus:ring-0",
         className,
@@ -835,7 +835,6 @@ export default function DashboardView({
         setLoadingMetaSpend(true)
 
         const fbPreset = presetToFbDatePreset(preset)
-
         const accounts = await getFacebookAdAccounts()
 
         let totalSpend = 0
@@ -850,7 +849,6 @@ export default function DashboardView({
 
           for (const c of campaigns) {
             const anyC: any = c
-
             const rawInsights = anyC.insights
             let insights: any = null
 
@@ -929,11 +927,7 @@ export default function DashboardView({
     if (numeric > 0) colorClass = "text-green-500 dark:text-green-400"
     else if (numeric < 0) colorClass = "text-red-500 dark:text-red-400"
 
-    return (
-      <span className={`${colorClass} text-2xl font-semibold`}>
-        {p}
-      </span>
-    )
+    return <span className={`${colorClass} text-2xl font-semibold`}>{p}</span>
   }
 
   const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
@@ -1008,7 +1002,6 @@ export default function DashboardView({
   const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
 
   const totalAdSpendAllPlatforms = adsMetricsByPlatform.all?.adSpend ?? 0
-
   const globalProfit = totalNetRevenue - totalAdSpendAllPlatforms
 
   const globalRoas =
@@ -1619,27 +1612,49 @@ export default function DashboardView({
     >
       {/* HEADER */}
       <div className="mb-2 flex items-start justify-between gap-2 flex-wrap">
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-2 flex-1 min-w-[220px]">
           <PeriodSelector />
 
           {/* Seletor de plataforma de anúncios */}
-          <div className="flex flex-wrap items-center gap-1 rounded-full border border-white/10 bg-black/40 px-1 py-1 shadow-inner">
-            {adsPlatformOptions.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setSelectedPlatform(opt.value)}
-                className={[
-                  "text-xs px-3 py-1 rounded-full transition-all",
-                  "border border-transparent",
-                  selectedPlatform === opt.value
-                    ? "bg-emerald-500 text-black font-semibold shadow-[0_0_20px_rgba(16,185,129,0.6)]"
-                    : "text-zinc-300 hover:bg-white/5",
-                ].join(" ")}
-              >
-                {opt.label}
-              </button>
-            ))}
+          <div className="w-full max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch] pb-1">
+            <div
+              className={[
+                "inline-flex items-center gap-2",
+                "rounded-full border border-white/10 bg-black/40",
+                "px-2 py-1 shadow-inner",
+                "min-w-max",
+              ].join(" ")}
+            >
+              {adsPlatformOptions.map((opt) => {
+                const isActive = selectedPlatform === opt.value
+
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setSelectedPlatform(opt.value)}
+                    className={[
+                      "text-xs sm:text-[13px] px-4 py-1.5 rounded-full transition-all whitespace-nowrap",
+                      "border",
+                      isActive
+                        ? [
+                            "bg-emerald-500/95 text-black font-semibold",
+                            "border-emerald-400",
+                            "shadow-[0_0_14px_rgba(16,185,129,0.55)]",
+                            "scale-[1.03]",
+                          ].join(" ")
+                        : [
+                            "bg-white/5 text-zinc-200",
+                            "border-white/10",
+                            "hover:bg-white/10 hover:border-white/20",
+                          ].join(" "),
+                    ].join(" ")}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
 

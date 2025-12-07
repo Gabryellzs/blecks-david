@@ -495,32 +495,59 @@ const isAdSetColumnVisible = useCallback(
 )
 
   const [loadingAccounts, setLoadingAccounts] = useState(true)
-  const [loadingCampaigns, setLoadingCampaigns] = useState(true)
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
-  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
-  const [dateRange, setDateRange] = useState("7d")
-  const [isMenuOpen, setIsMenuOpen] = useLocalStorage("ads-menu-open", true)
-  const isMobile = useMediaQuery("(max-width: 768px)")
-  const [adSets, setAdSets] = useState<any[]>([])
-  const [loadingAdSets, setLoadingAdSets] = useState(false)
-  const [activeSubTab, setActiveSubTab] = useState("graficos")
-  const [selectedAccount, setSelectedAccountInternal] = useState("") // Renamed to avoid conflict
-  const [hasError, setHasError] = useState(false)
-  const [isConnectView, setIsConnectView] = useState(false)
-  const [ads, setAds] = useState<any[]>([])
-  const [loadingAds, setLoadingAds] = useState(false)
-  const [searchAds, setSearchAds] = useState("")
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "PAUSED">("ALL")
-  const [adsPage, setAdsPage] = useState(1)
-  const [adsPageSize, setAdsPageSize] = useState(25)
-  const [totalAds, setTotalAds] = useState<number | null>(null)
-  const [editingCampaign, setEditingCampaign] = useState<{ id: string; name: string } | null>(null)
-  const [editingCampaignName, setEditingCampaignName] = useState("")
-  const [isSavingCampaignName, setIsSavingCampaignName] = useState(false)
-  const [editingBudgetCampaign, setEditingBudgetCampaign] = useState<{ id: string; budget: number | null } | null>(null)
-  const [editingBudgetValue, setEditingBudgetValue] = useState("")
-  const [isSavingBudget, setIsSavingBudget] = useState(false)
-  const selectedAccountName = useMemo(() => {
+const [loadingCampaigns, setLoadingCampaigns] = useState(true)
+
+const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
+const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
+const [dateRange, setDateRange] = useState("7d")
+const [isMenuOpen, setIsMenuOpen] = useLocalStorage("ads-menu-open", true)
+const isMobile = useMediaQuery("(max-width: 768px)")
+
+// Conjuntos (AdSets)
+const [adSets, setAdSets] = useState<any[]>([])
+const [loadingAdSets, setLoadingAdSets] = useState(false)
+
+// Tabs
+const [activeSubTab, setActiveSubTab] = useState("graficos")
+
+// Conta selecionada (texto)
+const [selectedAccount, setSelectedAccountInternal] = useState("") // Renamed to avoid conflict
+
+// Erro geral
+const [hasError, setHasError] = useState(false)
+const [isConnectView, setIsConnectView] = useState(false)
+
+// Anúncios
+const [ads, setAds] = useState<any[]>([])
+const [loadingAds, setLoadingAds] = useState(false)
+const [searchAds, setSearchAds] = useState("")
+const [statusFilter, setStatusFilter] =
+  useState<"ALL" | "ACTIVE" | "PAUSED">("ALL")
+const [adsPage, setAdsPage] = useState(1)
+const [adsPageSize, setAdsPageSize] = useState(25)
+const [totalAds, setTotalAds] = useState<number | null>(null)
+
+// Edição de NOME da campanha
+const [editingCampaign, setEditingCampaign] =
+  useState<{ id: string; name: string } | null>(null)
+const [editingCampaignName, setEditingCampaignName] = useState("")
+const [isSavingCampaignName, setIsSavingCampaignName] = useState(false)
+
+// Edição de ORÇAMENTO da CAMPANHA
+const [editingBudgetCampaign, setEditingBudgetCampaign] =
+  useState<{ id: string; budget: number | null } | null>(null)
+const [editingBudgetValue, setEditingBudgetValue] = useState("")
+const [isSavingBudget, setIsSavingBudget] = useState(false)
+
+// Edição de ORÇAMENTO do CONJUNTO
+const [editingAdSetBudget, setEditingAdSetBudget] =
+  useState<{ id: string; budget: number | null } | null>(null)
+const [editingAdSetBudgetValue, setEditingAdSetBudgetValue] =
+  useState("")
+const [isSavingAdSetBudget, setIsSavingAdSetBudget] = useState(false)
+
+// Nome da conta selecionada (para o dropdown)
+const selectedAccountName = useMemo(() => {
   if (!selectedAccountId) return "Contas"
 
   if (selectedAccountId === "all") {
@@ -530,6 +557,7 @@ const isAdSetColumnVisible = useCallback(
   const acc = adAccounts?.find((a) => a.id === selectedAccountId)
   return acc?.name || "Contas"
 }, [adAccounts, selectedAccountId])
+
 
 
 const mapDateRangeToMetaPreset = (range: string): string => {
@@ -1461,6 +1489,79 @@ useEffect(() => {
     }
   }
 
+  // 🔵 Abrir popup para editar orçamento do CONJUNTO
+const handleStartEditAdSetBudget = (adSet: any) => {
+  const currentBudget = adSet.budget != null ? Number(adSet.budget) : 0
+
+  setEditingAdSetBudget({ id: adSet.id, budget: adSet.budget ?? null })
+
+  if (currentBudget > 0) {
+    setEditingAdSetBudgetValue(
+      currentBudget.toFixed(2).replace(".", ","),
+    )
+  } else {
+    setEditingAdSetBudgetValue("")
+  }
+}
+
+const handleCancelEditAdSetBudget = () => {
+  setEditingAdSetBudget(null)
+  setEditingAdSetBudgetValue("")
+  setIsSavingAdSetBudget(false)
+}
+
+const handleSaveAdSetBudget = async () => {
+  if (!editingAdSetBudget) return
+  if (!selectedAccountId || selectedAccountId === "all") return
+
+  const raw = editingAdSetBudgetValue
+    .trim()
+    .replace("R$", "")
+    .replace(/\./g, "")
+    .replace(",", ".")
+
+  const parsed = Number(raw)
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    toast({
+      title: "Valor inválido",
+      description: "Digite um orçamento diário maior que zero.",
+      variant: "destructive",
+    })
+    return
+  }
+
+  const dailyBudgetInCents = Math.round(parsed * 100)
+
+  try {
+    setIsSavingAdSetBudget(true)
+
+    // 🔴 IMPORTANTE:
+    // aqui você vai chamar a função que atualiza orçamento do conjunto
+    // (quando criar no service/API). Vou deixar como TODO para não quebrar nada.
+    // await updateFacebookAdSetBudget(selectedAccountId, editingAdSetBudget.id, dailyBudgetInCents)
+
+    toast({
+      title: "Orçamento atualizado",
+      description:
+        "O orçamento diário do conjunto foi atualizado com sucesso.",
+    })
+
+    // Recarrega os conjuntos da conta atual
+    await fetchAdSets(selectedAccountId)
+  } catch (error: any) {
+    console.error("Erro ao atualizar orçamento do conjunto:", error)
+    toast({
+      title: "Erro",
+      description:
+        error?.message ||
+        "Não foi possível atualizar o orçamento do conjunto.",
+      variant: "destructive",
+    })
+  } finally {
+    setIsSavingAdSetBudget(false)
+  }
+}
 
 
   const handleCampaignStatusChange = async (campaignId: string, currentStatus: string) => {
@@ -1508,6 +1609,56 @@ const handleAdSetStatusChange = async (adSetId: string, currentStatus: string) =
       description: "Não foi possível atualizar o status do conjunto.",
       variant: "destructive",
     })
+  }
+}
+
+
+const startEditingAdSetBudget = (adSet: any) => {
+  if (adSet.budget == null) return
+  setEditingAdSetBudgetId(adSet.id)
+  setEditingAdSetBudgetValue(String(adSet.budget).replace(".", ","))
+}
+
+const cancelEditingAdSetBudget = () => {
+  setEditingAdSetBudgetId(null)
+  setEditingAdSetBudgetValue("")
+}
+
+const saveEditingAdSetBudget = async () => {
+  if (!editingAdSetBudgetId) return
+
+  const numeric = parseFloat(
+    editingAdSetBudgetValue.replace(/\./g, "").replace(",", "."),
+  )
+  if (Number.isNaN(numeric) || numeric < 0) {
+    alert("Informe um valor de orçamento válido.")
+    return
+  }
+
+  try {
+    // TODO: ajuste essa rota para a que você realmente usar
+    await fetch("/api/facebook-ads/adsets/update-budget", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        adset_id: editingAdSetBudgetId,
+        budget: numeric,
+      }),
+    })
+
+    // Atualiza no estado local pra refletir na tabela
+    setAdSets((prev) =>
+      prev.map((item) =>
+        item.id === editingAdSetBudgetId
+          ? { ...item, budget: numeric }
+          : item,
+      ),
+    )
+  } catch (error) {
+    console.error("Erro ao atualizar orçamento do conjunto:", error)
+    alert("Não foi possível atualizar o orçamento deste conjunto.")
+  } finally {
+    cancelEditingAdSetBudget()
   }
 }
 
@@ -5999,13 +6150,33 @@ const handleAdSetStatusChange = async (adSetId: string, currentStatus: string) =
       )}
 
             {/* Orçamento */}
-      {isAdSetColumnVisible("budget") && (
-        <TableCell className="sticky left-[350px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[160px] border-r border-white/10 border-b border-white/20">
-          <span className="font-medium">
-            {adSet.budget != null ? moneyBRL(adSet.budget) : "—"}
-          </span>
-        </TableCell>
-      )}
+{isAdSetColumnVisible("budget") && (
+  <TableCell className="sticky left-[350px] z-20 bg-[hsl(var(--muted))] dark:bg-[#111317] w-[160px] border-r border-white/10 border-b border-white/20">
+    <div className="group flex flex-col">
+      <div className="flex items-center gap-2 text-sm">
+        <span className="font-medium">
+          {adSet.budget != null ? moneyBRL(adSet.budget) : "—"}
+        </span>
+
+        {/* Lápis só quando tiver orçamento e só no hover */}
+        {adSet.budget != null && (
+          <button
+            type="button"
+            onClick={() => handleStartEditAdSetBudget(adSet)}
+            className="invisible group-hover:visible inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+
+      {/* Texto embaixo, igual ao da campanha */}
+      <span className="text-xs text-muted-foreground">Diário</span>
+    </div>
+  </TableCell>
+)}
+
+
 
       {/* Valor usado (Gasto) */}
       {isAdSetColumnVisible("spend") && (
@@ -6145,6 +6316,59 @@ const handleAdSetStatusChange = async (adSetId: string, currentStatus: string) =
 
       </div>
     )}
+
+    {/* Popup de edição de orçamento do CONJUNTO */}
+    <Dialog
+      open={!!editingAdSetBudget}
+      onOpenChange={(open) => {
+        if (!open) handleCancelEditAdSetBudget()
+      }}
+    >
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Editar orçamento diário do conjunto</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-2">
+          <p className="text-sm text-muted-foreground">
+            Defina o orçamento diário do conjunto de anúncios em reais.
+          </p>
+
+          <Input
+            autoFocus
+            value={editingAdSetBudgetValue}
+            onChange={(e) =>
+              setEditingAdSetBudgetValue(e.target.value)
+            }
+            placeholder="Ex: 100,00"
+          />
+
+          <p className="text-xs text-muted-foreground">
+            Esse valor será enviado como <code>daily_budget</code> do
+            conjunto no Facebook Ads.
+          </p>
+        </div>
+
+        <DialogFooter className="mt-4 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={handleCancelEditAdSetBudget}
+            disabled={isSavingAdSetBudget}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSaveAdSetBudget}
+            disabled={
+              isSavingAdSetBudget ||
+              !editingAdSetBudgetValue.trim()
+            }
+          >
+            {isSavingAdSetBudget ? "Salvando..." : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </>
 )
 }

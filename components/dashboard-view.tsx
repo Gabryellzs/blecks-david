@@ -16,6 +16,7 @@ import {
   getFacebookCampaignsWithInsights,
 } from "@/lib/facebook-ads-service"
 
+
 // =============================
 // TIPOS / MODELOS DE DADOS
 // =============================
@@ -221,7 +222,33 @@ function dedupById<T extends { id: string }>(arr: T[]): T[] {
 }
 
 // =============================
-// HOOK SUPABASE (fetch + realtime) — LGPD SAFE
+// HOOK: DETECTAR MOBILE
+// =============================
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`)
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches)
+    }
+
+    setIsMobile(mq.matches)
+    mq.addEventListener("change", handleChange)
+
+    return () => {
+      mq.removeEventListener("change", handleChange)
+    }
+  }, [breakpoint])
+
+  return isMobile
+}
+
+// =============================
+// HOOK SUPABASE (fetch + realtime)
 // =============================
 export function useGatewayKpis(filter: KpiFilter) {
   const { userId, from, to, search } = filter
@@ -234,26 +261,15 @@ export function useGatewayKpis(filter: KpiFilter) {
   const seenIdsRef = useRef<Set<string>>(new Set())
   const initialLoadedRef = useRef(false)
 
-  // FETCH PRINCIPAL — só busca se userId existir
   async function fetchAll() {
     setLoading(true)
     setError(null)
-
-    // 🚫 Segurança / LGPD: sem userId -> não mostra nada
-    if (!userId) {
-      setRows([])
-      seenIdsRef.current = new Set()
-      initialLoadedRef.current = true
-      setLoading(false)
-      return
-    }
 
     const q = supabase
       .from("gateway_transactions")
       .select(
         "id,user_id,transaction_id,gateway_id,amount,currency,customer_name,customer_email,customer_phone,product_name,payment_method,fee,net_amount,event_type,status,raw_payload,created_at,updated_by,fees,updated_at,product_price"
       )
-      .eq("user_id", userId) // filtro absoluto por usuário
       .order("created_at", { ascending: false })
 
     if (from) q.gte("created_at", from)
@@ -270,14 +286,13 @@ export function useGatewayKpis(filter: KpiFilter) {
       setRows([])
       seenIdsRef.current = new Set()
       initialLoadedRef.current = true
-      setLoading(false)
-      return
+    } else {
+      const clean = dedupById((data || []) as GatewayTransaction[])
+      setRows(clean)
+      seenIdsRef.current = new Set(clean.map((r) => r.id))
+      initialLoadedRef.current = true
     }
 
-    const clean = dedupById((data || []) as GatewayTransaction[])
-    setRows(clean)
-    seenIdsRef.current = new Set(clean.map((r) => r.id))
-    initialLoadedRef.current = true
     setLoading(false)
   }
 
@@ -286,90 +301,70 @@ export function useGatewayKpis(filter: KpiFilter) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, from, to, search])
 
-  // REALTIME — só assina se userId existir
   useEffect(() => {
-    // Sem userId: limpa canal e sai
-    if (!userId) {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current)
-        channelRef.current = null
-      }
-      return
-    }
-
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
 
-    const chanName = `gateway_transactions_dashboard_${userId}_${
-      from || "min"
-    }_${to || "max"}_${Math.random().toString(36).slice(2)}`
-
+    const chanName = `gateway_transactions_dashboard_${from || "min"}_${
+      to || "max"
+    }_${Math.random().toString(36).slice(2)}`
     const channel = supabase.channel(chanName)
 
     const fromMs = from ? Date.parse(from) : null
     const toMs = to ? Date.parse(to) : null
 
-    // INSERT
-    channel.on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "gateway_transactions" },
-      (payload) => {
-        if (!initialLoadedRef.current) return
-        const row = payload.new as GatewayTransaction
+    channel
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "gateway_transactions" },
+        (payload) => {
+          if (!initialLoadedRef.current) return
+          const row = payload.new as GatewayTransaction
+          const rowMs = Date.parse(row.created_at)
+          if (fromMs !== null && rowMs < fromMs) return
+          if (toMs !== null && rowMs >= toMs) return
 
-        // LGPD: ignora linhas de outro usuário
-        if (row.user_id !== userId) return
-
-        const rowMs = Date.parse(row.created_at)
-        if (fromMs !== null && rowMs < fromMs) return
-        if (toMs !== null && rowMs >= toMs) return
-
-        setRows((prev) => {
-          if (seenIdsRef.current.has(row.id)) {
-            return prev.map((r) => (r.id === row.id ? row : r))
-          }
-          seenIdsRef.current.add(row.id)
-          return [row, ...prev]
-        })
-      }
-    )
-
-    // UPDATE
-    channel.on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "gateway_transactions" },
-      (payload) => {
-        const row = payload.new as GatewayTransaction
-
-        if (row.user_id !== userId) return // segurança
-
-        const rowMs = Date.parse(row.created_at)
-
-        setRows((prev) => {
-          if ((fromMs !== null && rowMs < fromMs) || (toMs !== null && rowMs >= toMs)) {
-            seenIdsRef.current.delete(row.id)
-            return prev.filter((r) => r.id !== row.id)
-          }
-
-          if (!seenIdsRef.current.has(row.id)) {
+          setRows((prev) => {
+            if (seenIdsRef.current.has(row.id)) {
+              return prev.map((r) => (r.id === row.id ? row : r))
+            }
             seenIdsRef.current.add(row.id)
             return [row, ...prev]
-          }
-          return prev.map((r) => (r.id === row.id ? row : r))
-        })
-      }
-    )
+          })
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "gateway_transactions" },
+        (payload) => {
+          const row = payload.new as GatewayTransaction
+          const rowMs = Date.parse(row.created_at)
 
-    channel.subscribe()
+          setRows((prev) => {
+            if ((fromMs !== null && rowMs < fromMs) || (toMs !== null && rowMs >= toMs)) {
+              seenIdsRef.current.delete(row.id)
+              return prev.filter((r) => r.id !== row.id)
+            }
+
+            if (!seenIdsRef.current.has(row.id)) {
+              seenIdsRef.current.add(row.id)
+              return [row, ...prev]
+            }
+            return prev.map((r) => (r.id === row.id ? row : r))
+          })
+        }
+      )
+      .subscribe()
+
     channelRef.current = channel
 
     return () => {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
-  }, [userId, from, to])
+  }, [from, to])
 
   const kpis: GatewayKpisLight = useMemo(
     () => calcGatewaySummaryForPeriod(rows),
@@ -428,21 +423,23 @@ function DonutChart({
   const BOX = OUTER_R * 2 + STROKE * 2
   const CENTER = OUTER_R + STROKE
 
+  // CORES REAIS POR PLATAFORMA / GATEWAY
   function colorForGateway(name: string) {
     const key = (name || "").toLowerCase().trim()
 
-    if (key.includes("pepper")) return "#FF6B00"
-    if (key.includes("cakto")) return "#6D28D9"
-    if (key.includes("kirvano")) return "#0EA5E9"
-    if (key.includes("kiwify")) return "#00C853"
-    if (key.includes("hotmart")) return "#FF4C4C"
-    if (key.includes("monetizze")) return "#0069FF"
-    if (key.includes("eduzz")) return "#F9A826"
-    if (key.includes("braip")) return "#4F46E5"
+    if (key.includes("pepper")) return "#FF6B00" // Pepper
+    if (key.includes("cakto")) return "#6D28D9" // Cakto
+    if (key.includes("kirvano")) return "#0EA5E9" // Kirvano
+    if (key.includes("kiwify")) return "#00C853" // Kiwify
+    if (key.includes("hotmart")) return "#FF4C4C" // Hotmart
+    if (key.includes("monetizze")) return "#0069FF" // Monetizze
+    if (key.includes("eduzz")) return "#F9A826" // Eduzz
+    if (key.includes("braip")) return "#4F46E5" // Braip
 
     if (key.includes("pix")) return "#00C853"
     if (key.includes("card") || key.includes("credito")) return "#3B82F6"
 
+    // fallback
     const palette = [
       "#8b5cf6",
       "#22c55e",
@@ -500,6 +497,7 @@ function DonutChart({
     const pct100 = pct * 100
     const sliceLen = pct * C
 
+    // FATIA
     slices.push(
       <circle
         key={name}
@@ -518,6 +516,7 @@ function DonutChart({
       />
     )
 
+    // LABEL %
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
@@ -579,7 +578,8 @@ function DonutChart({
           style={{ left: tip.x + 8, top: tip.y + 8 }}
         >
           {tip.name || "Outro"} —{" "}
-          {tip.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+          {tip.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+          %
         </div>
       )}
     </div>
@@ -653,6 +653,7 @@ const CARDS: AutoCard[] = [
 
 export const CARDS_IDS = CARDS.map((c) => c.id)
 
+// neon card base
 function neonClass(effect?: AutoCard["effect"]) {
   switch (effect) {
     case "neon":
@@ -666,6 +667,7 @@ function neonClass(effect?: AutoCard["effect"]) {
   }
 }
 
+// container de cada card
 function Block({
   className = "",
   style,
@@ -699,7 +701,6 @@ function Placeholder({ slotId }: { slotId: string }) {
 // RANGE BUILDER (Período)
 // =============================
 type RangePreset = "maximo" | "hoje" | "ontem" | "7d" | "30d" | "90d" | "custom"
-
 function presetToFbDatePreset(preset: RangePreset): string {
   switch (preset) {
     case "hoje":
@@ -716,6 +717,8 @@ function presetToFbDatePreset(preset: RangePreset): string {
       return "maximum"
     case "custom":
     default:
+      // Facebook não aceita range livre via date_preset,
+      // então usamos "maximum" como fallback.
       return "maximum"
   }
 }
@@ -749,9 +752,11 @@ function makeRange(
   if (preset === "7d" || preset === "30d" || preset === "90d") {
     const days = preset === "7d" ? 7 : preset === "30d" ? 30 : 90
 
+    // fim = hoje às 23:59:59 (inclusive)
     const end = new Date(now)
     end.setHours(23, 59, 59, 999)
 
+    // início = (days - 1) dias antes às 00:00
     const start = new Date(end)
     start.setDate(start.getDate() - (days - 1))
     start.setHours(0, 0, 0, 0)
@@ -783,27 +788,7 @@ export default function DashboardView({
   kpiFilter,
 }: DashboardProps) {
   const router = useRouter()
-
-  // Usuário logado (Supabase Auth)
-  const [authUserId, setAuthUserId] = useState<string | null>(null)
-
-  useEffect(() => {
-    supabase.auth
-      .getUser()
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Erro ao buscar usuário autenticado:", error)
-          return
-        }
-        const u = data?.user
-        if (u?.id) {
-          setAuthUserId(u.id)
-        }
-      })
-      .catch((err) => {
-        console.error("Erro inesperado ao buscar usuário autenticado:", err)
-      })
-  }, [])
+  const isMobile = useIsMobile() // <= DETECTA MOBILE
 
   const [preset, setPreset] = useState<RangePreset>("hoje")
   const [customStart, setCustomStart] = useState<string>("")
@@ -813,6 +798,7 @@ export default function DashboardView({
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [selectedPlatform, setSelectedPlatform] = useState<AdsPlatform>("all")
+  // Gasto total com Meta ADS (todas as contas)
   const [metaAdSpend, setMetaAdSpend] = useState(0)
   const [loadingMetaSpend, setLoadingMetaSpend] = useState(false)
 
@@ -821,11 +807,7 @@ export default function DashboardView({
     [preset, customStart, customEnd]
   )
 
-  // userId efetivo (padrão = usuário logado)
-  const effectiveUserId = kpiFilter?.userId ?? authUserId ?? undefined
-
   const data = useGatewayKpis({
-    userId: effectiveUserId,
     search: kpiFilter?.search,
     from,
     to,
@@ -833,7 +815,7 @@ export default function DashboardView({
 
   const { rows } = data
 
-  // Receita total (net_amount, 1x por transação)
+  // Receita Total baseada no card "Receita Total" (net_amount)
   const totalNetRevenue = useMemo(() => {
     const byTxn = new Map<string, GatewayTransaction>()
 
@@ -855,16 +837,19 @@ export default function DashboardView({
     return sum
   }, [rows])
 
-  // Gasto Meta ADS
+  // Busca o gasto total em Meta ADS (todas as contas do usuário)
   useEffect(() => {
     async function fetchMetaSpend() {
       try {
         setLoadingMetaSpend(true)
+
         const fbPreset = presetToFbDatePreset(preset)
 
+        // 1) Buscar contas conectadas
         const accounts = await getFacebookAdAccounts()
         let total = 0
 
+        // 2) Para cada conta, buscar campanhas + insights e somar o spend
         for (const acc of accounts) {
           const campaigns = await getFacebookCampaignsWithInsights(
             acc.id,
@@ -880,6 +865,7 @@ export default function DashboardView({
         setMetaAdSpend(total)
       } catch (err) {
         console.error("Erro ao carregar gastos Meta ADS:", err)
+        // se quiser, dá pra mostrar toast aqui depois
       } finally {
         setLoadingMetaSpend(false)
       }
@@ -892,6 +878,10 @@ export default function DashboardView({
     return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
   }
 
+  // Percentuais com cor condicional
+  // > 0  → verde
+  // < 0  → vermelho
+  // = 0  → neutro (branco)
   const greenPct = (p: string) => {
     const numeric = parseFloat(p.replace("%", "").replace(",", ".")) || 0
 
@@ -899,7 +889,11 @@ export default function DashboardView({
     if (numeric > 0) colorClass = "text-green-500 dark:text-green-400"
     else if (numeric < 0) colorClass = "text-red-500 dark:text-red-400"
 
-    return <span className={`${colorClass} text-2xl font-semibold`}>{p}</span>
+    return (
+      <span className={`${colorClass} text-2xl font-semibold`}>
+        {p}
+      </span>
+    )
   }
 
   const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
@@ -923,7 +917,7 @@ export default function DashboardView({
     const get = (key: AdsPlatform) =>
       key === "all" ? 0 : (salesByPlatform?.[key] ?? 0)
 
-    const totalAdSpendAllPlatforms = metaAdSpend
+    const totalAdSpendAllPlatforms = metaAdSpend // por enquanto só Meta
 
     return {
       all: {
@@ -961,19 +955,25 @@ export default function DashboardView({
 
   const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
 
+  // Gasto total com anúncios (todas plataformas)
   const totalAdSpendAllPlatforms = adsMetricsByPlatform.all?.adSpend ?? 0
+
+  // Lucro baseado em: Receita Total (card de cima) - Gastos com anúncios (todas plataformas)
   const globalProfit = totalNetRevenue - totalAdSpendAllPlatforms
 
+  // ROAS = Receita / Gasto
   const globalRoas =
     totalAdSpendAllPlatforms > 0
       ? totalNetRevenue / totalAdSpendAllPlatforms
       : 0
 
+  // ROI (%) = Lucro / Gasto
   const globalRoi =
     totalAdSpendAllPlatforms > 0
       ? (globalProfit / totalAdSpendAllPlatforms) * 100
       : 0
 
+  // Margem de Lucro (%) = Lucro / Receita
   const globalProfitMargin =
     totalNetRevenue > 0 ? (globalProfit / totalNetRevenue) * 100 : 0
 
@@ -1021,10 +1021,7 @@ export default function DashboardView({
       }, [ctx.rows])
 
       return (
-        <div
-          key={`kpi-top1-${key}`}
-          className="p-3 text-black dark:text-white relative"
-        >
+        <div key={`kpi-top1-${key}`} className="p-3 text-black dark:text-white relative">
           <div className="flex items-center gap-1 mb-2">
             <span className="text-xs text-black/70 dark:text-white/70">
               Receita Total
@@ -1035,8 +1032,8 @@ export default function DashboardView({
                 className="text-black/50 dark:text-white/50 cursor-pointer hover:text-black dark:hover:text-white transition"
               />
               <div className="absolute left-4 top-4 z-20 hidden w-56 rounded-md bg-black/80 text-white text-[11px] p-2 leading-tight group-hover:block shadow-lg">
-                Soma do <b>net_amount</b> das vendas aprovadas, 1x por
-                transação, sem reembolsos/chargebacks.
+                Soma do <b>net_amount</b> das vendas aprovadas, 1x por transação,
+                sem reembolsos/chargebacks.
               </div>
             </div>
           </div>
@@ -1081,7 +1078,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(value)
             )}
@@ -1091,28 +1088,28 @@ export default function DashboardView({
     },
 
     "top-4": (_slotId, ctx, key) => {
-  const value = ctx.kpis.chargebacksTotal ?? 0
-  const loading = ctx.loading || isRefreshing
-  return (
-    <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text-white">
-      <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-        Chargebacks
-      </div>
-      <div className="text-2xl font-semibold">
-        {loading ? (
-          <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-        ) : (
-          brl(value)
-        )}
-      </div>
-    </div>
-  )
-},
+      const value = ctx.kpis.chargebacksTotal ?? 0
+      const loading = ctx.loading || isRefreshing
+      return (
+        <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+            Chargebacks
+          </div>
+          <div className="text-2xl font-semibold">
+            {loading ? (
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+            ) : (
+              brl(value)
+            )}
+          </div>
+        </div>
+      )
+    },
 
     r1: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r1-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`r1-${key}`} className="p-3 text-black dark:text:white">
           <div className="mb-1">
             <div className="text-xs text-black/70 dark:text-white/70">
               Gastos com anúncios
@@ -1144,7 +1141,7 @@ export default function DashboardView({
           : "text-white"
 
       return (
-        <div key={`r2-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`r2-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">ROAS</div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
@@ -1165,7 +1162,7 @@ export default function DashboardView({
     r3: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r3-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`r3-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">
               Vendas Pendentes
@@ -1197,7 +1194,7 @@ export default function DashboardView({
           : "text-white"
 
       return (
-        <div key={`r4-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`r4-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">Lucro</div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
@@ -1206,7 +1203,7 @@ export default function DashboardView({
           </div>
           <div className={`text-2xl font-semibold ${lucroColor}`}>
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(lucro)
             )}
@@ -1218,15 +1215,15 @@ export default function DashboardView({
     r5: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r5-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`r5-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">ROI</div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
+            <span className="text-[10px] text-black/50 dark:text:white/50">
               Todas plataformas
             </span>
           </div>
           {loading ? (
-            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
           ) : (
             greenPct(`${globalRoi.toFixed(1)}%`)
           )}
@@ -1237,17 +1234,17 @@ export default function DashboardView({
     r6: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r6-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`r6-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70">
+            <div className="text-xs text-black/70 dark:text:white/70">
               Margem de Lucro
             </div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
+            <span className="text-[10px] text-black/50 dark:text:white/50">
               Todas plataformas
             </span>
           </div>
           {loading ? (
-            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
           ) : (
             greenPct(`${globalProfitMargin.toFixed(1)}%`)
           )}
@@ -1258,18 +1255,18 @@ export default function DashboardView({
     b1: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b1-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`b1-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70">
+            <div className="text-xs text-black/70 dark:text:white/70">
               Custo por conversa
             </div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
+            <span className="text-[10px] text-black/50 dark:text:white/50">
               {selectedPlatformLabel}
             </span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(currentAdsMetrics.costPerConversation)
             )}
@@ -1281,18 +1278,18 @@ export default function DashboardView({
     b2: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b2-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`b2-${key}`} className="p-3 text-black dark:text:white">
           <div className="mb-1">
-            <div className="text-xs text-black/70 dark:text-white/70">
+            <div className="text-xs text-black/70 dark:text:white/70">
               Conversa
             </div>
-            <div className="text-[10px] text-black/50 dark:text-white/50">
+            <div className="text-[10px] text-black/50 dark:text:white/50">
               {selectedPlatformLabel}
             </div>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               currentAdsMetrics.conversations.toLocaleString("pt-BR")
             )}
@@ -1304,18 +1301,18 @@ export default function DashboardView({
     b3: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b3-${key}`} className="p-3 text-black dark:text-white">
+        <div key={`b3-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text-white/70">
+            <div className="text-xs text-black/70 dark:text:white/70">
               Imposto
             </div>
-            <span className="text-[10px] text-black/50 dark:text-white/50">
+            <span className="text-[10px] text-black/50 dark:text:white/50">
               {selectedPlatformLabel}
             </span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(currentAdsMetrics.tax)
             )}
@@ -1327,8 +1324,8 @@ export default function DashboardView({
     b4: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b4-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
+        <div key={`b4-${key}`} className="p-3 text-black dark:text:white">
+          <div className="text-xs text-black/70 dark:text:white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/meta-ads.png"
               alt=""
@@ -1338,7 +1335,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading || loadingMetaSpend ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.meta.adSpend)
             )}
@@ -1350,8 +1347,8 @@ export default function DashboardView({
     b5: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b5-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
+        <div key={`b5-${key}`} className="p-3 text-black dark:text:white">
+          <div className="text-xs text-black/70 dark:text:white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/google-ads.png"
               alt=""
@@ -1361,7 +1358,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.google.profit)
             )}
@@ -1373,8 +1370,8 @@ export default function DashboardView({
     b6: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b6-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
+        <div key={`b6-${key}`} className="p-3 text-black dark:text:white">
+          <div className="text-xs text-black/70 dark:text:white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/google-analytics.png"
               alt=""
@@ -1384,7 +1381,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.analytics.profit)
             )}
@@ -1396,8 +1393,8 @@ export default function DashboardView({
     b7: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b7-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
+        <div key={`b7-${key}`} className="p-3 text-black dark:text:white">
+          <div className="text-xs text-black/70 dark:text:white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/tiktok-ads.png"
               alt=""
@@ -1407,7 +1404,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.tiktok.profit)
             )}
@@ -1419,8 +1416,8 @@ export default function DashboardView({
     b8: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b8-${key}`} className="p-3 text-black dark:text-white">
-          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
+        <div key={`b8-${key}`} className="p-3 text-black dark:text:white">
+          <div className="text-xs text-black/70 dark:text:white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/kwai-ads.png"
               alt=""
@@ -1430,7 +1427,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.kwai.profit)
             )}
@@ -1462,13 +1459,18 @@ export default function DashboardView({
   }, [visibleSlots, layoutOverrides])
 
   const rowsNeeded = useMemo(() => {
+    if (isMobile) {
+      // no mobile, cada card ocupa uma "linha"
+      return effectiveCards.length || 1
+    }
+
     const units = effectiveCards.reduce(
       (sum, c) =>
         sum + Math.max(1, Math.min(12, c.w)) * Math.max(1, c.h),
       0
     )
     return Math.max(6, Math.ceil(units / 12) + 1)
-  }, [effectiveCards])
+  }, [effectiveCards, isMobile])
 
   const doRefresh = useCallback(
     async () => {
@@ -1494,7 +1496,7 @@ export default function DashboardView({
         <div className="flex flex-wrap items-center gap-2">
           <label
             htmlFor="preset"
-            className="text-black/70 dark:text-white/70 text-xs font-medium"
+            className="text-black/70 dark:text:white/70 text-xs font-medium"
           >
             Período
           </label>
@@ -1505,7 +1507,7 @@ export default function DashboardView({
             onChange={(e) => setPreset(e.target.value as RangePreset)}
             className={[
               "bg-black/5 text-black/90 border-black/20",
-              "dark:bg-black/40 dark:text-white/90 dark:border-white/20",
+              "dark:bg-black/40 dark:text:white/90 dark:border-white/20",
               "text-xs px-2 py-1 rounded-md border outline-none focus:ring-0 focus:border-black/40 dark:focus:border-white/40 cursor-pointer",
             ].join(" ")}
             style={{ minWidth: "140px" }}
@@ -1521,7 +1523,7 @@ export default function DashboardView({
         </div>
 
         {preset === "custom" && (
-          <div className="flex flex-wrap items-center gap-2 text-[10px] text-black/70 dark:text-white/70">
+          <div className="flex flex-wrap items-center gap-2 text-[10px] text-black/70 dark:text:white/70">
             <div className="flex items-center gap-1">
               <span>De</span>
               <input
@@ -1530,7 +1532,7 @@ export default function DashboardView({
                 onChange={(e) => setCustomStart(e.target.value)}
                 className={[
                   "bg-black/5 text-black/90 border-black/20",
-                  "dark:bg-black/40 dark:text-white/90 dark:border-white/20",
+                  "dark:bg-black/40 dark:text:white/90 dark:border-white/20",
                   "text-[10px] px-2 py-1 rounded-md border outline-none focus:ring-0 focus:border-black/40 dark:focus:border-white/40",
                 ].join(" ")}
               />
@@ -1544,7 +1546,7 @@ export default function DashboardView({
                 onChange={(e) => setCustomEnd(e.target.value)}
                 className={[
                   "bg-black/5 text-black/90 border-black/20",
-                  "dark:bg-black/40 dark:text-white/90 dark:border-white/20",
+                  "dark:bg-black/40 dark:text:white/90 dark:border-white/20",
                   "text-[10px] px-2 py-1 rounded-md border outline-none focus:ring-0 focus:border-black/40 dark:focus:border-white/40",
                 ].join(" ")}
               />
@@ -1566,7 +1568,7 @@ export default function DashboardView({
 
   return (
     <div
-      className="px-4 md:px-8 pt-2 md:pt-3 pb-0 overflow-hidden"
+      className="px-4 md:px-8 pt-2 md:pt-3 pb-3 md:pb-0 overflow-y-auto"
       style={{ height: `calc(100vh - ${HEADER_H}px)` }}
     >
       {/* HEADER */}
@@ -1601,7 +1603,7 @@ export default function DashboardView({
           className={[
             "relative inline-flex items-center justify-center px-4 py-2 rounded-md border font-medium transition-all disabled:opacity-60 active:scale-[0.99]",
             "border-black/25 text-black/90 bg-black/5 hover:bg-black/10",
-            "dark:border-white/25 dark:text-white/90 dark:bg-black/40 dark:hover:bg:white/5",
+            "dark:border-white/25 dark:text:white/90 dark:bg-black/40 dark:hover:bg-white/5",
             "neon-card neon-top no-glow",
           ].join(" ")}
           style={{ ["--gw" as any]: "#505555ff" }}
@@ -1612,19 +1614,23 @@ export default function DashboardView({
 
       {/* GRID */}
       <div
-        className="grid h-[calc(100%-40px)]"
+        className="grid"
         style={{
           gap: 10,
-          gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
-          gridTemplateRows: `repeat(${rowsNeeded}, 1fr)`,
+          gridTemplateColumns: isMobile
+            ? "repeat(1, minmax(0, 1fr))"
+            : "repeat(12, minmax(0, 1fr))",
+          gridTemplateRows: isMobile ? undefined : `repeat(${rowsNeeded}, 1fr)`,
           gridAutoFlow: "dense",
         }}
       >
         {effectiveCards.map((card, idx) => {
           const cls = neonClass(card.effect)
           const style: CSSProperties & { ["--gw"]?: string } = {
-            gridColumn: `auto / span ${Math.max(1, Math.min(12, card.w))}`,
-            gridRow: `auto / span ${Math.max(1, card.h)}`,
+            gridColumn: isMobile
+              ? "1 / -1"
+              : `auto / span ${Math.max(1, Math.min(12, card.w))}`,
+            gridRow: isMobile ? "auto" : `auto / span ${Math.max(1, card.h)}`,
             ...(card.glow ? { ["--gw"]: card.glow } : {}),
           }
 
@@ -1641,7 +1647,7 @@ export default function DashboardView({
 
           const fallback =
             card.kind === "donut" && !hideDefaultDonut ? (
-              <div className="flex h-full w-full items-center justify-center text-black/55 dark:text-white/55 text-sm">
+              <div className="flex h-full w-full items-center justify-center text-black/55 dark:text:white/55 text-sm">
                 Aguardando vendas...
               </div>
             ) : (
@@ -1662,7 +1668,7 @@ export default function DashboardView({
                 </div>
 
                 {isRefreshing && (
-                  <div className="absolute top-2 right-2 text-black/60 dark:text-white/60">
+                  <div className="absolute top-2 right-2 text-black/60 dark:text:white/60">
                     <span className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin inline-block" />
                   </div>
                 )}

@@ -73,6 +73,7 @@ import {
   getFacebookAds,
   updateFacebookCampaignName,
   updateFacebookCampaignBudget,
+  updateFacebookAdSetBudget,
 } from "@/lib/facebook-ads-service"
 import type { FacebookAdAccount, FacebookCampaign } from "@/lib/types/facebook-ads"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -1536,19 +1537,24 @@ const handleSaveAdSetBudget = async () => {
   try {
     setIsSavingAdSetBudget(true)
 
-    // 🔴 IMPORTANTE:
-    // aqui você vai chamar a função que atualiza orçamento do conjunto
-    // (quando criar no service/API). Vou deixar como TODO para não quebrar nada.
-    // await updateFacebookAdSetBudget(selectedAccountId, editingAdSetBudget.id, dailyBudgetInCents)
+    // ✅ AGORA REALMENTE ATUALIZA NO FACEBOOK
+    await updateFacebookAdSetBudget(
+      selectedAccountId,
+      editingAdSetBudget.id,
+      dailyBudgetInCents,
+    )
 
     toast({
       title: "Orçamento atualizado",
-      description:
-        "O orçamento diário do conjunto foi atualizado com sucesso.",
+      description: `Novo orçamento diário: R$ ${parsed
+        .toFixed(2)
+        .replace(".", ",")}`,
     })
 
     // Recarrega os conjuntos da conta atual
     await fetchAdSets(selectedAccountId)
+
+    handleCancelEditAdSetBudget()
   } catch (error: any) {
     console.error("Erro ao atualizar orçamento do conjunto:", error)
     toast({
@@ -1586,31 +1592,36 @@ const handleSaveAdSetBudget = async () => {
   }
 
 // 🔵 Alterar status do Conjunto de Anúncios (AdSet)
-const handleAdSetStatusChange = async (adSetId: string, currentStatus: string) => {
+const handleAdSetStatusChange = async (
+  adSetId: string,
+  currentStatus: string,
+) => {
   const newStatus = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE"
 
-  // se não tiver conta selecionada ou for "todas", não faz nada
   if (!selectedAccountId || selectedAccountId === "all") return
 
   try {
     await updateFacebookAdSetStatus(selectedAccountId, adSetId, newStatus)
+    await fetchAdSets(selectedAccountId) // recarrega tabela depois
 
     toast({
-      title: "Status do Conjunto Atualizado",
-      description: `O conjunto ${adSetId} foi ${newStatus === "ACTIVE" ? "ativado" : "pausado"}.`,
+      title: "Status do conjunto atualizado",
+      description:
+        newStatus === "ACTIVE"
+          ? "Conjunto ativado com sucesso."
+          : "Conjunto pausado com sucesso.",
     })
-
-    // Recarrega os conjuntos dessa conta
-    await fetchAdSets(selectedAccountId)
   } catch (error) {
     console.error("Erro ao atualizar status do conjunto:", error)
     toast({
       title: "Erro",
-      description: "Não foi possível atualizar o status do conjunto.",
+      description:
+        "Não foi possível atualizar o status do conjunto de anúncios.",
       variant: "destructive",
     })
   }
 }
+
 
 
 const startEditingAdSetBudget = (adSet: any) => {

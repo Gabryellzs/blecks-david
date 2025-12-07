@@ -813,7 +813,9 @@ export default function DashboardView({
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [selectedPlatform, setSelectedPlatform] = useState<AdsPlatform>("all")
+
   const [metaAdSpend, setMetaAdSpend] = useState(0)
+  const [metaConversations, setMetaConversations] = useState(0) // total de mensagens iniciadas (todas BMs)
   const [loadingMetaSpend, setLoadingMetaSpend] = useState(false)
 
   const { from, to } = useMemo(
@@ -855,7 +857,7 @@ export default function DashboardView({
     return sum
   }, [rows])
 
-  // Gasto Meta ADS
+  // Gasto Meta ADS + Mensagens iniciadas (todas as BMs) alinhado com "Resultados" do Meta
   useEffect(() => {
     async function fetchMetaSpend() {
       try {
@@ -863,7 +865,9 @@ export default function DashboardView({
         const fbPreset = presetToFbDatePreset(preset)
 
         const accounts = await getFacebookAdAccounts()
-        let total = 0
+
+        let totalSpend = 0
+        let totalResults = 0 // "Resultados" = mensagens iniciadas
 
         for (const acc of accounts) {
           const campaigns = await getFacebookCampaignsWithInsights(
@@ -873,11 +877,71 @@ export default function DashboardView({
           )
 
           for (const c of campaigns) {
-            total += Number(c.spend || 0)
+            const anyC: any = c
+
+            // insights pode vir ou não; então sempre garantimos esses campos:
+            const rawInsights = anyC.insights
+            let insights: any = null
+
+            if (Array.isArray(rawInsights) && rawInsights.length > 0) {
+              insights = rawInsights[0]
+            } else if (
+              rawInsights &&
+              Array.isArray(rawInsights.data) &&
+              rawInsights.data.length > 0
+            ) {
+              insights = rawInsights.data[0]
+            }
+
+            // gasto (igual ao do Gerenciador)
+            const spend = Number(insights?.spend ?? anyC.spend ?? 0) || 0
+            totalSpend += spend
+
+            // 1º: tentar pegar o results que o backend já calculou
+            let results = Number(insights?.results ?? anyC.results ?? 0) || 0
+
+            // 2º: se não vier results, estimar pelo custo por resultado
+            if (!results) {
+              const costPerResult =
+                Number(
+                  insights?.cost_per_result ?? anyC.cost_per_result ?? 0
+                ) || 0
+
+              if (spend > 0 && costPerResult > 0) {
+                // aproximação do número de resultados (mensagens iniciadas)
+                results = spend / costPerResult
+              }
+            }
+
+            // 3º: se ainda assim for 0, último fallback (actions)
+            if (!results) {
+              const actions = Array.isArray(insights?.actions)
+                ? insights.actions
+                : Array.isArray(anyC.actions)
+                ? anyC.actions
+                : []
+
+              for (const a of actions) {
+                const typeRaw = (a as any).action_type
+                const val = Number((a as any).value ?? 0) || 0
+                if (!typeRaw) continue
+
+                const t = String(typeRaw).toLowerCase()
+                if (
+                  t === "onsite_conversion.messaging_conversation_started_7d" ||
+                  t === "onsite_conversion.messaging_conversation_started"
+                ) {
+                  results += val
+                }
+              }
+            }
+
+            totalResults += results
           }
         }
 
-        setMetaAdSpend(total)
+        setMetaAdSpend(totalSpend)
+        setMetaConversations(totalResults)
       } catch (err) {
         console.error("Erro ao carregar gastos Meta ADS:", err)
       } finally {
@@ -924,17 +988,29 @@ export default function DashboardView({
       key === "all" ? 0 : (salesByPlatform?.[key] ?? 0)
 
     const totalAdSpendAllPlatforms = metaAdSpend
+    const totalConversationsAllPlatforms = metaConversations
+
+    const costPerConvAll =
+      totalConversationsAllPlatforms > 0
+        ? totalAdSpendAllPlatforms / totalConversationsAllPlatforms
+        : 0
+
+    const roundedConvs = Math.round(totalConversationsAllPlatforms)
 
     return {
       all: {
         ...zero,
         adSpend: totalAdSpendAllPlatforms,
         profit: totalProfit,
+        costPerConversation: costPerConvAll,
+        conversations: roundedConvs,
       },
       meta: {
         ...zero,
         adSpend: metaAdSpend,
         profit: get("meta"),
+        costPerConversation: costPerConvAll, // custo por mensagem iniciada de TODAS as BMs Meta
+        conversations: roundedConvs,
       },
       google: {
         ...zero,
@@ -957,7 +1033,7 @@ export default function DashboardView({
         profit: get("kwai"),
       },
     }
-  }, [salesByPlatform, metaAdSpend])
+  }, [salesByPlatform, metaAdSpend, metaConversations])
 
   const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
 
@@ -1081,7 +1157,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(value)
             )}
@@ -1091,23 +1167,23 @@ export default function DashboardView({
     },
 
     "top-4": (_slotId, ctx, key) => {
-  const value = ctx.kpis.chargebacksTotal ?? 0
-  const loading = ctx.loading || isRefreshing
-  return (
-    <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text-white">
-      <div className="text-xs text-black/70 dark:text-white/70 mb-2">
-        Chargebacks
-      </div>
-      <div className="text-2xl font-semibold">
-        {loading ? (
-          <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-        ) : (
-          brl(value)
-        )}
-      </div>
-    </div>
-  )
-},
+      const value = ctx.kpis.chargebacksTotal ?? 0
+      const loading = ctx.loading || isRefreshing
+      return (
+        <div key={`kpi-top4-${key}`} className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2">
+            Chargebacks
+          </div>
+          <div className="text-2xl font-semibold">
+            {loading ? (
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+            ) : (
+              brl(value)
+            )}
+          </div>
+        </div>
+      )
+    },
 
     r1: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
@@ -1256,12 +1332,12 @@ export default function DashboardView({
     },
 
     b1: (_slot, _ctx, key) => {
-      const loading = isRefreshing
+      const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`b1-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">
-              Custo por conversa
+              Custo por mensagem iniciada
             </div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
               {selectedPlatformLabel}
@@ -1279,12 +1355,12 @@ export default function DashboardView({
     },
 
     b2: (_slot, _ctx, key) => {
-      const loading = isRefreshing
+      const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`b2-${key}`} className="p-3 text-black dark:text-white">
           <div className="mb-1">
             <div className="text-xs text-black/70 dark:text-white/70">
-              Conversa
+              Mensagens iniciadas
             </div>
             <div className="text-[10px] text-black/50 dark:text-white/50">
               {selectedPlatformLabel}
@@ -1601,7 +1677,7 @@ export default function DashboardView({
           className={[
             "relative inline-flex items-center justify-center px-4 py-2 rounded-md border font-medium transition-all disabled:opacity-60 active:scale-[0.99]",
             "border-black/25 text-black/90 bg-black/5 hover:bg-black/10",
-            "dark:border-white/25 dark:text-white/90 dark:bg-black/40 dark:hover:bg:white/5",
+            "dark:border-white/25 dark:text-white/90 dark:bg-black/40 dark:hover:bg-white/5",
             "neon-card neon-top no-glow",
           ].join(" ")}
           style={{ ["--gw" as any]: "#505555ff" }}

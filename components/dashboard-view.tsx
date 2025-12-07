@@ -221,32 +221,6 @@ function dedupById<T extends { id: string }>(arr: T[]): T[] {
 }
 
 // =============================
-// HOOK: DETECTAR MOBILE
-// =============================
-function useIsMobile(breakpoint = 768) {
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-
-    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`)
-
-    const handleChange = (e: MediaQueryListEvent) => {
-      setIsMobile(e.matches)
-    }
-
-    setIsMobile(mq.matches)
-    mq.addEventListener("change", handleChange)
-
-    return () => {
-      mq.removeEventListener("change", handleChange)
-    }
-  }, [breakpoint])
-
-  return isMobile
-}
-
-// =============================
 // HOOK SUPABASE (fetch + realtime)
 // =============================
 export function useGatewayKpis(filter: KpiFilter) {
@@ -422,21 +396,23 @@ function DonutChart({
   const BOX = OUTER_R * 2 + STROKE * 2
   const CENTER = OUTER_R + STROKE
 
+  // CORES REAIS POR PLATAFORMA / GATEWAY
   function colorForGateway(name: string) {
     const key = (name || "").toLowerCase().trim()
 
-    if (key.includes("pepper")) return "#FF6B00"
-    if (key.includes("cakto")) return "#6D28D9"
-    if (key.includes("kirvano")) return "#0EA5E9"
-    if (key.includes("kiwify")) return "#00C853"
-    if (key.includes("hotmart")) return "#FF4C4C"
-    if (key.includes("monetizze")) return "#0069FF"
-    if (key.includes("eduzz")) return "#F9A826"
-    if (key.includes("braip")) return "#4F46E5"
+    if (key.includes("pepper")) return "#FF6B00" // Pepper
+    if (key.includes("cakto")) return "#6D28D9" // Cakto
+    if (key.includes("kirvano")) return "#0EA5E9" // Kirvano
+    if (key.includes("kiwify")) return "#00C853" // Kiwify
+    if (key.includes("hotmart")) return "#FF4C4C" // Hotmart
+    if (key.includes("monetizze")) return "#0069FF" // Monetizze
+    if (key.includes("eduzz")) return "#F9A826" // Eduzz
+    if (key.includes("braip")) return "#4F46E5" // Braip
 
     if (key.includes("pix")) return "#00C853"
     if (key.includes("card") || key.includes("credito")) return "#3B82F6"
 
+    // fallback
     const palette = [
       "#8b5cf6",
       "#22c55e",
@@ -494,6 +470,7 @@ function DonutChart({
     const pct100 = pct * 100
     const sliceLen = pct * C
 
+    // FATIA
     slices.push(
       <circle
         key={name}
@@ -512,6 +489,7 @@ function DonutChart({
       />
     )
 
+    // LABEL %
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
@@ -573,8 +551,7 @@ function DonutChart({
           style={{ left: tip.x + 8, top: tip.y + 8 }}
         >
           {tip.name || "Outro"} —{" "}
-          {tip.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
-          %
+          {tip.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
         </div>
       )}
     </div>
@@ -672,7 +649,7 @@ function Block({
     <div
       className={[
         `rounded-[${CARD_RADIUS_PX}px]`,
-        "border border-white/5",
+        ":border-white/20",
         "bg-transparent",
         "outline-none focus:outline-none focus:ring-0",
         className,
@@ -745,9 +722,11 @@ function makeRange(
   if (preset === "7d" || preset === "30d" || preset === "90d") {
     const days = preset === "7d" ? 7 : preset === "30d" ? 30 : 90
 
+    // fim = hoje às 23:59:59
     const end = new Date(now)
     end.setHours(23, 59, 59, 999)
 
+    // início = (days - 1) dias atrás às 00:00
     const start = new Date(end)
     start.setDate(start.getDate() - (days - 1))
     start.setHours(0, 0, 0, 0)
@@ -779,7 +758,6 @@ export default function DashboardView({
   kpiFilter,
 }: DashboardProps) {
   const router = useRouter()
-  const isMobile = useIsMobile()
 
   const [preset, setPreset] = useState<RangePreset>("hoje")
   const [customStart, setCustomStart] = useState<string>("")
@@ -789,10 +767,25 @@ export default function DashboardView({
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [selectedPlatform, setSelectedPlatform] = useState<AdsPlatform>("all")
-
   const [metaAdSpend, setMetaAdSpend] = useState(0)
-  const [metaConversations, setMetaConversations] = useState(0)
   const [loadingMetaSpend, setLoadingMetaSpend] = useState(false)
+
+  // ==== detectar mobile para layout ====
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const mq = window.matchMedia("(max-width: 767px)")
+
+    const update = (e: MediaQueryList | MediaQueryListEvent) => {
+      const matches = "matches" in e ? e.matches : (e as MediaQueryList).matches
+      setIsMobile(matches)
+    }
+
+    update(mq)
+    mq.addEventListener("change", update)
+    return () => mq.removeEventListener("change", update)
+  }, [])
 
   const { from, to } = useMemo(
     () => makeRange(preset, customStart, customEnd),
@@ -807,6 +800,7 @@ export default function DashboardView({
 
   const { rows } = data
 
+  // Receita Total baseada no card "Receita Total" (net_amount)
   const totalNetRevenue = useMemo(() => {
     const byTxn = new Map<string, GatewayTransaction>()
 
@@ -828,17 +822,16 @@ export default function DashboardView({
     return sum
   }, [rows])
 
-  // Gasto Meta ADS + Mensagens iniciadas (todas as BMs)
+  // Busca o gasto total em Meta ADS (todas as contas do usuário)
   useEffect(() => {
     async function fetchMetaSpend() {
       try {
         setLoadingMetaSpend(true)
 
         const fbPreset = presetToFbDatePreset(preset)
-        const accounts = await getFacebookAdAccounts()
 
-        let totalSpend = 0
-        let totalResults = 0
+        const accounts = await getFacebookAdAccounts()
+        let total = 0
 
         for (const acc of accounts) {
           const campaigns = await getFacebookCampaignsWithInsights(
@@ -848,64 +841,11 @@ export default function DashboardView({
           )
 
           for (const c of campaigns) {
-            const anyC: any = c
-            const rawInsights = anyC.insights
-            let insights: any = null
-
-            if (Array.isArray(rawInsights) && rawInsights.length > 0) {
-              insights = rawInsights[0]
-            } else if (
-              rawInsights &&
-              Array.isArray(rawInsights.data) &&
-              rawInsights.data.length > 0
-            ) {
-              insights = rawInsights.data[0]
-            }
-
-            const spend = Number(insights?.spend ?? anyC.spend ?? 0) || 0
-            totalSpend += spend
-
-            let results = Number(insights?.results ?? anyC.results ?? 0) || 0
-
-            if (!results) {
-              const costPerResult =
-                Number(
-                  insights?.cost_per_result ?? anyC.cost_per_result ?? 0
-                ) || 0
-
-              if (spend > 0 && costPerResult > 0) {
-                results = spend / costPerResult
-              }
-            }
-
-            if (!results) {
-              const actions = Array.isArray(insights?.actions)
-                ? insights.actions
-                : Array.isArray(anyC.actions)
-                ? anyC.actions
-                : []
-
-              for (const a of actions) {
-                const typeRaw = (a as any).action_type
-                const val = Number((a as any).value ?? 0) || 0
-                if (!typeRaw) continue
-
-                const t = String(typeRaw).toLowerCase()
-                if (
-                  t === "onsite_conversion.messaging_conversation_started_7d" ||
-                  t === "onsite_conversion.messaging_conversation_started"
-                ) {
-                  results += val
-                }
-              }
-            }
-
-            totalResults += results
+            total += Number(c.spend || 0)
           }
         }
 
-        setMetaAdSpend(totalSpend)
-        setMetaConversations(totalResults)
+        setMetaAdSpend(total)
       } catch (err) {
         console.error("Erro ao carregar gastos Meta ADS:", err)
       } finally {
@@ -920,6 +860,7 @@ export default function DashboardView({
     return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
   }
 
+  // Percentuais com cor condicional
   const greenPct = (p: string) => {
     const numeric = parseFloat(p.replace("%", "").replace(",", ".")) || 0
 
@@ -927,7 +868,11 @@ export default function DashboardView({
     if (numeric > 0) colorClass = "text-green-500 dark:text-green-400"
     else if (numeric < 0) colorClass = "text-red-500 dark:text-red-400"
 
-    return <span className={`${colorClass} text-2xl font-semibold`}>{p}</span>
+    return (
+      <span className={`${colorClass} text-2xl font-semibold`}>
+        {p}
+      </span>
+    )
   }
 
   const adsMetricsByPlatform: Record<AdsPlatform, AdsMetrics> = useMemo(() => {
@@ -951,30 +896,18 @@ export default function DashboardView({
     const get = (key: AdsPlatform) =>
       key === "all" ? 0 : (salesByPlatform?.[key] ?? 0)
 
-    const totalAdSpendAllPlatforms = metaAdSpend
-    const totalConversationsAllPlatforms = metaConversations
-
-    const costPerConvAll =
-      totalConversationsAllPlatforms > 0
-        ? totalAdSpendAllPlatforms / totalConversationsAllPlatforms
-        : 0
-
-    const roundedConvs = Math.round(totalConversationsAllPlatforms)
+    const totalAdSpendAllPlatforms = metaAdSpend // por enquanto só Meta
 
     return {
       all: {
         ...zero,
         adSpend: totalAdSpendAllPlatforms,
         profit: totalProfit,
-        costPerConversation: costPerConvAll,
-        conversations: roundedConvs,
       },
       meta: {
         ...zero,
         adSpend: metaAdSpend,
         profit: get("meta"),
-        costPerConversation: costPerConvAll,
-        conversations: roundedConvs,
       },
       google: {
         ...zero,
@@ -997,23 +930,29 @@ export default function DashboardView({
         profit: get("kwai"),
       },
     }
-  }, [salesByPlatform, metaAdSpend, metaConversations])
+  }, [salesByPlatform, metaAdSpend])
 
   const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
 
+  // Gasto total com anúncios (todas plataformas)
   const totalAdSpendAllPlatforms = adsMetricsByPlatform.all?.adSpend ?? 0
+
+  // Lucro baseado em: Receita Total - Gastos com anúncios
   const globalProfit = totalNetRevenue - totalAdSpendAllPlatforms
 
+  // ROAS = Receita / Gasto
   const globalRoas =
     totalAdSpendAllPlatforms > 0
       ? totalNetRevenue / totalAdSpendAllPlatforms
       : 0
 
+  // ROI (%) = Lucro / Gasto
   const globalRoi =
     totalAdSpendAllPlatforms > 0
       ? (globalProfit / totalAdSpendAllPlatforms) * 100
       : 0
 
+  // Margem de Lucro (%) = Lucro / Receita
   const globalProfitMargin =
     totalNetRevenue > 0 ? (globalProfit / totalNetRevenue) * 100 : 0
 
@@ -1293,12 +1232,12 @@ export default function DashboardView({
     },
 
     b1: (_slot, _ctx, key) => {
-      const loading = isRefreshing || loadingMetaSpend
+      const loading = isRefreshing
       return (
         <div key={`b1-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">
-              Custo por mensagem iniciada
+              Custo por conversa
             </div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
               {selectedPlatformLabel}
@@ -1316,12 +1255,12 @@ export default function DashboardView({
     },
 
     b2: (_slot, _ctx, key) => {
-      const loading = isRefreshing || loadingMetaSpend
+      const loading = isRefreshing
       return (
         <div key={`b2-${key}`} className="p-3 text-black dark:text-white">
           <div className="mb-1">
             <div className="text-xs text-black/70 dark:text-white/70">
-              Mensagens iniciadas
+              Conversa
             </div>
             <div className="text-[10px] text-black/50 dark:text-white/50">
               {selectedPlatformLabel}
@@ -1499,17 +1438,13 @@ export default function DashboardView({
   }, [visibleSlots, layoutOverrides])
 
   const rowsNeeded = useMemo(() => {
-    if (isMobile) {
-      return effectiveCards.length || 1
-    }
-
     const units = effectiveCards.reduce(
       (sum, c) =>
         sum + Math.max(1, Math.min(12, c.w)) * Math.max(1, c.h),
       0
     )
     return Math.max(6, Math.ceil(units / 12) + 1)
-  }, [effectiveCards, isMobile])
+  }, [effectiveCards])
 
   const doRefresh = useCallback(
     async () => {
@@ -1607,54 +1542,32 @@ export default function DashboardView({
 
   return (
     <div
-      className="px-4 md:px-8 pt-2 md:pt-3 pb-3 md:pb-0 overflow-y-auto"
+      className="px-4 md:px-8 pt-2 md:pt-3 pb-2 md:pb-0 overflow-y-auto md:overflow-hidden"
       style={{ height: `calc(100vh - ${HEADER_H}px)` }}
     >
       {/* HEADER */}
       <div className="mb-2 flex items-start justify-between gap-2 flex-wrap">
-        <div className="flex flex-col gap-2 flex-1 min-w-[220px]">
+        <div className="flex flex-wrap items-end gap-3">
           <PeriodSelector />
 
           {/* Seletor de plataforma de anúncios */}
-          <div className="w-full max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch] pb-1">
-            <div
-              className={[
-                "inline-flex items-center gap-2",
-                "rounded-full border border-white/10 bg-black/40",
-                "px-2 py-1 shadow-inner",
-                "min-w-max",
-              ].join(" ")}
-            >
-              {adsPlatformOptions.map((opt) => {
-                const isActive = selectedPlatform === opt.value
-
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setSelectedPlatform(opt.value)}
-                    className={[
-                      "text-xs sm:text-[13px] px-4 py-1.5 rounded-full transition-all whitespace-nowrap",
-                      "border",
-                      isActive
-                        ? [
-                            "bg-emerald-500/95 text-black font-semibold",
-                            "border-emerald-400",
-                            "shadow-[0_0_14px_rgba(16,185,129,0.55)]",
-                            "scale-[1.03]",
-                          ].join(" ")
-                        : [
-                            "bg-white/5 text-zinc-200",
-                            "border-white/10",
-                            "hover:bg-white/10 hover:border-white/20",
-                          ].join(" "),
-                    ].join(" ")}
-                  >
-                    {opt.label}
-                  </button>
-                )
-              })}
-            </div>
+          <div className="flex flex-wrap items-center gap-1 rounded-full border border-white/10 bg-black/40 px-1 py-1 shadow-inner">
+            {adsPlatformOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setSelectedPlatform(opt.value)}
+                className={[
+                  "text-xs px-3 py-1 rounded-full transition-all",
+                  "border border-transparent",
+                  selectedPlatform === opt.value
+                    ? "bg-emerald-500 text-black font-semibold shadow-[0_0_20px_rgba(16,185,129,0.6)]"
+                    : "text-zinc-300 hover:bg-white/5",
+                ].join(" ")}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -1675,23 +1588,28 @@ export default function DashboardView({
 
       {/* GRID */}
       <div
-        className="grid"
+        className="grid h-auto md:h-[calc(100%-40px)]"
         style={{
-          gap: 10,
+          gap: isMobile ? 8 : 10,
           gridTemplateColumns: isMobile
             ? "repeat(1, minmax(0, 1fr))"
             : "repeat(12, minmax(0, 1fr))",
-          gridTemplateRows: isMobile ? undefined : `repeat(${rowsNeeded}, 1fr)`,
+          gridTemplateRows: isMobile ? "auto" : `repeat(${rowsNeeded}, 1fr)`,
           gridAutoFlow: "dense",
         }}
       >
         {effectiveCards.map((card, idx) => {
           const cls = neonClass(card.effect)
+          const colSpan = Math.max(1, Math.min(12, card.w))
+          const rowSpan = Math.max(1, card.h)
+
           const style: CSSProperties & { ["--gw"]?: string } = {
             gridColumn: isMobile
               ? "1 / -1"
-              : `auto / span ${Math.max(1, Math.min(12, card.w))}`,
-            gridRow: isMobile ? "auto" : `auto / span ${Math.max(1, card.h)}`,
+              : `auto / span ${colSpan}`,
+            gridRow: isMobile
+              ? "auto"
+              : `auto / span ${rowSpan}`,
             ...(card.glow ? { ["--gw"]: card.glow } : {}),
           }
 

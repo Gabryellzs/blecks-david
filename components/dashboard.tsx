@@ -84,7 +84,10 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
       await supabase.auth.signOut()
       localStorage.removeItem("supabase-auth")
       sessionStorage.clear()
-      toast({ title: "Logout realizado com sucesso", description: "Você foi desconectado do sistema." })
+      toast({
+        title: "Logout realizado com sucesso",
+        description: "Você foi desconectado do sistema.",
+      })
       router.push("/login")
     } catch (error) {
       console.error("Erro ao fazer logout:", error)
@@ -146,8 +149,10 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
   }, [router])
 
   useEffect(() => {
-    const handleNavigateToView = (event: CustomEvent) => event.detail && setActiveView(event.detail)
-    const handleAvatarUpdate = (event: CustomEvent) => setUserAvatarUrl(event.detail as string)
+    const handleNavigateToView = (event: CustomEvent) =>
+      event.detail && setActiveView(event.detail)
+    const handleAvatarUpdate = (event: CustomEvent) =>
+      setUserAvatarUrl(event.detail as string)
 
     window.addEventListener("navigate-to-view", handleNavigateToView as unknown as EventListener)
     window.addEventListener("profile-avatar-updated", handleAvatarUpdate as unknown as EventListener)
@@ -212,7 +217,8 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
 
         <SidebarInset className="flex h-screen w-full">
           <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-            {activeView !== "calendar" && (
+            {/* ⬇⬇⬇ HEADER NÃO MOSTRA EM CALENDÁRIO NEM EM MINDMAP ⬇⬇⬇ */}
+            {activeView !== "calendar" && activeView !== "mindmap" && (
               <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b-0">
                 <div className="h-16 px-4 flex items-center justify-between">
                   <div />
@@ -225,8 +231,13 @@ export default function Dashboard({ initialActiveView = "dashboard" }: Dashboard
                     <DropdownMenu>
                       <DropdownMenuTrigger className="rounded-full p-0 outline-none focus:ring-0">
                         <Avatar className="h-9 w-9 hover:ring-2 hover:ring-primary/50 transition-all duration-200">
-                          <AvatarImage src={userAvatarUrl || "/placeholder-user.jpg"} alt="User Avatar" />
-                          <AvatarFallback>{userName?.charAt(0)?.toUpperCase() || "U"}</AvatarFallback>
+                          <AvatarImage
+                            src={userAvatarUrl || "/placeholder-user.jpg"}
+                            alt="User Avatar"
+                          />
+                          <AvatarFallback>
+                            {userName?.charAt(0)?.toUpperCase() || "U"}
+                          </AvatarFallback>
                         </Avatar>
                       </DropdownMenuTrigger>
 

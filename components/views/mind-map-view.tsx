@@ -596,15 +596,12 @@ export default function MindMapView() {
   // somente "dashboard" e "editor"
   const [activeView, setActiveView] = useState<"dashboard" | "editor">("dashboard")
 
-  // painel lateral do editor (começa fechado, tab Templates selecionada)
+  // painel lateral do editor
   const [activePanelTab, setActivePanelTab] = useState<"pages" | "templates" | "icons">("templates")
-  const [showPanel, setShowPanel] = useState<true | false>(false)
+  const [showPanel, setShowPanel] = useState<true | false>(true)
 
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
-
-  // abrir modal de IA a partir do header
-  const [openAIDialogFromHeader, setOpenAIDialogFromHeader] = useState(false)
 
   useLocalStorage<{ nodes: Node[]; edges: Edge[]; flowName: string } | null>("work-in-progress", null)
 
@@ -647,7 +644,7 @@ export default function MindMapView() {
   }
   const goEditor = () => {
     setActiveView("editor")
-    setShowPanel(false)
+    setShowPanel(true)
     setActivePanelTab("templates")
   }
 
@@ -667,9 +664,8 @@ export default function MindMapView() {
     <div className="flex h-[calc(100vh-0px)] bg-background text-foreground">
       {/* Conteúdo em largura total (sem sidebar do app) */}
       <div className="flex-1 flex flex-col min-h-0">
-        {/* BARRA SUPERIOR: chips Dashboard / IA / Criação de Funil */}
+        {/* BARRA SUPERIOR: chips Dashboard / Criação de Funil / Funil com IA */}
         <div className="w-full flex items-center gap-2 px-6 py-4 border-b border-border bg-card/60 backdrop-blur">
-          {/* Painel */}
           <Button
             variant={activeView === "dashboard" ? "default" : "outline"}
             onClick={goDashboard}
@@ -681,25 +677,23 @@ export default function MindMapView() {
             Painel
           </Button>
 
-          {/* Funil com IA – ENTRE Painel e Criação de Funil */}
+          {/* Botão Funil com IA entre Painel e Criação de Funil */}
           <Button
             variant="outline"
             onClick={() => {
-              setActiveView("editor")
-              setActivePanelTab("templates")
-              setShowPanel(false) // painel fica fechado ao clicar em Funil com IA
-              setOpenAIDialogFromHeader(true)
+              if (activeView !== "editor") {
+                goEditor()
+              }
+              // abre diretamente o modal de IA (estado está dentro do FlowBuilder via props/bridge simples abaixo)
+              const ev = new CustomEvent("open-ai-funnel-dialog")
+              window.dispatchEvent(ev)
             }}
-            className={cn(
-              "h-8 px-3 rounded-full text-xs sm:text-sm flex items-center gap-1",
-              activeView === "editor" ? "bg-muted/60" : "bg-transparent",
-            )}
+            className="h-8 px-3 rounded-full text-xs sm:text-sm bg-transparent"
           >
-            <Sparkles className="h-4 w-4" />
+            <Sparkles className="mr-1 h-4 w-4" />
             Funil com IA
           </Button>
 
-          {/* Criação de Funil manual */}
           <Button
             variant={activeView === "editor" ? "default" : "outline"}
             onClick={goEditor}
@@ -882,8 +876,6 @@ export default function MindMapView() {
                   onSaveComplete={goDashboard}
                   selectedTemplateId={selectedTemplateId}
                   setSelectedTemplateId={setSelectedTemplateId}
-                  openAIDialogFromHeader={openAIDialogFromHeader}
-                  setOpenAIDialogFromHeader={setOpenAIDialogFromHeader}
                 />
               </ReactFlowProvider>
             </div>
@@ -1238,14 +1230,10 @@ function FlowBuilder({
   onSaveComplete,
   selectedTemplateId,
   setSelectedTemplateId,
-  openAIDialogFromHeader,
-  setOpenAIDialogFromHeader,
 }: {
   onSaveComplete: () => void
   selectedTemplateId: string | null
   setSelectedTemplateId: (id: string | null) => void
-  openAIDialogFromHeader: boolean
-  setOpenAIDialogFromHeader: (open: boolean) => void
 }) {
   const { toast } = useToast()
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
@@ -1268,13 +1256,12 @@ function FlowBuilder({
     { name: string; nodes: Node[]; edges: Edge[]; preview?: string }[]
   >("marketing-flows", [])
 
-  // abrir modal quando vier o sinal do header
+  // listener pro botão "Funil com IA" da barra superior
   useEffect(() => {
-    if (openAIDialogFromHeader) {
-      setShowAIDialog(true)
-      setOpenAIDialogFromHeader(false)
-    }
-  }, [openAIDialogFromHeader, setOpenAIDialogFromHeader])
+    const handler = () => setShowAIDialog(true)
+    window.addEventListener("open-ai-funnel-dialog", handler)
+    return () => window.removeEventListener("open-ai-funnel-dialog", handler)
+  }, [])
 
   useEffect(() => {
     const selectedFlowJson = safeLocalStorage.getItem("selected-flow")
@@ -1454,7 +1441,7 @@ function FlowBuilder({
   )
 
   // ============================
-  // IA – geração automática de funil COM LAYOUT VARIÁVEL (30+ variações)
+  // IA – geração automática de funil | LAYOUT ESTILO TEMPLATES PRONTOS
   // ============================
   const handleGenerateFunnelWithAI = useCallback(
     async () => {
@@ -1505,7 +1492,7 @@ function FlowBuilder({
           return
         }
 
-        // 1) PARSEAR TOPO / MEIO / FUNDO
+        // ------- 1) PARSEAR TOPO / MEIO / FUNDO --------
         type SectionName = "topo" | "meio" | "fundo"
 
         const sections: { name: SectionName; bullets: string[] }[] = []
@@ -1542,6 +1529,7 @@ function FlowBuilder({
             .split("\n")
             .map((l) => l.replace(/^[-•\s]+/, "").trim())
             .filter(Boolean)
+
           if (!bullets.length) {
             toast({
               title: "Erro ao usar IA",
@@ -1550,10 +1538,11 @@ function FlowBuilder({
             })
             return
           }
+
           sections.push({ name: "topo", bullets })
         }
 
-        // 2) PREPARAR ENTRADAS (bullets)
+        // ------- 2) PREPARAR ENTRADAS (bullets) --------
         type BulletEntry = {
           section: SectionName
           bullet: string
@@ -1564,24 +1553,17 @@ function FlowBuilder({
         const entries: BulletEntry[] = []
         const now = Date.now()
 
-        // pools de páginas por estágio
+        // pools de páginas por estágio (pra ficar parecido com templates)
         const topoPages = pageItems.filter((p: any) =>
-          [
-            "landing",
-            "webinar",
-            "blog",
-            "content-creation",
-            "social-media",
-            "about",
-            "contact",
-          ].includes(p.pageType),
+          ["landing", "webinar", "blog", "content-creation", "social-media"].includes(
+            p.pageType,
+          ),
         )
         const meioPages = pageItems.filter((p: any) =>
           [
             "webinar",
             "email-marketing",
             "marketing-analysis",
-            "content-creation",
             "comparison",
             "members",
           ].includes(p.pageType),
@@ -1621,25 +1603,26 @@ function FlowBuilder({
 
         const rand = (min: number, max: number) =>
           min + Math.random() * (max - min)
-        const shuffled = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5)
 
-        // raiz
-        const rootId = `ia-root-${now}`
-
-        const newNodes: Node[] = [
-          {
-            id: rootId,
-            type: "campaignNode",
-            position: { x: -200, y: -50 },
-            data: {
-              label: "Funil gerado com IA",
-              description: "Estrutura inicial baseada na sua descrição.",
-            },
-          },
-        ]
+        const newNodes: Node[] = []
         const newEdges: Edge[] = []
 
-        // Agrupar entries por estágio
+        // ------- 3) NÓ RAIZ DA CAMPANHA (igual template) --------
+        const rootId = `ia-root-${now}`
+        const rootX = -420
+        const rootY = 0
+
+        newNodes.push({
+          id: rootId,
+          type: "campaignNode",
+          position: { x: rootX, y: rootY },
+          data: {
+            label: "Funil gerado com IA",
+            description: "Estrutura inicial baseada na sua descrição.",
+          },
+        })
+
+        // ------- 4) AGRUPAR POR ESTÁGIO --------
         const bySection: Record<SectionName, BulletEntry[]> = {
           topo: [],
           meio: [],
@@ -1647,337 +1630,52 @@ function FlowBuilder({
         }
         entries.forEach((e) => bySection[e.section].push(e))
 
-        // =====================
-        // MÚLTIPLOS ESQUELETOS (30+ VARIAÇÕES)
-        // =====================
-        type LayoutCore = "columns" | "snake" | "radial"
-        type LayoutVariant = {
-          id: string
-          core: LayoutCore
-          config?: any
+        // ------- 5) LAYOUT ESTILO TEMPLATE (HORIZONTAL, LIMPO) --------
+        // 3 "faixas" horizontais: topo, meio, fundo
+        const stageCenters: Record<SectionName, { x: number; y: number }> = {
+          topo: { x: 0, y: -140 },
+          meio: { x: 360, y: 40 },
+          fundo: { x: 760, y: 200 },
         }
-
-        const layoutVariants: LayoutVariant[] = [
-          // --- COLUMNS / HORIZONTAL ---
-          { id: "cols-classic-ltr", core: "columns", config: { orientation: "horizontal", stageSpacing: 420, stageGapY: 150, jitter: 40 } },
-          { id: "cols-classic-compact", core: "columns", config: { orientation: "horizontal", stageSpacing: 320, stageGapY: 120, jitter: 30 } },
-          { id: "cols-classic-wide", core: "columns", config: { orientation: "horizontal", stageSpacing: 520, stageGapY: 170, jitter: 50 } },
-          { id: "cols-diagonal-soft", core: "columns", config: { orientation: "horizontal", stageSpacing: 420, stageGapY: 140, jitter: 35, diagonal: true } },
-          { id: "cols-diagonal-strong", core: "columns", config: { orientation: "horizontal", stageSpacing: 460, stageGapY: 140, jitter: 50, diagonal: true } },
-          { id: "cols-reverse", core: "columns", config: { orientation: "horizontal", stageSpacing: 420, stageGapY: 150, jitter: 40, stageOrder: ["fundo", "meio", "topo"] } },
-          { id: "cols-top-heavy", core: "columns", config: { orientation: "horizontal", stageSpacing: 380, stageGapY: 130, jitter: 25, align: "top" } },
-          { id: "cols-bottom-heavy", core: "columns", config: { orientation: "horizontal", stageSpacing: 380, stageGapY: 130, jitter: 25, align: "bottom" } },
-
-          // --- COLUMNS / VERTICAL ---
-          { id: "cols-vertical-normal", core: "columns", config: { orientation: "vertical", stageSpacing: 220, stageGapX: 260, jitter: 35 } },
-          { id: "cols-vertical-compact", core: "columns", config: { orientation: "vertical", stageSpacing: 180, stageGapX: 220, jitter: 25 } },
-          { id: "cols-vertical-wide", core: "columns", config: { orientation: "vertical", stageSpacing: 260, stageGapX: 280, jitter: 40 } },
-          { id: "cols-vertical-reverse", core: "columns", config: { orientation: "vertical", stageSpacing: 220, stageGapX: 260, jitter: 35, stageOrder: ["fundo", "meio", "topo"] } },
-
-          // --- SNAKE / HORIZONTAL ---
-          { id: "snake-4-lr", core: "snake", config: { perRow: 4, gapX: 260, gapY: 180, orientation: "horizontal", direction: "lr" } },
-          { id: "snake-5-lr-tight", core: "snake", config: { perRow: 5, gapX: 220, gapY: 150, orientation: "horizontal", direction: "lr" } },
-          { id: "snake-3-lr-loose", core: "snake", config: { perRow: 3, gapX: 300, gapY: 200, orientation: "horizontal", direction: "lr" } },
-          { id: "snake-4-rl", core: "snake", config: { perRow: 4, gapX: 260, gapY: 180, orientation: "horizontal", direction: "rl" } },
-
-          // --- SNAKE / VERTICAL ---
-          { id: "snake-4-vertical", core: "snake", config: { perRow: 4, gapX: 260, gapY: 180, orientation: "vertical", direction: "lr" } },
-          { id: "snake-3-vertical-tight", core: "snake", config: { perRow: 3, gapX: 240, gapY: 150, orientation: "vertical", direction: "lr" } },
-          { id: "snake-5-vertical-wide", core: "snake", config: { perRow: 5, gapX: 260, gapY: 220, orientation: "vertical", direction: "rl" } },
-
-          // --- RADIAL / CENTRO ---
-          { id: "radial-center-normal", core: "radial", config: { centerX: 200, centerY: 0, radiusTopo: 320, radiusMeio: 520, radiusFundo: 720, spreadFactor: 1.2 } },
-          { id: "radial-center-compact", core: "radial", config: { centerX: 200, centerY: 0, radiusTopo: 260, radiusMeio: 420, radiusFundo: 600, spreadFactor: 1.0 } },
-          { id: "radial-center-wide", core: "radial", config: { centerX: 200, centerY: 0, radiusTopo: 380, radiusMeio: 640, radiusFundo: 900, spreadFactor: 1.4 } },
-
-          // --- RADIAL / DESLOCADO ESQUERDA / DIREITA ---
-          { id: "radial-left", core: "radial", config: { centerX: -100, centerY: -40, radiusTopo: 320, radiusMeio: 520, radiusFundo: 720, spreadFactor: 1.2 } },
-          { id: "radial-right", core: "radial", config: { centerX: 420, centerY: -40, radiusTopo: 320, radiusMeio: 520, radiusFundo: 720, spreadFactor: 1.2 } },
-
-          // --- RADIAL COM ROTAÇÃO ---
-          { id: "radial-rotated-1", core: "radial", config: { centerX: 200, centerY: 0, radiusTopo: 320, radiusMeio: 520, radiusFundo: 720, spreadFactor: 1.0, globalRotation: Math.PI / 8 } },
-          { id: "radial-rotated-2", core: "radial", config: { centerX: 200, centerY: 0, radiusTopo: 300, radiusMeio: 500, radiusFundo: 700, spreadFactor: 1.3, globalRotation: -Math.PI / 6 } },
-
-          // --- RADIAL MAIS FECHADO / ABERTO ---
-          { id: "radial-narrow", core: "radial", config: { centerX: 120, centerY: -20, radiusTopo: 260, radiusMeio: 420, radiusFundo: 620, spreadFactor: 0.9 } },
-          { id: "radial-super-wide", core: "radial", config: { centerX: 160, centerY: 20, radiusTopo: 380, radiusMeio: 640, radiusFundo: 900, spreadFactor: 1.6 } },
-
-          // --- MAIS ALGUMAS COLUNAS DIFERENTES ---
-          { id: "cols-staggered-1", core: "columns", config: { orientation: "horizontal", stageSpacing: 380, stageGapY: 160, jitter: 60, diagonal: true } },
-          { id: "cols-staggered-2", core: "columns", config: { orientation: "horizontal", stageSpacing: 450, stageGapY: 130, jitter: 50, diagonal: true, align: "center" } },
-        ]
-
-        const chosenVariant =
-          layoutVariants[Math.floor(Math.random() * layoutVariants.length)]
-        const layoutCore: LayoutCore = chosenVariant.core
-        const layoutConfig = chosenVariant.config || {}
 
         const positions = new Map<string, { x: number; y: number }>()
 
-        if (layoutCore === "columns") {
-          const orientation: "horizontal" | "vertical" =
-            layoutConfig.orientation === "vertical" ? "vertical" : "horizontal"
+        ;(["topo", "meio", "fundo"] as SectionName[]).forEach((sec) => {
+          const group = bySection[sec]
+          if (!group.length) return
 
-          const stageOrder: SectionName[] =
-            layoutConfig.stageOrder || (["topo", "meio", "fundo"] as SectionName[])
+          const center = stageCenters[sec]
+          const gapX = 260
+          const maxPerRow = 3 // no máximo 3 cards por linha pra ficar parecido com template
+          const total = group.length
+          const rows = Math.ceil(total / maxPerRow)
 
-          const stageSpacing: number = layoutConfig.stageSpacing ?? 420
-          const stageGapY: number = layoutConfig.stageGapY ?? 150
-          const stageGapX: number = layoutConfig.stageGapX ?? 260
-          const jitter: number = layoutConfig.jitter ?? 40
-          const verticalJitter: number = layoutConfig.verticalJitter ?? jitter
-          const diagonal: boolean = !!layoutConfig.diagonal
+          // altura vertical da "faixa" do estágio
+          const rowGapY = 180
+          const totalHeight = (rows - 1) * rowGapY
+          const startY = center.y - totalHeight / 2
 
-          if (orientation === "horizontal") {
-            const stageX: Record<SectionName, number> = {
-              topo: 0,
-              meio: stageSpacing + rand(-jitter, jitter),
-              fundo: stageSpacing * 2 + rand(-jitter, jitter),
-            }
+          group.forEach((entry, index) => {
+            const row = Math.floor(index / maxPerRow)
+            const col = index % maxPerRow
 
-            stageOrder.forEach((sec, orderIndex) => {
-              const group = bySection[sec]
-              if (!group.length) return
-              const total = group.length
+            const rowY = startY + row * rowGapY
 
-              let startY =
-                -stageGapY * (total - 1) * 0.5 +
-                rand(-verticalJitter, verticalJitter)
+            const itemsInThisRow = Math.min(
+              maxPerRow,
+              total - row * maxPerRow,
+            )
+            const rowWidth = (itemsInThisRow - 1) * gapX
+            const startX = center.x - rowWidth / 2
 
-              if (layoutConfig.align === "top") {
-                startY = rand(-80, -40)
-              } else if (layoutConfig.align === "bottom") {
-                startY = rand(40, 80)
-              }
-
-              const baseX = stageX[sec]
-
-              group.forEach((entry, idx) => {
-                const extraX = diagonal ? orderIndex * 60 : 0
-                positions.set(entry.nodeId, {
-                  x: baseX + extraX + rand(-jitter, jitter),
-                  y:
-                    startY +
-                    idx * stageGapY +
-                    rand(-verticalJitter * 0.3, verticalJitter * 0.3),
-                })
-              })
-            })
-          } else {
-            const baseStageY: Record<SectionName, number> = {
-              topo: 0,
-              meio: stageSpacing + rand(-jitter, jitter),
-              fundo: stageSpacing * 2 + rand(-jitter, jitter),
-            }
-
-            stageOrder.forEach((sec, orderIndex) => {
-              const group = bySection[sec]
-              if (!group.length) return
-              const total = group.length
-
-              const stageY = baseStageY[sec]
-              const baseX = orderIndex * stageGapX * (layoutConfig.reverseHorizontal ? -1 : 1)
-
-              const startX =
-                -stageGapX * 0.5 * (total - 1) +
-                rand(-jitter, jitter)
-
-              group.forEach((entry, idx) => {
-                positions.set(entry.nodeId, {
-                  x:
-                    baseX +
-                    startX +
-                    idx * stageGapX +
-                    rand(-jitter * 0.3, jitter * 0.3),
-                  y: stageY + rand(-verticalJitter, verticalJitter),
-                })
-              })
-            })
-          }
-
-          const connectSequential = (ids: string[]) => {
-            for (let i = 0; i < ids.length - 1; i++) {
-              newEdges.push({
-                id: `edge-${ids[i]}-${ids[i + 1]}`,
-                source: ids[i],
-                target: ids[i + 1],
-                type: "smooth",
-              })
-            }
-          }
-
-          if (layoutConfig.connectWithinStage !== false) {
-            ;(["topo", "meio", "fundo"] as SectionName[]).forEach((sec) => {
-              const ids = bySection[sec].map((e) => e.nodeId)
-              if (ids.length > 1) connectSequential(ids)
-            })
-          }
-
-          if (layoutConfig.bridgeStages !== false) {
-            if (bySection.topo.length && bySection.meio.length) {
-              newEdges.push({
-                id: `edge-topo-meio-${now}`,
-                source: bySection.topo[bySection.topo.length - 1].nodeId,
-                target: bySection.meio[0].nodeId,
-                type: "smooth",
-              })
-            }
-            if (bySection.meio.length && bySection.fundo.length) {
-              newEdges.push({
-                id: `edge-meio-fundo-${now}`,
-                source: bySection.meio[bySection.meio.length - 1].nodeId,
-                target: bySection.fundo[0].nodeId,
-                type: "smooth",
-              })
-            }
-          }
-
-          ;(["topo", "meio", "fundo"] as SectionName[]).forEach((sec) => {
-            const group = bySection[sec]
-            if (group.length) {
-              const targetIndex =
-                layoutConfig.rootLinks === "last"
-                  ? group.length - 1
-                  : layoutConfig.rootLinks === "middle"
-                    ? Math.floor(group.length / 2)
-                    : 0
-              newEdges.push({
-                id: `edge-root-${sec}-${now}`,
-                source: rootId,
-                target: group[targetIndex].nodeId,
-                type: "smooth",
-              })
-            }
-          })
-        } else if (layoutCore === "snake") {
-          const perRow: number = layoutConfig.perRow ?? 4
-          const gapX: number = layoutConfig.gapX ?? 260
-          const gapY: number = layoutConfig.gapY ?? 180
-          const orientation: "horizontal" | "vertical" =
-            layoutConfig.orientation === "vertical" ? "vertical" : "horizontal"
-          const direction: "lr" | "rl" =
-            layoutConfig.direction === "rl" ? "rl" : "lr"
-
-          const all = entries.slice()
-
-          all.forEach((entry, idx) => {
-            const row = Math.floor(idx / perRow)
-            const col = idx % perRow
-            const baseCol = row % 2 === 0 ? col : perRow - 1 - col
-            const zigCol = direction === "rl" ? perRow - 1 - baseCol : baseCol
-
-            let x = zigCol * gapX
-            let y = row * gapY + rand(-30, 30)
-
-            if (orientation === "vertical") {
-              const tmp = x
-              x = y
-              y = tmp
-            }
+            const x = startX + col * gapX + rand(-20, 20)
+            const y = rowY + rand(-10, 10)
 
             positions.set(entry.nodeId, { x, y })
           })
+        })
 
-          for (let i = 0; i < all.length - 1; i++) {
-            newEdges.push({
-              id: `edge-snake-${i}-${now}`,
-              source: all[i].nodeId,
-              target: all[i + 1].nodeId,
-              type: "smooth",
-            })
-          }
-
-          ;(["topo", "meio", "fundo"] as SectionName[]).forEach((sec) => {
-            const first = bySection[sec][0]
-            if (!first) return
-            newEdges.push({
-              id: `edge-root-${sec}-${now}`,
-              source: rootId,
-              target: first.nodeId,
-              type: "smooth",
-            })
-          })
-        } else {
-          const centerX: number = layoutConfig.centerX ?? 200
-          const centerY: number = layoutConfig.centerY ?? 0
-          const radiusBySection: Record<SectionName, number> = {
-            topo: layoutConfig.radiusTopo ?? 320,
-            meio: layoutConfig.radiusMeio ?? 520,
-            fundo: layoutConfig.radiusFundo ?? 720,
-          }
-          const spreadFactor: number = layoutConfig.spreadFactor ?? 1.2
-          const globalRotation: number = layoutConfig.globalRotation ?? 0
-
-          positions.set(rootId, { x: centerX, y: centerY })
-
-          const rootIndex = newNodes.findIndex((n) => n.id === rootId)
-          if (rootIndex >= 0) {
-            newNodes[rootIndex] = {
-              ...newNodes[rootIndex],
-              position: { x: centerX, y: centerY },
-            }
-          }
-
-          ;(["topo", "meio", "fundo"] as SectionName[]).forEach((sec, sIndex) => {
-            const group = bySection[sec]
-            if (!group.length) return
-
-            const radius = radiusBySection[sec]
-            const angleStart =
-              (Math.PI * 2 * sIndex) / 3 +
-              globalRotation +
-              rand(-0.4, 0.4)
-            const angleStep =
-              (Math.PI * spreadFactor) / Math.max(group.length, 2)
-
-            group.forEach((entry, idx) => {
-              const angle = angleStart + idx * angleStep
-              const x = centerX + radius * Math.cos(angle)
-              const y = centerY + radius * Math.sin(angle)
-              positions.set(entry.nodeId, { x, y })
-
-              newEdges.push({
-                id: `edge-root-${sec}-${idx}-${now}`,
-                source: rootId,
-                target: entry.nodeId,
-                type: "smooth",
-              })
-            })
-          })
-
-          if (bySection.topo.length && bySection.meio.length) {
-            const t = bySection.topo
-            const m = bySection.meio
-            const links = Math.min(t.length, m.length, 3)
-            const tShuffled = shuffled(t)
-            const mShuffled = shuffled(m)
-            for (let i = 0; i < links; i++) {
-              newEdges.push({
-                id: `edge-topo-meio-radial-${i}-${now}`,
-                source: tShuffled[i].nodeId,
-                target: mShuffled[i].nodeId,
-                type: "smooth",
-              })
-            }
-          }
-          if (bySection.meio.length && bySection.fundo.length) {
-            const m = bySection.meio
-            const f = bySection.fundo
-            const links = Math.min(m.length, f.length, 3)
-            const mShuffled = shuffled(m)
-            const fShuffled = shuffled(f)
-            for (let i = 0; i < links; i++) {
-              newEdges.push({
-                id: `edge-meio-fundo-radial-${i}-${now}`,
-                source: mShuffled[i].nodeId,
-                target: fShuffled[i].nodeId,
-                type: "smooth",
-              })
-            }
-          }
-        }
-
-        // 4) CRIAR NODES DE PÁGINA
+        // ------- 6) CRIAR NODES DE PÁGINA --------
         entries.forEach((entry) => {
           const pos = positions.get(entry.nodeId) || { x: 0, y: 0 }
           newNodes.push({
@@ -1992,7 +1690,55 @@ function FlowBuilder({
           })
         })
 
-        // 5) ÍCONES (ajustados por layout)
+        // ------- 7) CONEXÕES ENTRE PÁGINAS (FLOW LIMPO) --------
+        const connectSequential = (ids: string[]) => {
+          for (let i = 0; i < ids.length - 1; i++) {
+            newEdges.push({
+              id: `edge-${ids[i]}-${ids[i + 1]}`,
+              source: ids[i],
+              target: ids[i + 1],
+              type: "smooth",
+            })
+          }
+        }
+
+        // liga dentro de cada estágio, horizontalmente
+        ;(["topo", "meio", "fundo"] as SectionName[]).forEach((sec) => {
+          const ids = bySection[sec].map((e) => e.nodeId)
+          if (ids.length > 1) connectSequential(ids)
+        })
+
+        // liga estágios entre si (fim do topo -> início do meio -> início do fundo)
+        if (bySection.topo.length && bySection.meio.length) {
+          newEdges.push({
+            id: `edge-topo-meio-${now}`,
+            source: bySection.topo[bySection.topo.length - 1].nodeId,
+            target: bySection.meio[0].nodeId,
+            type: "smooth",
+          })
+        }
+        if (bySection.meio.length && bySection.fundo.length) {
+          newEdges.push({
+            id: `edge-meio-fundo-${now}`,
+            source: bySection.meio[bySection.meio.length - 1].nodeId,
+            target: bySection.fundo[0].nodeId,
+            type: "smooth",
+          })
+        }
+
+        // raiz -> primeiro nó de cada estágio
+        ;(["topo", "meio", "fundo"] as SectionName[]).forEach((sec) => {
+          const group = bySection[sec]
+          if (!group.length) return
+          newEdges.push({
+            id: `edge-root-${sec}-${now}`,
+            source: rootId,
+            target: group[0].nodeId,
+            type: "smooth",
+          })
+        })
+
+        // ------- 8) ÍCONES – EM COLUNAS LIMPAS, SEM SOBREPOR --------
         const acquisitionIcons = marketingIcons.filter(
           (i) => i.category === "acquisition",
         )
@@ -2004,83 +1750,125 @@ function FlowBuilder({
           (i) => i.category === "customer",
         )
 
-        const iconGroups: { icons: typeof marketingIcons; attachTo?: SectionName }[] =
-          [
-            { icons: acquisitionIcons, attachTo: "topo" },
-            { icons: commIcons, attachTo: "meio" },
-            { icons: salesIcons, attachTo: "fundo" },
-            { icons: customerIcons, attachTo: "fundo" },
-          ]
+        const shuffled = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5)
 
-        iconGroups.forEach((group, gIndex) => {
-          if (!group.icons.length) return
-
-          let baseX = -420 - gIndex * 60
-          let baseY = 0
-
-          if (layoutCore === "snake") {
-            baseX = -260 - gIndex * 40
-            baseY = -60
-          } else if (layoutCore === "radial") {
-            baseX = -480 - gIndex * 40
-            baseY = -40
-          }
-
-          const targetStageIds = bySection[group.attachTo ?? "topo"].map(
-            (e) => e.nodeId,
-          )
-          const targetId =
-            targetStageIds[0] ?? entries[0]?.nodeId ?? rootId
-
-          const qty = Math.min(
-            6,
-            Math.max(3, Math.round(rand(3, 7))),
-          )
-          const iconsToUse = shuffled(group.icons).slice(
-            0,
-            Math.min(qty, group.icons.length),
-          )
-
+        // coluna de ícones de aquisição do lado esquerdo do topo
+        if (acquisitionIcons.length && bySection.topo.length) {
+          const baseX = rootX + 160
+          const baseY = stageCenters.topo.y
           const gapY = 70
-          const startY = baseY - gapY * (iconsToUse.length - 1) * 0.5
+
+          const iconsToUse = shuffled(acquisitionIcons).slice(
+            0,
+            Math.min(7, acquisitionIcons.length),
+          )
+          const startY = baseY - ((iconsToUse.length - 1) * gapY) / 2
+          const targetId = bySection.topo[0].nodeId
 
           iconsToUse.forEach((iconDef, i) => {
-            const nodeId = `ia-icon-${gIndex}-${i}-${now}`
-
+            const nodeId = `ia-icon-topo-${i}-${now}`
             newNodes.push({
               id: nodeId,
               type: "marketingIconNode",
-              position: {
-                x: baseX,
-                y: startY + i * gapY,
-              },
+              position: { x: baseX, y: startY + i * gapY },
               data: {
                 label: iconDef.label,
                 color: iconDef.color,
                 iconId: iconDef.id,
               },
             })
-
             newEdges.push({
-              id: `edge-icon-${gIndex}-${i}-${now}`,
+              id: `edge-icon-topo-${i}-${now}`,
               source: nodeId,
               target: targetId,
               type: "smooth",
             })
           })
-        })
+        }
 
+        // coluna de ícones de comunicação no meio
+        if (commIcons.length && bySection.meio.length) {
+          const baseX = stageCenters.meio.x - 220
+          const baseY = stageCenters.meio.y - 40
+          const gapY = 70
+
+          const iconsToUse = shuffled(commIcons).slice(
+            0,
+            Math.min(5, commIcons.length),
+          )
+          const startY = baseY - ((iconsToUse.length - 1) * gapY) / 2
+          const targetId = bySection.meio[0].nodeId
+
+          iconsToUse.forEach((iconDef, i) => {
+            const nodeId = `ia-icon-meio-${i}-${now}`
+            newNodes.push({
+              id: nodeId,
+              type: "marketingIconNode",
+              position: { x: baseX, y: startY + i * gapY },
+              data: {
+                label: iconDef.label,
+                color: iconDef.color,
+                iconId: iconDef.id,
+              },
+            })
+            newEdges.push({
+              id: `edge-icon-meio-${i}-${now}`,
+              source: nodeId,
+              target: targetId,
+              type: "smooth",
+            })
+          })
+        }
+
+        // ícones de vendas / customer no final do funil
+        const endStage: SectionName =
+          bySection.fundo.length ? "fundo" : bySection.meio.length ? "meio" : "topo"
+        const endGroup = bySection[endStage]
+        if ((salesIcons.length || customerIcons.length) && endGroup.length) {
+          const endCenter = stageCenters[endStage]
+          const baseX = endCenter.x + 260
+          const baseY = endCenter.y
+          const gapY = 70
+
+          const iconsToUse = shuffled([...salesIcons, ...customerIcons]).slice(
+            0,
+            Math.min(6, salesIcons.length + customerIcons.length),
+          )
+          const startY = baseY - ((iconsToUse.length - 1) * gapY) / 2
+          const targetId = endGroup[endGroup.length - 1].nodeId
+
+          iconsToUse.forEach((iconDef, i) => {
+            const nodeId = `ia-icon-fim-${i}-${now}`
+            newNodes.push({
+              id: nodeId,
+              type: "marketingIconNode",
+              position: { x: baseX, y: startY + i * gapY },
+              data: {
+                label: iconDef.label,
+                color: iconDef.color,
+                iconId: iconDef.id,
+              },
+            })
+            newEdges.push({
+              id: `edge-icon-fim-${i}-${now}`,
+              source: nodeId,
+              target: targetId,
+              type: "smooth",
+            })
+          })
+        }
+
+        // ------- 9) APLICAR NO FLOW --------
         setNodes(newNodes)
         setEdges(enhanceEdges(newEdges))
         setFlowName("Funil gerado com IA")
-
         setShowAIDialog(false)
         setAiPrompt("")
 
         toast({
           title: "Funil gerado com IA",
           description:
-            "A cada clique a IA monta um esqueleto visual diferente (várias variações de colunas, snake e radial). Ajuste como quiser.",
+            "Layout organizado no estilo dos templates prontos: blocos horizontais, ícones alinhados e nada sobreposto.",
         })
       } catch (err: any) {
         console.error("Erro ao gerar funil com IA:", err)
@@ -2221,6 +2009,17 @@ function FlowBuilder({
           </span>
         </div>
         <div className="flex items-center gap-1">
+          {/* Botão IA */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-muted border-border hover:bg-muted/80 h-8 px-2 text-xs mr-1"
+            onClick={() => setShowAIDialog(true)}
+          >
+            <Sparkles className="mr-1 h-3.5 w-3.5" />
+            Funil com IA
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -2230,8 +2029,15 @@ function FlowBuilder({
             <Save className="mr-1 h-3.5 w-3.5" />
             Salvar
           </Button>
-          {/* Botão Carregar removido */}
-
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-muted border-border hover:bg-muted/80 h-8 px-2 text-xs"
+            onClick={loadFlow}
+          >
+            <Download className="mr-1 h-3.5 w-3.5" />
+            Carregar
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -2368,8 +2174,8 @@ function FlowBuilder({
           <DialogHeader>
             <DialogTitle>Criar Funil com Inteligência Artificial</DialogTitle>
             <DialogDescription>
-              Descreva o que você quer vender ou qual objetivo do funil. A IA vai montar uma estrutura inicial de páginas,
-              ícones e conexões automaticamente.
+              Descreva o que você quer vender ou qual objetivo do funil. A IA vai montar uma
+              estrutura inicial de páginas, ícones e conexões automaticamente.
             </DialogDescription>
           </DialogHeader>
 
@@ -2381,7 +2187,8 @@ function FlowBuilder({
               className="min-h-[120px] bg-background border-border"
             />
             <p className="text-xs text-muted-foreground">
-              Dica: fale quem é o público, o produto, faixa de preço e se quer upsell, downsell, captura de lead, etc.
+              Dica: fale quem é o público, o produto, faixa de preço e se quer upsell, downsell,
+              captura de lead, etc.
             </p>
           </div>
 

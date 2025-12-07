@@ -518,14 +518,14 @@ export async function updateFacebookAdAccountStatus(
   }
   return response.json()
 }
-
-/* ========= ATUALIZAR STATUS DO CONJUNTO (AD SET) ========= */
+/* ========= ATUALIZAR STATUS DO CONJUNTO ========= */
 export async function updateFacebookAdSetStatus(
+  adAccountId: string,
   adSetId: string,
   status: "ACTIVE" | "PAUSED",
-): Promise<{ success: boolean; newStatus: string }> {
+) {
   const response = await fetch(
-    `/api/facebook-ads/adsets/${adSetId}/status`,
+    `/api/facebook-ads/ad-accounts/${adAccountId}/adsets/${adSetId}/status`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -534,11 +534,40 @@ export async function updateFacebookAdSetStatus(
     },
   )
 
+  const data = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    console.error("[updateFacebookAdSetStatus] erro:", data || response.statusText)
+    throw new Error(
+      data?.error ||
+        "Falha ao atualizar status do conjunto de anúncios do Facebook.",
+    )
+  }
+
+  return data
+}
+
+/* ========= ATUALIZAR ORÇAMENTO DO CONJUNTO (ADSET) ========= */
+export async function updateFacebookAdSetBudget(
+  adAccountId: string,
+  adSetId: string,
+  dailyBudgetInCents: number,
+): Promise<{ success: boolean; newBudget: number }> {
+  const response = await fetch(
+    `/api/facebook-ads/ad-accounts/${adAccountId}/adsets/${adSetId}/budget`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ dailyBudget: dailyBudgetInCents }),
+    },
+  )
+
   if (!response.ok) {
     const errorData = await tryJson(response)
     throw new Error(
       errorData?.error ||
-        "Falha ao atualizar status do conjunto de anúncios do Facebook.",
+        "Falha ao atualizar orçamento do conjunto de anúncios do Facebook.",
     )
   }
 

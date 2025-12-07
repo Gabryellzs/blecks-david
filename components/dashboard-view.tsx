@@ -798,8 +798,13 @@ export default function DashboardView({
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [selectedPlatform, setSelectedPlatform] = useState<AdsPlatform>("all")
+<<<<<<< HEAD
   // Gasto total com Meta ADS (todas as contas)
+=======
+
+>>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
   const [metaAdSpend, setMetaAdSpend] = useState(0)
+  const [metaConversations, setMetaConversations] = useState(0) // total de mensagens iniciadas (todas BMs)
   const [loadingMetaSpend, setLoadingMetaSpend] = useState(false)
 
   const { from, to } = useMemo(
@@ -837,7 +842,11 @@ export default function DashboardView({
     return sum
   }, [rows])
 
+<<<<<<< HEAD
   // Busca o gasto total em Meta ADS (todas as contas do usuário)
+=======
+  // Gasto Meta ADS + Mensagens iniciadas (todas as BMs) alinhado com "Resultados" do Meta
+>>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
   useEffect(() => {
     async function fetchMetaSpend() {
       try {
@@ -847,7 +856,9 @@ export default function DashboardView({
 
         // 1) Buscar contas conectadas
         const accounts = await getFacebookAdAccounts()
-        let total = 0
+
+        let totalSpend = 0
+        let totalResults = 0 // "Resultados" = mensagens iniciadas
 
         // 2) Para cada conta, buscar campanhas + insights e somar o spend
         for (const acc of accounts) {
@@ -858,11 +869,71 @@ export default function DashboardView({
           )
 
           for (const c of campaigns) {
-            total += Number(c.spend || 0)
+            const anyC: any = c
+
+            // insights pode vir ou não; então sempre garantimos esses campos:
+            const rawInsights = anyC.insights
+            let insights: any = null
+
+            if (Array.isArray(rawInsights) && rawInsights.length > 0) {
+              insights = rawInsights[0]
+            } else if (
+              rawInsights &&
+              Array.isArray(rawInsights.data) &&
+              rawInsights.data.length > 0
+            ) {
+              insights = rawInsights.data[0]
+            }
+
+            // gasto (igual ao do Gerenciador)
+            const spend = Number(insights?.spend ?? anyC.spend ?? 0) || 0
+            totalSpend += spend
+
+            // 1º: tentar pegar o results que o backend já calculou
+            let results = Number(insights?.results ?? anyC.results ?? 0) || 0
+
+            // 2º: se não vier results, estimar pelo custo por resultado
+            if (!results) {
+              const costPerResult =
+                Number(
+                  insights?.cost_per_result ?? anyC.cost_per_result ?? 0
+                ) || 0
+
+              if (spend > 0 && costPerResult > 0) {
+                // aproximação do número de resultados (mensagens iniciadas)
+                results = spend / costPerResult
+              }
+            }
+
+            // 3º: se ainda assim for 0, último fallback (actions)
+            if (!results) {
+              const actions = Array.isArray(insights?.actions)
+                ? insights.actions
+                : Array.isArray(anyC.actions)
+                ? anyC.actions
+                : []
+
+              for (const a of actions) {
+                const typeRaw = (a as any).action_type
+                const val = Number((a as any).value ?? 0) || 0
+                if (!typeRaw) continue
+
+                const t = String(typeRaw).toLowerCase()
+                if (
+                  t === "onsite_conversion.messaging_conversation_started_7d" ||
+                  t === "onsite_conversion.messaging_conversation_started"
+                ) {
+                  results += val
+                }
+              }
+            }
+
+            totalResults += results
           }
         }
 
-        setMetaAdSpend(total)
+        setMetaAdSpend(totalSpend)
+        setMetaConversations(totalResults)
       } catch (err) {
         console.error("Erro ao carregar gastos Meta ADS:", err)
         // se quiser, dá pra mostrar toast aqui depois
@@ -917,18 +988,34 @@ export default function DashboardView({
     const get = (key: AdsPlatform) =>
       key === "all" ? 0 : (salesByPlatform?.[key] ?? 0)
 
+<<<<<<< HEAD
     const totalAdSpendAllPlatforms = metaAdSpend // por enquanto só Meta
+=======
+    const totalAdSpendAllPlatforms = metaAdSpend
+    const totalConversationsAllPlatforms = metaConversations
+
+    const costPerConvAll =
+      totalConversationsAllPlatforms > 0
+        ? totalAdSpendAllPlatforms / totalConversationsAllPlatforms
+        : 0
+
+    const roundedConvs = Math.round(totalConversationsAllPlatforms)
+>>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
 
     return {
       all: {
         ...zero,
         adSpend: totalAdSpendAllPlatforms,
         profit: totalProfit,
+        costPerConversation: costPerConvAll,
+        conversations: roundedConvs,
       },
       meta: {
         ...zero,
         adSpend: metaAdSpend,
         profit: get("meta"),
+        costPerConversation: costPerConvAll, // custo por mensagem iniciada de TODAS as BMs Meta
+        conversations: roundedConvs,
       },
       google: {
         ...zero,
@@ -951,7 +1038,7 @@ export default function DashboardView({
         profit: get("kwai"),
       },
     }
-  }, [salesByPlatform, metaAdSpend])
+  }, [salesByPlatform, metaAdSpend, metaConversations])
 
   const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
 
@@ -1097,7 +1184,11 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
+<<<<<<< HEAD
               <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+=======
+              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+>>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
             ) : (
               brl(value)
             )}
@@ -1253,12 +1344,17 @@ export default function DashboardView({
     },
 
     b1: (_slot, _ctx, key) => {
-      const loading = isRefreshing
+      const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`b1-${key}`} className="p-3 text-black dark:text:white">
           <div className="flex items-center justify-between mb-2">
+<<<<<<< HEAD
             <div className="text-xs text-black/70 dark:text:white/70">
               Custo por conversa
+=======
+            <div className="text-xs text-black/70 dark:text-white/70">
+              Custo por mensagem iniciada
+>>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
             </div>
             <span className="text-[10px] text-black/50 dark:text:white/50">
               {selectedPlatformLabel}
@@ -1276,12 +1372,17 @@ export default function DashboardView({
     },
 
     b2: (_slot, _ctx, key) => {
-      const loading = isRefreshing
+      const loading = isRefreshing || loadingMetaSpend
       return (
         <div key={`b2-${key}`} className="p-3 text-black dark:text:white">
           <div className="mb-1">
+<<<<<<< HEAD
             <div className="text-xs text-black/70 dark:text:white/70">
               Conversa
+=======
+            <div className="text-xs text-black/70 dark:text-white/70">
+              Mensagens iniciadas
+>>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
             </div>
             <div className="text-[10px] text-black/50 dark:text:white/50">
               {selectedPlatformLabel}
@@ -1603,7 +1704,11 @@ export default function DashboardView({
           className={[
             "relative inline-flex items-center justify-center px-4 py-2 rounded-md border font-medium transition-all disabled:opacity-60 active:scale-[0.99]",
             "border-black/25 text-black/90 bg-black/5 hover:bg-black/10",
+<<<<<<< HEAD
             "dark:border-white/25 dark:text:white/90 dark:bg-black/40 dark:hover:bg-white/5",
+=======
+            "dark:border-white/25 dark:text-white/90 dark:bg-black/40 dark:hover:bg-white/5",
+>>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
             "neon-card neon-top no-glow",
           ].join(" ")}
           style={{ ["--gw" as any]: "#505555ff" }}

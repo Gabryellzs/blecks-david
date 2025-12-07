@@ -16,7 +16,6 @@ import {
   getFacebookCampaignsWithInsights,
 } from "@/lib/facebook-ads-service"
 
-
 // =============================
 // TIPOS / MODELOS DE DADOS
 // =============================
@@ -423,23 +422,21 @@ function DonutChart({
   const BOX = OUTER_R * 2 + STROKE * 2
   const CENTER = OUTER_R + STROKE
 
-  // CORES REAIS POR PLATAFORMA / GATEWAY
   function colorForGateway(name: string) {
     const key = (name || "").toLowerCase().trim()
 
-    if (key.includes("pepper")) return "#FF6B00" // Pepper
-    if (key.includes("cakto")) return "#6D28D9" // Cakto
-    if (key.includes("kirvano")) return "#0EA5E9" // Kirvano
-    if (key.includes("kiwify")) return "#00C853" // Kiwify
-    if (key.includes("hotmart")) return "#FF4C4C" // Hotmart
-    if (key.includes("monetizze")) return "#0069FF" // Monetizze
-    if (key.includes("eduzz")) return "#F9A826" // Eduzz
-    if (key.includes("braip")) return "#4F46E5" // Braip
+    if (key.includes("pepper")) return "#FF6B00"
+    if (key.includes("cakto")) return "#6D28D9"
+    if (key.includes("kirvano")) return "#0EA5E9"
+    if (key.includes("kiwify")) return "#00C853"
+    if (key.includes("hotmart")) return "#FF4C4C"
+    if (key.includes("monetizze")) return "#0069FF"
+    if (key.includes("eduzz")) return "#F9A826"
+    if (key.includes("braip")) return "#4F46E5"
 
     if (key.includes("pix")) return "#00C853"
     if (key.includes("card") || key.includes("credito")) return "#3B82F6"
 
-    // fallback
     const palette = [
       "#8b5cf6",
       "#22c55e",
@@ -497,7 +494,6 @@ function DonutChart({
     const pct100 = pct * 100
     const sliceLen = pct * C
 
-    // FATIA
     slices.push(
       <circle
         key={name}
@@ -516,7 +512,6 @@ function DonutChart({
       />
     )
 
-    // LABEL %
     const startFrac = offsetLen / C
     const endFrac = (offsetLen + sliceLen) / C
     const midFrac = (startFrac + endFrac) / 2
@@ -717,8 +712,6 @@ function presetToFbDatePreset(preset: RangePreset): string {
       return "maximum"
     case "custom":
     default:
-      // Facebook não aceita range livre via date_preset,
-      // então usamos "maximum" como fallback.
       return "maximum"
   }
 }
@@ -752,11 +745,9 @@ function makeRange(
   if (preset === "7d" || preset === "30d" || preset === "90d") {
     const days = preset === "7d" ? 7 : preset === "30d" ? 30 : 90
 
-    // fim = hoje às 23:59:59 (inclusive)
     const end = new Date(now)
     end.setHours(23, 59, 59, 999)
 
-    // início = (days - 1) dias antes às 00:00
     const start = new Date(end)
     start.setDate(start.getDate() - (days - 1))
     start.setHours(0, 0, 0, 0)
@@ -788,7 +779,7 @@ export default function DashboardView({
   kpiFilter,
 }: DashboardProps) {
   const router = useRouter()
-  const isMobile = useIsMobile() // <= DETECTA MOBILE
+  const isMobile = useIsMobile()
 
   const [preset, setPreset] = useState<RangePreset>("hoje")
   const [customStart, setCustomStart] = useState<string>("")
@@ -798,13 +789,9 @@ export default function DashboardView({
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [selectedPlatform, setSelectedPlatform] = useState<AdsPlatform>("all")
-<<<<<<< HEAD
-  // Gasto total com Meta ADS (todas as contas)
-=======
 
->>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
   const [metaAdSpend, setMetaAdSpend] = useState(0)
-  const [metaConversations, setMetaConversations] = useState(0) // total de mensagens iniciadas (todas BMs)
+  const [metaConversations, setMetaConversations] = useState(0)
   const [loadingMetaSpend, setLoadingMetaSpend] = useState(false)
 
   const { from, to } = useMemo(
@@ -820,7 +807,6 @@ export default function DashboardView({
 
   const { rows } = data
 
-  // Receita Total baseada no card "Receita Total" (net_amount)
   const totalNetRevenue = useMemo(() => {
     const byTxn = new Map<string, GatewayTransaction>()
 
@@ -842,11 +828,7 @@ export default function DashboardView({
     return sum
   }, [rows])
 
-<<<<<<< HEAD
-  // Busca o gasto total em Meta ADS (todas as contas do usuário)
-=======
-  // Gasto Meta ADS + Mensagens iniciadas (todas as BMs) alinhado com "Resultados" do Meta
->>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
+  // Gasto Meta ADS + Mensagens iniciadas (todas as BMs)
   useEffect(() => {
     async function fetchMetaSpend() {
       try {
@@ -854,13 +836,11 @@ export default function DashboardView({
 
         const fbPreset = presetToFbDatePreset(preset)
 
-        // 1) Buscar contas conectadas
         const accounts = await getFacebookAdAccounts()
 
         let totalSpend = 0
-        let totalResults = 0 // "Resultados" = mensagens iniciadas
+        let totalResults = 0
 
-        // 2) Para cada conta, buscar campanhas + insights e somar o spend
         for (const acc of accounts) {
           const campaigns = await getFacebookCampaignsWithInsights(
             acc.id,
@@ -871,7 +851,6 @@ export default function DashboardView({
           for (const c of campaigns) {
             const anyC: any = c
 
-            // insights pode vir ou não; então sempre garantimos esses campos:
             const rawInsights = anyC.insights
             let insights: any = null
 
@@ -885,14 +864,11 @@ export default function DashboardView({
               insights = rawInsights.data[0]
             }
 
-            // gasto (igual ao do Gerenciador)
             const spend = Number(insights?.spend ?? anyC.spend ?? 0) || 0
             totalSpend += spend
 
-            // 1º: tentar pegar o results que o backend já calculou
             let results = Number(insights?.results ?? anyC.results ?? 0) || 0
 
-            // 2º: se não vier results, estimar pelo custo por resultado
             if (!results) {
               const costPerResult =
                 Number(
@@ -900,12 +876,10 @@ export default function DashboardView({
                 ) || 0
 
               if (spend > 0 && costPerResult > 0) {
-                // aproximação do número de resultados (mensagens iniciadas)
                 results = spend / costPerResult
               }
             }
 
-            // 3º: se ainda assim for 0, último fallback (actions)
             if (!results) {
               const actions = Array.isArray(insights?.actions)
                 ? insights.actions
@@ -936,7 +910,6 @@ export default function DashboardView({
         setMetaConversations(totalResults)
       } catch (err) {
         console.error("Erro ao carregar gastos Meta ADS:", err)
-        // se quiser, dá pra mostrar toast aqui depois
       } finally {
         setLoadingMetaSpend(false)
       }
@@ -949,10 +922,6 @@ export default function DashboardView({
     return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
   }
 
-  // Percentuais com cor condicional
-  // > 0  → verde
-  // < 0  → vermelho
-  // = 0  → neutro (branco)
   const greenPct = (p: string) => {
     const numeric = parseFloat(p.replace("%", "").replace(",", ".")) || 0
 
@@ -988,9 +957,6 @@ export default function DashboardView({
     const get = (key: AdsPlatform) =>
       key === "all" ? 0 : (salesByPlatform?.[key] ?? 0)
 
-<<<<<<< HEAD
-    const totalAdSpendAllPlatforms = metaAdSpend // por enquanto só Meta
-=======
     const totalAdSpendAllPlatforms = metaAdSpend
     const totalConversationsAllPlatforms = metaConversations
 
@@ -1000,7 +966,6 @@ export default function DashboardView({
         : 0
 
     const roundedConvs = Math.round(totalConversationsAllPlatforms)
->>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
 
     return {
       all: {
@@ -1014,7 +979,7 @@ export default function DashboardView({
         ...zero,
         adSpend: metaAdSpend,
         profit: get("meta"),
-        costPerConversation: costPerConvAll, // custo por mensagem iniciada de TODAS as BMs Meta
+        costPerConversation: costPerConvAll,
         conversations: roundedConvs,
       },
       google: {
@@ -1042,25 +1007,20 @@ export default function DashboardView({
 
   const currentAdsMetrics = adsMetricsByPlatform[selectedPlatform]
 
-  // Gasto total com anúncios (todas plataformas)
   const totalAdSpendAllPlatforms = adsMetricsByPlatform.all?.adSpend ?? 0
 
-  // Lucro baseado em: Receita Total (card de cima) - Gastos com anúncios (todas plataformas)
   const globalProfit = totalNetRevenue - totalAdSpendAllPlatforms
 
-  // ROAS = Receita / Gasto
   const globalRoas =
     totalAdSpendAllPlatforms > 0
       ? totalNetRevenue / totalAdSpendAllPlatforms
       : 0
 
-  // ROI (%) = Lucro / Gasto
   const globalRoi =
     totalAdSpendAllPlatforms > 0
       ? (globalProfit / totalAdSpendAllPlatforms) * 100
       : 0
 
-  // Margem de Lucro (%) = Lucro / Receita
   const globalProfitMargin =
     totalNetRevenue > 0 ? (globalProfit / totalNetRevenue) * 100 : 0
 
@@ -1184,11 +1144,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-<<<<<<< HEAD
-              <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
-=======
               <span className="inline-block h-6 w-28 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
->>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
             ) : (
               brl(value)
             )}
@@ -1200,7 +1156,7 @@ export default function DashboardView({
     r1: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r1-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`r1-${key}`} className="p-3 text-black dark:text-white">
           <div className="mb-1">
             <div className="text-xs text-black/70 dark:text-white/70">
               Gastos com anúncios
@@ -1232,7 +1188,7 @@ export default function DashboardView({
           : "text-white"
 
       return (
-        <div key={`r2-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`r2-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">ROAS</div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
@@ -1253,7 +1209,7 @@ export default function DashboardView({
     r3: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r3-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`r3-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">
               Vendas Pendentes
@@ -1285,7 +1241,7 @@ export default function DashboardView({
           : "text-white"
 
       return (
-        <div key={`r4-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`r4-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">Lucro</div>
             <span className="text-[10px] text-black/50 dark:text-white/50">
@@ -1294,7 +1250,7 @@ export default function DashboardView({
           </div>
           <div className={`text-2xl font-semibold ${lucroColor}`}>
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(lucro)
             )}
@@ -1306,15 +1262,15 @@ export default function DashboardView({
     r5: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r5-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`r5-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-black/70 dark:text-white/70">ROI</div>
-            <span className="text-[10px] text-black/50 dark:text:white/50">
+            <span className="text-[10px] text-black/50 dark:text-white/50">
               Todas plataformas
             </span>
           </div>
           {loading ? (
-            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
           ) : (
             greenPct(`${globalRoi.toFixed(1)}%`)
           )}
@@ -1325,17 +1281,17 @@ export default function DashboardView({
     r6: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`r6-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`r6-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text:white/70">
+            <div className="text-xs text-black/70 dark:text-white/70">
               Margem de Lucro
             </div>
-            <span className="text-[10px] text-black/50 dark:text:white/50">
+            <span className="text-[10px] text-black/50 dark:text-white/50">
               Todas plataformas
             </span>
           </div>
           {loading ? (
-            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+            <span className="inline-block h-6 w-16 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
           ) : (
             greenPct(`${globalProfitMargin.toFixed(1)}%`)
           )}
@@ -1346,23 +1302,18 @@ export default function DashboardView({
     b1: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`b1-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`b1-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
-<<<<<<< HEAD
-            <div className="text-xs text-black/70 dark:text:white/70">
-              Custo por conversa
-=======
             <div className="text-xs text-black/70 dark:text-white/70">
               Custo por mensagem iniciada
->>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
             </div>
-            <span className="text-[10px] text-black/50 dark:text:white/50">
+            <span className="text-[10px] text-black/50 dark:text-white/50">
               {selectedPlatformLabel}
             </span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(currentAdsMetrics.costPerConversation)
             )}
@@ -1374,23 +1325,18 @@ export default function DashboardView({
     b2: (_slot, _ctx, key) => {
       const loading = isRefreshing || loadingMetaSpend
       return (
-        <div key={`b2-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`b2-${key}`} className="p-3 text-black dark:text-white">
           <div className="mb-1">
-<<<<<<< HEAD
-            <div className="text-xs text-black/70 dark:text:white/70">
-              Conversa
-=======
             <div className="text-xs text-black/70 dark:text-white/70">
               Mensagens iniciadas
->>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
             </div>
-            <div className="text-[10px] text-black/50 dark:text:white/50">
+            <div className="text-[10px] text-black/50 dark:text-white/50">
               {selectedPlatformLabel}
             </div>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-12 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               currentAdsMetrics.conversations.toLocaleString("pt-BR")
             )}
@@ -1402,18 +1348,18 @@ export default function DashboardView({
     b3: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b3-${key}`} className="p-3 text-black dark:text:white">
+        <div key={`b3-${key}`} className="p-3 text-black dark:text-white">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-black/70 dark:text:white/70">
+            <div className="text-xs text-black/70 dark:text-white/70">
               Imposto
             </div>
-            <span className="text-[10px] text-black/50 dark:text:white/50">
+            <span className="text-[10px] text-black/50 dark:text-white/50">
               {selectedPlatformLabel}
             </span>
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(currentAdsMetrics.tax)
             )}
@@ -1425,8 +1371,8 @@ export default function DashboardView({
     b4: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b4-${key}`} className="p-3 text-black dark:text:white">
-          <div className="text-xs text-black/70 dark:text:white/70 mb-2 flex items-center gap-2">
+        <div key={`b4-${key}`} className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/meta-ads.png"
               alt=""
@@ -1436,7 +1382,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading || loadingMetaSpend ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.meta.adSpend)
             )}
@@ -1448,8 +1394,8 @@ export default function DashboardView({
     b5: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b5-${key}`} className="p-3 text-black dark:text:white">
-          <div className="text-xs text-black/70 dark:text:white/70 mb-2 flex items-center gap-2">
+        <div key={`b5-${key}`} className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/google-ads.png"
               alt=""
@@ -1459,7 +1405,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.google.profit)
             )}
@@ -1471,8 +1417,8 @@ export default function DashboardView({
     b6: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b6-${key}`} className="p-3 text-black dark:text:white">
-          <div className="text-xs text-black/70 dark:text:white/70 mb-2 flex items-center gap-2">
+        <div key={`b6-${key}`} className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/google-analytics.png"
               alt=""
@@ -1482,7 +1428,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.analytics.profit)
             )}
@@ -1494,8 +1440,8 @@ export default function DashboardView({
     b7: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b7-${key}`} className="p-3 text-black dark:text:white">
-          <div className="text-xs text-black/70 dark:text:white/70 mb-2 flex items-center gap-2">
+        <div key={`b7-${key}`} className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/tiktok-ads.png"
               alt=""
@@ -1505,7 +1451,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.tiktok.profit)
             )}
@@ -1517,8 +1463,8 @@ export default function DashboardView({
     b8: (_slot, _ctx, key) => {
       const loading = isRefreshing
       return (
-        <div key={`b8-${key}`} className="p-3 text-black dark:text:white">
-          <div className="text-xs text-black/70 dark:text:white/70 mb-2 flex items-center gap-2">
+        <div key={`b8-${key}`} className="p-3 text-black dark:text-white">
+          <div className="text-xs text-black/70 dark:text-white/70 mb-2 flex items-center gap-2">
             <img
               src="/ads-logos/kwai-ads.png"
               alt=""
@@ -1528,7 +1474,7 @@ export default function DashboardView({
           </div>
           <div className="text-2xl font-semibold">
             {loading ? (
-              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg:white/10 animate-pulse" />
+              <span className="inline-block h-6 w-24 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
             ) : (
               brl(adsMetricsByPlatform.kwai.profit)
             )}
@@ -1561,7 +1507,6 @@ export default function DashboardView({
 
   const rowsNeeded = useMemo(() => {
     if (isMobile) {
-      // no mobile, cada card ocupa uma "linha"
       return effectiveCards.length || 1
     }
 
@@ -1597,7 +1542,7 @@ export default function DashboardView({
         <div className="flex flex-wrap items-center gap-2">
           <label
             htmlFor="preset"
-            className="text-black/70 dark:text:white/70 text-xs font-medium"
+            className="text-black/70 dark:text-white/70 text-xs font-medium"
           >
             Período
           </label>
@@ -1608,7 +1553,7 @@ export default function DashboardView({
             onChange={(e) => setPreset(e.target.value as RangePreset)}
             className={[
               "bg-black/5 text-black/90 border-black/20",
-              "dark:bg-black/40 dark:text:white/90 dark:border-white/20",
+              "dark:bg-black/40 dark:text-white/90 dark:border-white/20",
               "text-xs px-2 py-1 rounded-md border outline-none focus:ring-0 focus:border-black/40 dark:focus:border-white/40 cursor-pointer",
             ].join(" ")}
             style={{ minWidth: "140px" }}
@@ -1624,7 +1569,7 @@ export default function DashboardView({
         </div>
 
         {preset === "custom" && (
-          <div className="flex flex-wrap items-center gap-2 text-[10px] text-black/70 dark:text:white/70">
+          <div className="flex flex-wrap items-center gap-2 text-[10px] text-black/70 dark:text-white/70">
             <div className="flex items-center gap-1">
               <span>De</span>
               <input
@@ -1633,7 +1578,7 @@ export default function DashboardView({
                 onChange={(e) => setCustomStart(e.target.value)}
                 className={[
                   "bg-black/5 text-black/90 border-black/20",
-                  "dark:bg-black/40 dark:text:white/90 dark:border-white/20",
+                  "dark:bg-black/40 dark:text-white/90 dark:border-white/20",
                   "text-[10px] px-2 py-1 rounded-md border outline-none focus:ring-0 focus:border-black/40 dark:focus:border-white/40",
                 ].join(" ")}
               />
@@ -1647,7 +1592,7 @@ export default function DashboardView({
                 onChange={(e) => setCustomEnd(e.target.value)}
                 className={[
                   "bg-black/5 text-black/90 border-black/20",
-                  "dark:bg-black/40 dark:text:white/90 dark:border-white/20",
+                  "dark:bg-black/40 dark:text-white/90 dark:border-white/20",
                   "text-[10px] px-2 py-1 rounded-md border outline-none focus:ring-0 focus:border-black/40 dark:focus:border-white/40",
                 ].join(" ")}
               />
@@ -1704,11 +1649,7 @@ export default function DashboardView({
           className={[
             "relative inline-flex items-center justify-center px-4 py-2 rounded-md border font-medium transition-all disabled:opacity-60 active:scale-[0.99]",
             "border-black/25 text-black/90 bg-black/5 hover:bg-black/10",
-<<<<<<< HEAD
-            "dark:border-white/25 dark:text:white/90 dark:bg-black/40 dark:hover:bg-white/5",
-=======
             "dark:border-white/25 dark:text-white/90 dark:bg-black/40 dark:hover:bg-white/5",
->>>>>>> f940bdd3df611395703c1b68a6e11818585851ed
             "neon-card neon-top no-glow",
           ].join(" ")}
           style={{ ["--gw" as any]: "#505555ff" }}
@@ -1752,7 +1693,7 @@ export default function DashboardView({
 
           const fallback =
             card.kind === "donut" && !hideDefaultDonut ? (
-              <div className="flex h-full w-full items-center justify-center text-black/55 dark:text:white/55 text-sm">
+              <div className="flex h-full w-full items-center justify-center text-black/55 dark:text-white/55 text-sm">
                 Aguardando vendas...
               </div>
             ) : (
@@ -1773,7 +1714,7 @@ export default function DashboardView({
                 </div>
 
                 {isRefreshing && (
-                  <div className="absolute top-2 right-2 text-black/60 dark:text:white/60">
+                  <div className="absolute top-2 right-2 text-black/60 dark:text-white/60">
                     <span className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin inline-block" />
                   </div>
                 )}

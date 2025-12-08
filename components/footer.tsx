@@ -1,3 +1,8 @@
+"use client"
+
+import React from "react"
+import Link from "next/link"
+
 export function Footer() {
   return (
     <footer className="relative bg-black/95 border-t border-white/10 backdrop-blur-xl overflow-hidden">
@@ -42,7 +47,7 @@ export function Footer() {
                 </div>
               </a>
 
-              {/* WHATSAPP */}
+              {/* WHATSAPP (aqui você quer mesmo abrir fora, então mantive _blank) */}
               <a
                 href="https://wa.me/5511999999999"
                 target="_blank"
@@ -60,7 +65,7 @@ export function Footer() {
                 </div>
               </a>
 
-              {/* INSTAGRAM */}
+              {/* INSTAGRAM (também normalmente em nova aba) */}
               <a
                 href="https://instagram.com/blecks.combr"
                 target="_blank"
@@ -99,24 +104,20 @@ export function Footer() {
             </h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <a
-                  href="https://www.blacksproductivity.site/legal/terms-of-use"
+                <Link
+                  href="/legal/terms-of-use"
                   className="text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
-                  target="_blank"
-                  rel="noopener noreferrer"
                 >
                   Termos de Uso
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="https://www.blacksproductivity.site/legal/privacy-policy"
+                <Link
+                  href="/legal/privacy-policy"
                   className="text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
-                  target="_blank"
-                  rel="noopener noreferrer"
                 >
                   Política de Privacidade
-                </a>
+                </Link>
               </li>
             </ul>
           </div>

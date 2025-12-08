@@ -555,7 +555,6 @@ function generateFlowPreview(nodes: Node[], edges: Edge[]) {
     const tx = (t.position.x - rect.x) * scale + pad
     const ty = (t.position.y - rect.y) * scale + pad
 
-    // prepara o dash de forma segura
     const dashArray = (() => {
       const sd = e.style?.strokeDasharray
       if (typeof sd === "string") return sd.split(/[,\s]+/).map((n) => Number(n) || 0)
@@ -593,10 +592,7 @@ function generateFlowPreview(nodes: Node[], edges: Edge[]) {
 
 // ========= PAGE =========
 export default function MindMapView() {
-  // somente "dashboard" e "editor"
   const [activeView, setActiveView] = useState<"dashboard" | "editor">("dashboard")
-
-  // painel lateral do editor
   const [activePanelTab, setActivePanelTab] = useState<"pages" | "templates" | "icons">("templates")
   const [showPanel, setShowPanel] = useState<true | false>(true)
 
@@ -605,7 +601,6 @@ export default function MindMapView() {
 
   useLocalStorage<{ nodes: Node[]; edges: Edge[]; flowName: string } | null>("work-in-progress", null)
 
-  // filtros
   const filteredIcons = useMemo(
     () => marketingIcons.filter((i) => i.label.toLowerCase().includes(searchTerm.toLowerCase())),
     [searchTerm],
@@ -653,7 +648,6 @@ export default function MindMapView() {
     safeLocalStorage.setItem("selected-template-id", id)
   }
 
-  // guardar último template escolhido
   useEffect(() => {
     if (selectedTemplateId) {
       safeLocalStorage.setItem("selected-template-id", selectedTemplateId)
@@ -662,9 +656,7 @@ export default function MindMapView() {
 
   return (
     <div className="flex h-[calc(100vh-0px)] bg-background text-foreground">
-      {/* Conteúdo em largura total (sem sidebar do app) */}
       <div className="flex-1 flex flex-col min-h-0">
-        {/* BARRA SUPERIOR: chips Dashboard / Criação de Funil / Funil com IA */}
         <div className="w-full flex items-center gap-2 px-6 py-4 border-b border-border bg-card/60 backdrop-blur">
           <Button
             variant={activeView === "dashboard" ? "default" : "outline"}
@@ -677,14 +669,12 @@ export default function MindMapView() {
             Painel
           </Button>
 
-          {/* Botão Funil com IA entre Painel e Criação de Funil */}
           <Button
             variant="outline"
             onClick={() => {
               if (activeView !== "editor") {
                 goEditor()
               }
-              // abre diretamente o modal de IA (estado está dentro do FlowBuilder via props/bridge simples abaixo)
               const ev = new CustomEvent("open-ai-funnel-dialog")
               window.dispatchEvent(ev)
             }}
@@ -706,7 +696,6 @@ export default function MindMapView() {
             Criação de Funil
           </Button>
 
-          {/* Quando estiver no editor, mostrar à direita os “tabs” horizontais para o painel */}
           {activeView === "editor" && (
             <div className="ml-auto flex items-center gap-2">
               <Button
@@ -750,12 +739,10 @@ export default function MindMapView() {
           )}
         </div>
 
-        {/* ÁREA PRINCIPAL */}
         {activeView === "dashboard" ? (
           <DashboardView onCreateProject={goEditor} />
         ) : (
           <div className="flex-1 flex min-h-0">
-            {/* Painel lateral do editor */}
             {showPanel && (
               <div className="w-[300px] bg-card/40 border-r border-border flex flex-col">
                 <div className="p-4 border-b border-border">
@@ -869,7 +856,6 @@ export default function MindMapView() {
               </div>
             )}
 
-            {/* Editor */}
             <div className="flex-1 flex flex-col min-h-0">
               <ReactFlowProvider>
                 <FlowBuilder
@@ -1150,7 +1136,6 @@ function DashboardView({ onCreateProject }: { onCreateProject: () => void }) {
                   onClick={() => loadFlow(flow)}
                 >
                   {flow.preview ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={flow.preview}
                       alt={`Miniatura do fluxo ${flow.name}`}
@@ -1158,7 +1143,6 @@ function DashboardView({ onCreateProject }: { onCreateProject: () => void }) {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={`/marketing-flow.png?height=160&width=300&query=${encodeURIComponent(
                           flow.name,
@@ -1247,7 +1231,6 @@ function FlowBuilder({
   const [defaultAnimation, setDefaultAnimation] = useState<string>("none")
   const [defaultLineColor, setDefaultLineColor] = useState<string>("#ffffff")
 
-  // IA – gerar funil automático
   const [showAIDialog, setShowAIDialog] = useState(false)
   const [aiPrompt, setAiPrompt] = useState("")
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
@@ -1256,7 +1239,6 @@ function FlowBuilder({
     { name: string; nodes: Node[]; edges: Edge[]; preview?: string }[]
   >("marketing-flows", [])
 
-  // listener pro botão "Funil com IA" da barra superior
   useEffect(() => {
     const handler = () => setShowAIDialog(true)
     window.addEventListener("open-ai-funnel-dialog", handler)
@@ -1330,7 +1312,7 @@ function FlowBuilder({
           ...(defaultLineStyle === "dashed" && { strokeDasharray: "5 5" }),
           ...(defaultLineStyle === "dotted" && { strokeDasharray: "2 2" }),
         } as CSSProperties,
-        markerEnd: undefined, // sem seta
+        markerEnd: undefined,
       }
       setEdges((eds) => addEdge(newEdge, eds))
     },
@@ -1441,7 +1423,7 @@ function FlowBuilder({
   )
 
   // ============================
-  // IA – geração automática de funil | LAYOUT ESTILO TEMPLATES PRONTOS
+  // IA – geração automática de funil | LAYOUT BEM ESPAÇADO
   // ============================
   const handleGenerateFunnelWithAI = useCallback(
     async () => {
@@ -1492,7 +1474,6 @@ function FlowBuilder({
           return
         }
 
-        // ------- 1) PARSEAR TOPO / MEIO / FUNDO --------
         type SectionName = "topo" | "meio" | "fundo"
 
         const sections: { name: SectionName; bullets: string[] }[] = []
@@ -1524,7 +1505,6 @@ function FlowBuilder({
         }
 
         if (!sections.length) {
-          // fallback: tudo como topo
           const bullets = raw
             .split("\n")
             .map((l) => l.replace(/^[-•\s]+/, "").trim())
@@ -1542,7 +1522,6 @@ function FlowBuilder({
           sections.push({ name: "topo", bullets })
         }
 
-        // ------- 2) PREPARAR ENTRADAS (bullets) --------
         type BulletEntry = {
           section: SectionName
           bullet: string
@@ -1553,7 +1532,6 @@ function FlowBuilder({
         const entries: BulletEntry[] = []
         const now = Date.now()
 
-        // pools de páginas por estágio (pra ficar parecido com templates)
         const topoPages = pageItems.filter((p: any) =>
           ["landing", "webinar", "blog", "content-creation", "social-media"].includes(
             p.pageType,
@@ -1580,8 +1558,11 @@ function FlowBuilder({
           return pool[Math.floor(Math.random() * pool.length)]
         }
 
+        const MAX_CARDS_PER_STAGE = 9
+
         sections.forEach((section, sIndex) => {
-          section.bullets.forEach((bullet, i) => {
+          const bullets = section.bullets.slice(0, MAX_CARDS_PER_STAGE)
+          bullets.forEach((bullet, i) => {
             const page = pickRandomPage(section.name)
             entries.push({
               section: section.name,
@@ -1601,15 +1582,12 @@ function FlowBuilder({
           return
         }
 
-        const rand = (min: number, max: number) =>
-          min + Math.random() * (max - min)
-
         const newNodes: Node[] = []
         const newEdges: Edge[] = []
 
-        // ------- 3) NÓ RAIZ DA CAMPANHA (igual template) --------
+        // NÓ RAIZ MAIS À ESQUERDA
         const rootId = `ia-root-${now}`
-        const rootX = -420
+        const rootX = -900
         const rootY = 0
 
         newNodes.push({
@@ -1622,7 +1600,6 @@ function FlowBuilder({
           },
         })
 
-        // ------- 4) AGRUPAR POR ESTÁGIO --------
         const bySection: Record<SectionName, BulletEntry[]> = {
           topo: [],
           meio: [],
@@ -1630,13 +1607,20 @@ function FlowBuilder({
         }
         entries.forEach((e) => bySection[e.section].push(e))
 
-        // ------- 5) LAYOUT ESTILO TEMPLATE (HORIZONTAL, LIMPO) --------
-        // 3 "faixas" horizontais: topo, meio, fundo
+        // CENTROS MUITO MAIS DISTANTES (3 COLUNAS)
         const stageCenters: Record<SectionName, { x: number; y: number }> = {
-          topo: { x: 0, y: -140 },
-          meio: { x: 360, y: 40 },
-          fundo: { x: 760, y: 200 },
+          topo: { x: -300, y: -250 },
+          meio: { x: 400, y: 0 },
+          fundo: { x: 1100, y: 250 },
         }
+
+        // AQUI É O PULO DO GATO:
+        // - gapX bem grande
+        // - rowGapY grande
+        // - no máx 2 cards por linha => força abrir verticalmente.
+        const gapX = 420
+        const rowGapY = 280
+        const maxPerRow = 2
 
         const positions = new Map<string, { x: number; y: number }>()
 
@@ -1645,13 +1629,9 @@ function FlowBuilder({
           if (!group.length) return
 
           const center = stageCenters[sec]
-          const gapX = 260
-          const maxPerRow = 3 // no máximo 3 cards por linha pra ficar parecido com template
           const total = group.length
           const rows = Math.ceil(total / maxPerRow)
 
-          // altura vertical da "faixa" do estágio
-          const rowGapY = 180
           const totalHeight = (rows - 1) * rowGapY
           const startY = center.y - totalHeight / 2
 
@@ -1661,21 +1641,17 @@ function FlowBuilder({
 
             const rowY = startY + row * rowGapY
 
-            const itemsInThisRow = Math.min(
-              maxPerRow,
-              total - row * maxPerRow,
-            )
+            const itemsInThisRow = Math.min(maxPerRow, total - row * maxPerRow)
             const rowWidth = (itemsInThisRow - 1) * gapX
             const startX = center.x - rowWidth / 2
 
-            const x = startX + col * gapX + rand(-20, 20)
-            const y = rowY + rand(-10, 10)
+            const x = startX + col * gapX
+            const y = rowY
 
             positions.set(entry.nodeId, { x, y })
           })
         })
 
-        // ------- 6) CRIAR NODES DE PÁGINA --------
         entries.forEach((entry) => {
           const pos = positions.get(entry.nodeId) || { x: 0, y: 0 }
           newNodes.push({
@@ -1690,7 +1666,6 @@ function FlowBuilder({
           })
         })
 
-        // ------- 7) CONEXÕES ENTRE PÁGINAS (FLOW LIMPO) --------
         const connectSequential = (ids: string[]) => {
           for (let i = 0; i < ids.length - 1; i++) {
             newEdges.push({
@@ -1702,13 +1677,11 @@ function FlowBuilder({
           }
         }
 
-        // liga dentro de cada estágio, horizontalmente
         ;(["topo", "meio", "fundo"] as SectionName[]).forEach((sec) => {
           const ids = bySection[sec].map((e) => e.nodeId)
           if (ids.length > 1) connectSequential(ids)
         })
 
-        // liga estágios entre si (fim do topo -> início do meio -> início do fundo)
         if (bySection.topo.length && bySection.meio.length) {
           newEdges.push({
             id: `edge-topo-meio-${now}`,
@@ -1726,7 +1699,6 @@ function FlowBuilder({
           })
         }
 
-        // raiz -> primeiro nó de cada estágio
         ;(["topo", "meio", "fundo"] as SectionName[]).forEach((sec) => {
           const group = bySection[sec]
           if (!group.length) return
@@ -1738,7 +1710,7 @@ function FlowBuilder({
           })
         })
 
-        // ------- 8) ÍCONES – EM COLUNAS LIMPAS, SEM SOBREPOR --------
+        // ÍCONES EM COLUNAS, SEM SOBREPOR
         const acquisitionIcons = marketingIcons.filter(
           (i) => i.category === "acquisition",
         )
@@ -1752,17 +1724,16 @@ function FlowBuilder({
 
         const shuffled = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5)
 
-        // coluna de ícones de aquisição do lado esquerdo do topo
         if (acquisitionIcons.length && bySection.topo.length) {
-          const baseX = rootX + 160
+          const baseX = rootX + 230
           const baseY = stageCenters.topo.y
-          const gapY = 70
+          const gapYIcons = 90
 
           const iconsToUse = shuffled(acquisitionIcons).slice(
             0,
             Math.min(7, acquisitionIcons.length),
           )
-          const startY = baseY - ((iconsToUse.length - 1) * gapY) / 2
+          const startY = baseY - ((iconsToUse.length - 1) * gapYIcons) / 2
           const targetId = bySection.topo[0].nodeId
 
           iconsToUse.forEach((iconDef, i) => {
@@ -1770,7 +1741,7 @@ function FlowBuilder({
             newNodes.push({
               id: nodeId,
               type: "marketingIconNode",
-              position: { x: baseX, y: startY + i * gapY },
+              position: { x: baseX, y: startY + i * gapYIcons },
               data: {
                 label: iconDef.label,
                 color: iconDef.color,
@@ -1786,17 +1757,16 @@ function FlowBuilder({
           })
         }
 
-        // coluna de ícones de comunicação no meio
         if (commIcons.length && bySection.meio.length) {
-          const baseX = stageCenters.meio.x - 220
+          const baseX = stageCenters.meio.x - 260
           const baseY = stageCenters.meio.y - 40
-          const gapY = 70
+          const gapYIcons = 90
 
           const iconsToUse = shuffled(commIcons).slice(
             0,
             Math.min(5, commIcons.length),
           )
-          const startY = baseY - ((iconsToUse.length - 1) * gapY) / 2
+          const startY = baseY - ((iconsToUse.length - 1) * gapYIcons) / 2
           const targetId = bySection.meio[0].nodeId
 
           iconsToUse.forEach((iconDef, i) => {
@@ -1804,7 +1774,7 @@ function FlowBuilder({
             newNodes.push({
               id: nodeId,
               type: "marketingIconNode",
-              position: { x: baseX, y: startY + i * gapY },
+              position: { x: baseX, y: startY + i * gapYIcons },
               data: {
                 label: iconDef.label,
                 color: iconDef.color,
@@ -1820,21 +1790,20 @@ function FlowBuilder({
           })
         }
 
-        // ícones de vendas / customer no final do funil
         const endStage: SectionName =
           bySection.fundo.length ? "fundo" : bySection.meio.length ? "meio" : "topo"
         const endGroup = bySection[endStage]
         if ((salesIcons.length || customerIcons.length) && endGroup.length) {
           const endCenter = stageCenters[endStage]
-          const baseX = endCenter.x + 260
+          const baseX = endCenter.x + 320
           const baseY = endCenter.y
-          const gapY = 70
+          const gapYIcons = 90
 
           const iconsToUse = shuffled([...salesIcons, ...customerIcons]).slice(
             0,
             Math.min(6, salesIcons.length + customerIcons.length),
           )
-          const startY = baseY - ((iconsToUse.length - 1) * gapY) / 2
+          const startY = baseY - ((iconsToUse.length - 1) * gapYIcons) / 2
           const targetId = endGroup[endGroup.length - 1].nodeId
 
           iconsToUse.forEach((iconDef, i) => {
@@ -1842,7 +1811,7 @@ function FlowBuilder({
             newNodes.push({
               id: nodeId,
               type: "marketingIconNode",
-              position: { x: baseX, y: startY + i * gapY },
+              position: { x: baseX, y: startY + i * gapYIcons },
               data: {
                 label: iconDef.label,
                 color: iconDef.color,
@@ -1858,7 +1827,6 @@ function FlowBuilder({
           })
         }
 
-        // ------- 9) APLICAR NO FLOW --------
         setNodes(newNodes)
         setEdges(enhanceEdges(newEdges))
         setFlowName("Funil gerado com IA")
@@ -1868,7 +1836,7 @@ function FlowBuilder({
         toast({
           title: "Funil gerado com IA",
           description:
-            "Layout organizado no estilo dos templates prontos: blocos horizontais, ícones alinhados e nada sobreposto.",
+            "Layout bem aberto: topo, meio e fundo separados, sem os cards todos colados.",
         })
       } catch (err: any) {
         console.error("Erro ao gerar funil com IA:", err)
@@ -1971,7 +1939,6 @@ function FlowBuilder({
     }
   }, [selectedTemplateId, setNodes, setEdges, toast])
 
-  // ações de zoom / fit nos botões do canto
   const handleZoomIn = useCallback(() => {
     if (!reactFlowInstance) return
     reactFlowInstance.zoomIn?.()
@@ -1996,7 +1963,6 @@ function FlowBuilder({
 
   return (
     <>
-      {/* Toolbar do editor */}
       <div className="h-16 border-b border-border flex items-center justify-between px-4 bg-card/40 backdrop-blur">
         <div className="flex items-center gap-2">
           <Input
@@ -2009,7 +1975,6 @@ function FlowBuilder({
           </span>
         </div>
         <div className="flex items-center gap-1">
-          {/* Botão IA */}
           <Button
             variant="outline"
             size="sm"
@@ -2091,7 +2056,7 @@ function FlowBuilder({
           fitView
           minZoom={0.2}
           maxZoom={2}
-          fitViewOptions={{ padding: 100 }}
+          fitViewOptions={{ padding: 0.4 }}
           nodesDraggable
           elementsSelectable
           selectNodesOnDrag={false}
@@ -2123,7 +2088,6 @@ function FlowBuilder({
             size={1}
           />
 
-          {/* controles simples no canto */}
           <div className="absolute bottom-4 right-4 flex flex-col bg-card/90 border border-border rounded shadow-lg overflow-hidden">
             <Button
               variant="ghost"
@@ -2151,7 +2115,6 @@ function FlowBuilder({
             </Button>
           </div>
 
-          {/* painel de configuração das arestas selecionadas */}
           {showEdgeSettings && (
             <Panel
               position="top-right"
@@ -2168,7 +2131,6 @@ function FlowBuilder({
         </ReactFlow>
       </div>
 
-      {/* Dialog: Criar Funil com IA */}
       <Dialog open={showAIDialog} onOpenChange={setShowAIDialog}>
         <DialogContent className="bg-card border border-border max-w-lg">
           <DialogHeader>

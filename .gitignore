@@ -14,3 +14,8 @@ docs/*-setup.md
 .DS_Store
 components/views/calendar-view.tsx
 tree.txt
+env.local
+app/.DS_Store
+components/.DS_Store
+lib/.DS_Store
+public/.DS_Store

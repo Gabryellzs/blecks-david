@@ -402,3 +402,33 @@ body {
 .dark .neon-meta-border .neon-meta-inner {
   background: #0f1012 !important; /* cinza bem escuro */
 }
+
+/* =========================================
+   📱 MOBILE SAFE AREAS (Correção Automática do Notch)
+   ========================================= */
+@layer utilities {
+  /*
+     TENTA CORRIGIR O MENU AUTOMATICAMENTE:
+     Isso vai aplicar o padding em qualquer tag <header>, <nav>
+     ou elementos que usem "fixed" e "top-0" do Tailwind.
+  */
+  header, nav, .fixed.top-0 {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Aplica também para o rodapé se tiver */
+  .fixed.bottom-0 {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Classes utilitárias caso precise forçar manualmente */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .h-safe-screen {
+    height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}
